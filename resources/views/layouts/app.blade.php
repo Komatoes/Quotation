@@ -29,16 +29,19 @@
                         </a>
                         <ul class="menu-sub">
                             <li class="menu-item">
-                                <button class="btn btn-primary" data-bs-toggle="offcanvas"
+                                <a href="javascript:void(0);" class="menu-link" data-bs-toggle="offcanvas"
                                     data-bs-target="#add-new-quotation">
-                                    <i class="ti ti-plus me-1"></i> Create Quotation
-                                </button>
+                                    Create Quotation
+                                </a>
                             </li>
 
-                            <li class="menu-item"><a href="{{ url('/quotations/drafts') }}" class="menu-link">Drafts</a>
+                            <li class="menu-item">
+                                <a href="{{ url('/quotations/drafts') }}" class="menu-link">Drafts</a>
                             </li>
-                            <li class="menu-item"><a href="{{ url('/quotations/archives') }}"
-                                    class="menu-link">Archives</a></li>
+
+                            <li class="menu-item">
+                                <a href="{{ url('/quotations/archives') }}" class="menu-link">Archives</a>
+                            </li>
                         </ul>
                     </li>
 
@@ -129,7 +132,6 @@
                     <textarea name="description" class="form-control" rows="3" placeholder="Details about the quotation"></textarea>
                 </div>
 
-                <!-- Client Info (fields instead of dropdown) -->
                 <div class="col-sm-6">
                     <label class="form-label">Client First Name</label>
                     <input type="text" name="client_first_name" class="form-control" placeholder="John" required>
@@ -166,37 +168,39 @@
 </html>
 
 <script>
-class AddQuotation {
-    add(id) {
-        const form = document.getElementById(id);
-        const formData = new FormData(form);
+    class AddQuotation {
+        add(id) {
+            const form = document.getElementById(id);
+            const formData = new FormData(form);
 
-        fetch("/add-quotation", {
-            method: "POST",
-            headers: { "X-CSRF-TOKEN": '{{ csrf_token() }}' },
-            body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                Swal.fire({
-                    title: data.message,
-                    icon: "success"
-                }).then(() => {
-                    // redirect to quotation details page with ID
-                    window.location.href = "/quotations/" + data.quotation.id;
+            fetch("/add-quotation", {
+                    method: "POST",
+                    headers: {
+                        "X-CSRF-TOKEN": '{{ csrf_token() }}'
+                    },
+                    body: formData
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({
+                            title: data.message,
+                            icon: "success"
+                        }).then(() => {
+                            // redirect to quotation details page with ID
+                            window.location.href = "/quotations/" + data.quotation.id;
+                        });
+                    } else {
+                        Swal.fire("Failed to create quotation", "", "error");
+                    }
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    Swal.fire("Something went wrong!", "", "error");
                 });
-            } else {
-                Swal.fire("Failed to create quotation", "", "error");
-            }
-        })
-        .catch(error => {
-            console.error("Error:", error);
-            Swal.fire("Something went wrong!", "", "error");
-        });
+        }
     }
-}
-const addQuotation = new AddQuotation();
+    const addQuotation = new AddQuotation();
 </script>
 
 

@@ -34,6 +34,8 @@ Route::post('/create-user', [AuthenticationController::class, 'createUser']);
 
 Route::post('/add-quotation', [QuotationController::class, 'store']);
 
+Route::post('/add-materialquotation', [QuotationController::class, 'addMaterials']);
+
 Route::post('/add-material', [MaterialController::class, 'store'])->name('materials.store');
 
 Route::get('/materials', [MaterialController::class, 'index'])->name('materials.index');
