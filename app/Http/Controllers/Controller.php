@@ -18,5 +18,14 @@ class Controller extends BaseController
             }
     }
 
+        public function viewCreateQuote()
+    {
+        if (auth()->check()) {
+            return view('quotation'); // or any page
+        } else{
+            return view('login'); // login/home page
+            }
+    }
+
     use AuthorizesRequests, DispatchesJobs, ValidatesRequests;
 }

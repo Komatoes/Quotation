@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthenticationController;
+use App\Http\Controllers\ClientsController;
 use App\Http\Controllers\QuotationController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MaterialController;
@@ -16,6 +17,11 @@ use App\Http\Controllers\MaterialController;
 | contains the "web" middleware group. Now create something great!
 |
 */
+
+Route::get('/', [QuotationController::class, 'viewHome']);
+
+Route::get('/quotations/{id}', [QuotationController::class, 'show'])->name('quotations.show');
+
 Route::get('/login', [AuthenticationController::class, 'viewLogin']);
 
 Route::post('/login-user', [AuthenticationController::class, 'loginUser']);
@@ -26,8 +32,7 @@ Route::get('/register', [AuthenticationController::class, 'viewRegister']);
 
 Route::post('/create-user', [AuthenticationController::class, 'createUser']);
 
-Route::get('/', [QuotationController::class, 'viewHome']);
-
+Route::post('/add-quotation', [QuotationController::class, 'store']);
 
 Route::post('/add-material', [MaterialController::class, 'store'])->name('materials.store');
 
@@ -35,7 +40,9 @@ Route::get('/materials', [MaterialController::class, 'index'])->name('materials.
 
 Route::get('/materials/list', [MaterialController::class, 'list'])->name('materials.list');
 
-
-Route::put('/materials/{material}', [MaterialController::class, 'update'])->name('materials.update');
+Route::post('/materials/update/{id}', [MaterialController::class, 'update'])->name('materials.update');
 
 Route::delete('/materials/{material}', [MaterialController::class, 'destroy'])->name('materials.destroy');
+
+
+

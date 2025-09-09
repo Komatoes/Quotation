@@ -1,3 +1,4 @@
+{{-- resources/views/materials.blade.php --}}
 {{-- Do NOT extend layout here since it's included inside dashboard --}}
 <div class="col-12">
     <div class="card">
@@ -12,7 +13,6 @@
             <table class="table" id="materials-table">
                 <thead>
                     <tr>
-                        <th>ID</th>
                         <th>Name</th>
                         <th>Description</th>
                         <th>Quantity</th>
@@ -29,10 +29,56 @@
     </div>
 </div>
 
-{{-- Include Add Material Form --}}
-@include('include.forms.material-form')
+
+<!-- Offcanvas: Add Material -->
+<div class="offcanvas offcanvas-end" id="add-new-material">
+    <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title">Add Material</h5>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body flex-grow-1">
+        <form class="add-new-record pt-0 row g-2" id="form-add-material">
+            <div class="col-sm-12 form-control-validation">
+                <label class="form-label" for="materialName">Material Name</label>
+                <input type="text" id="materialName" class="form-control" name="name" placeholder="Cement"
+                    required />
+            </div>
+
+            <div class="col-sm-12 form-control-validation">
+                <label class="form-label" for="materialDescription">Description</label>
+                <textarea id="materialDescription" name="description" class="form-control" rows="2"
+                    placeholder="Optional description"></textarea>
+            </div>
+
+            <div class="col-sm-6 form-control-validation">
+                <label class="form-label" for="materialQuantity">Quantity</label>
+                <input type="number" id="materialQuantity" name="quantity" class="form-control" placeholder="0"
+                    min="0" />
+            </div>
+
+            <div class="col-sm-6 form-control-validation">
+                <label class="form-label" for="materialUnit">Unit</label>
+                <input type="text" id="materialUnit" name="unit" class="form-control"
+                    placeholder="pcs / kg / liters" />
+            </div>
+
+            <div class="col-sm-12 form-control-validation">
+                <label class="form-label" for="materialPrice">Unit Price</label>
+                <input type="number" id="materialPrice" name="unit_price" class="form-control" placeholder="250.00"
+                    step="0.01" />
+            </div>
+
+            <div class="col-sm-12">
+                <button type="submit" class="btn btn-primary data-submit me-sm-4 me-1">Save</button>
+                <button type="reset" class="btn btn-outline-secondary" data-bs-dismiss="offcanvas">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 
 <script>
+    // Handles table loading
     class MaterialHandler {
         constructor() {
             this.loadMaterials();
@@ -48,19 +94,17 @@
 
                     materials.forEach(material => {
                         const row = `
-                    <tr>
-                        <td>${material.id}</td>
-                        <td>${material.name}</td>
-                        <td>${material.description || ''}</td>
-                        <td>${material.quantity}</td>
-                        <td>${material.unit}</td>
-                        <td>${material.unit_price}</td>
-                        <td>
-                            <button class="btn btn-sm btn-warning">Edit</button>
-                            <button class="btn btn-sm btn-danger">Delete</button>
-                        </td>
-                    </tr>
-                `;
+                            <tr>
+                                <td>${material.name}</td>
+                                <td>${material.description || ''}</td>
+                                <td>${material.quantity}</td>
+                                <td>${material.unit}</td>
+                                <td>${material.unit_price}</td>
+                                <td>
+                                <button class="btn btn-sm btn-warning edit-btn" data-id="${material.id}">Edit</button>
+                                </td>
+                            </tr>
+                        `;
                         tbody.insertAdjacentHTML("beforeend", row);
                     });
                 })
@@ -68,6 +112,81 @@
         }
     }
 
-    // Initialize
-    const materialHandler = new MaterialHandler();
+    // Initialize and make it global
+    window.materialHandler = new MaterialHandler();
 </script>
+
+<script>
+class EditMaterial {
+    constructor() {
+        document.addEventListener("click", (e) => {
+            if (e.target.classList.contains("edit-btn")) {
+                const id = e.target.dataset.id;
+                this.openEditForm(id);
+            }
+        });
+    }
+
+    openEditForm(id) {
+        // Fetch material data and populate form
+        fetch(`/materials/list`)
+            .then(res => res.json())
+            .then(materials => {
+                const material = materials.find(m => m.id == id);
+                if (!material) return;
+
+                // Fill form
+                document.getElementById("materialName").value = material.name;
+                document.getElementById("materialDescription").value = material.description || '';
+                document.getElementById("materialQuantity").value = material.quantity;
+                document.getElementById("materialUnit").value = material.unit;
+                document.getElementById("materialPrice").value = material.unit_price;
+
+                // Change submit behavior
+                const form = document.getElementById("form-add-material");
+                form.onsubmit = (e) => {
+                    e.preventDefault();
+                    this.update(id, new FormData(form));
+                };
+
+                // Open offcanvas
+                const offcanvas = new bootstrap.Offcanvas(document.getElementById('add-new-material'));
+                offcanvas.show();
+            });
+    }
+
+    update(id, formData) {
+        fetch(`/materials/update/${id}`, {
+            method: "POST",
+            headers: { "X-CSRF-TOKEN": '{{ csrf_token() }}' },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            Swal.fire({
+                title: data.message,
+                icon: "success"
+            });
+
+            const offcanvas = bootstrap.Offcanvas.getInstance(document.getElementById('add-new-material'));
+            if (offcanvas) offcanvas.hide();
+
+            if (window.materialHandler) {
+                window.materialHandler.loadMaterials();
+            }
+        })
+        .catch(error => {
+            console.error("Error:", error);
+            Swal.fire("Something went wrong!", "", "error");
+        });
+    }
+}
+
+// Initialize once
+if (!window.editMaterial) {
+    window.editMaterial = new EditMaterial();
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+

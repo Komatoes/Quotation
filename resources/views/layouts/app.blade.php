@@ -28,8 +28,13 @@
                             <div>Quotations</div>
                         </a>
                         <ul class="menu-sub">
-                            <li class="menu-item"><a href="{{ url('/quotations/create') }}" class="menu-link">Create
-                                    Quotation</a></li>
+                            <li class="menu-item">
+                                <button class="btn btn-primary" data-bs-toggle="offcanvas"
+                                    data-bs-target="#add-new-quotation">
+                                    <i class="ti ti-plus me-1"></i> Create Quotation
+                                </button>
+                            </li>
+
                             <li class="menu-item"><a href="{{ url('/quotations/drafts') }}" class="menu-link">Drafts</a>
                             </li>
                             <li class="menu-item"><a href="{{ url('/quotations/archives') }}"
@@ -103,6 +108,97 @@
 
     @include('include.scripts')
 
+
+    <!-- Offcanvas: Create Quotation -->
+    <div class="offcanvas offcanvas-end" id="add-new-quotation">
+        <div class="offcanvas-header border-bottom">
+            <h5 class="offcanvas-title">Add Quotation</h5>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body flex-grow-1">
+            <form class="row g-2" id="form-add-quotation" onsubmit="return false">
+
+                <!-- Quotation Info -->
+                <div class="col-sm-12">
+                    <label class="form-label">Subject</label>
+                    <input type="text" name="subject" class="form-control" placeholder="Renovation Project" required>
+                </div>
+
+                <div class="col-sm-12">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="3" placeholder="Details about the quotation"></textarea>
+                </div>
+
+                <!-- Client Info (fields instead of dropdown) -->
+                <div class="col-sm-6">
+                    <label class="form-label">Client First Name</label>
+                    <input type="text" name="client_first_name" class="form-control" placeholder="John" required>
+                </div>
+
+                <div class="col-sm-6">
+                    <label class="form-label">Client Last Name</label>
+                    <input type="text" name="client_last_name" class="form-control" placeholder="Doe" required>
+                </div>
+
+                <div class="col-sm-6">
+                    <label class="form-label">Contact No</label>
+                    <input type="text" name="client_contact_no" class="form-control" placeholder="09123456789"
+                        required>
+                </div>
+
+                <div class="col-sm-12">
+                    <label class="form-label">Address</label>
+                    <textarea name="client_address" class="form-control" rows="2" placeholder="123 Main St, City" required></textarea>
+                </div>
+
+                <!-- Buttons -->
+                <div class="col-sm-12">
+                    <button type="submit" class="btn btn-primary me-2"
+                        onclick="addQuotation.add('form-add-quotation')">Save</button>
+                    <button type="reset" class="btn btn-outline-secondary"
+                        data-bs-dismiss="offcanvas">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </body>
 
 </html>
+
+<script>
+class AddQuotation {
+    add(id) {
+        const form = document.getElementById(id);
+        const formData = new FormData(form);
+
+        fetch("/add-quotation", {
+            method: "POST",
+            headers: { "X-CSRF-TOKEN": '{{ csrf_token() }}' },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    title: data.message,
+                    icon: "success"
+                }).then(() => {
+                    // redirect to quotation details page with ID
+                    window.location.href = "/quotations/" + data.quotation.id;
+                });
+            } else {
+                Swal.fire("Failed to create quotation", "", "error");
+            }
+        })
+        .catch(error => {
+            console.error("Error:", error);
+            Swal.fire("Something went wrong!", "", "error");
+        });
+    }
+}
+const addQuotation = new AddQuotation();
+</script>
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

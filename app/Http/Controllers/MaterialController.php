@@ -58,9 +58,8 @@ class MaterialController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Material $material)
+    public function update(Request $request, $id)
     {
-        // Validate input
         $validated = $request->validate([
             'name'        => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -69,7 +68,7 @@ class MaterialController extends Controller
             'unit_price'  => 'required|numeric|min:0',
         ]);
 
-        // Update material
+        $material = Material::findOrFail($id);
         $material->update($validated);
 
         return response()->json([
