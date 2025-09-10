@@ -17,7 +17,7 @@ return new class extends Migration
             $table->id(); // Primary Key
             $table->string('subject'); // Quotation title or subject
             $table->text('description'); // Quotation description
-            $table->foreignId('employee_id')->constrained('service_providers'); // Who created it
+            $table->foreignId('employee_id')->constrained('users'); // Who created it
             $table->foreignId('client_id')->constrained('clients'); // Client
             $table->foreignId('status_id')->constrained('quotation_status'); // Quotation status
             $table->decimal('labor_fee', 10, 2)->default(0); // Labor cost

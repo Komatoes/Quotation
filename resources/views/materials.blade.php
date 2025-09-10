@@ -15,7 +15,6 @@
                     <tr>
                         <th>Name</th>
                         <th>Description</th>
-                        <th>Quantity</th>
                         <th>Unit</th>
                         <th>Unit Price</th>
                         <th>Action</th>
@@ -48,12 +47,6 @@
                 <label class="form-label" for="materialDescription">Description</label>
                 <textarea id="materialDescription" name="description" class="form-control" rows="2"
                     placeholder="Optional description"></textarea>
-            </div>
-
-            <div class="col-sm-6 form-control-validation">
-                <label class="form-label" for="materialQuantity">Quantity</label>
-                <input type="number" id="materialQuantity" name="quantity" class="form-control" placeholder="0"
-                    min="0" />
             </div>
 
             <div class="col-sm-6 form-control-validation">
@@ -97,7 +90,6 @@
                             <tr>
                                 <td>${material.name}</td>
                                 <td>${material.description || ''}</td>
-                                <td>${material.quantity}</td>
                                 <td>${material.unit}</td>
                                 <td>${material.unit_price}</td>
                                 <td>
@@ -117,76 +109,191 @@
 </script>
 
 <script>
-class EditMaterial {
-    constructor() {
-        document.addEventListener("click", (e) => {
-            if (e.target.classList.contains("edit-btn")) {
-                const id = e.target.dataset.id;
-                this.openEditForm(id);
-            }
-        });
+    class AddMaterial {
+        constructor() {
+            this.form = document.getElementById("form-add-material");
+            // Ensure we don't double-run when EditMaterial sets custom onsubmit
+            this.form.addEventListener("submit", (e) => this.onSubmit(e));
+            // Reset editing flag when offcanvas closes
+            const off = document.getElementById('add-new-material');
+            off.addEventListener('hidden.bs.offcanvas', () => {
+                this.resetForm();
+            });
+        }
+
+        onSubmit(e) {
+            e.preventDefault();
+            // If editing, skip create (EditMaterial will handle)
+            if (this.form.dataset.editing === "true") return;
+
+            const formData = new FormData(this.form);
+            fetch('/add-material', {
+                    method: 'POST',
+                    headers: {
+                        "X-CSRF-TOKEN": '{{ csrf_token() }}'
+                    },
+                    body: formData,
+                    credentials: "same-origin"
+                })
+                .then(res => {
+                    return res.json().then(json => ({
+                        ok: res.ok,
+                        json
+                    }));
+                })
+                .then(({
+                    ok,
+                    json
+                }) => {
+                    if (!ok) {
+                        const msg = json.message || (json.errors ? Object.values(json.errors).flat().join(
+                            '\n') : 'Failed to add material');
+                        Swal.fire({
+                            title: msg,
+                            icon: 'error'
+                        });
+                        return;
+                    }
+
+                    Swal.fire({
+                        title: json.message || 'Material added',
+                        icon: 'success'
+                    });
+                    const offcanvas = bootstrap.Offcanvas.getInstance(document.getElementById(
+                        'add-new-material'));
+                    if (offcanvas) offcanvas.hide();
+
+                    if (window.materialHandler) window.materialHandler.loadMaterials();
+                    this.resetForm();
+                })
+                .catch(err => {
+                    console.error("Error adding material:", err);
+                    Swal.fire("Something went wrong!", "", "error");
+                });
+        }
+
+        resetForm() {
+            this.form.reset();
+            delete this.form.dataset.editing;
+            // restore default submit behavior
+            this.form.onsubmit = null;
+        }
     }
 
-    openEditForm(id) {
-        // Fetch material data and populate form
-        fetch(`/materials/list`)
-            .then(res => res.json())
-            .then(materials => {
-                const material = materials.find(m => m.id == id);
-                if (!material) return;
+    // Initialize add handler once
+    if (!window.addMaterial) {
+        window.addMaterial = new AddMaterial();
+    }
+</script>
 
-                // Fill form
-                document.getElementById("materialName").value = material.name;
-                document.getElementById("materialDescription").value = material.description || '';
-                document.getElementById("materialQuantity").value = material.quantity;
-                document.getElementById("materialUnit").value = material.unit;
-                document.getElementById("materialPrice").value = material.unit_price;
+<script>
+    class EditMaterial {
+        constructor() {
+            document.addEventListener("click", (e) => {
+                if (e.target.classList.contains("edit-btn")) {
+                    const id = e.target.dataset.id;
+                    this.openEditForm(id);
+                }
+            });
 
-                // Change submit behavior
+            // When offcanvas closes, ensure editing flag cleared
+            document.getElementById('add-new-material').addEventListener('hidden.bs.offcanvas', () => {
                 const form = document.getElementById("form-add-material");
-                form.onsubmit = (e) => {
-                    e.preventDefault();
-                    this.update(id, new FormData(form));
-                };
-
-                // Open offcanvas
-                const offcanvas = new bootstrap.Offcanvas(document.getElementById('add-new-material'));
-                offcanvas.show();
+                if (form) {
+                    delete form.dataset.editing;
+                    form.onsubmit = null;
+                }
             });
+        }
+
+        openEditForm(id) {
+            // Fetch material data and populate form
+            fetch(`/materials/list`)
+                .then(res => res.json())
+                .then(materials => {
+                    const material = materials.find(m => m.id == id);
+                    if (!material) return;
+
+                    // Fill form
+                    document.getElementById("materialName").value = material.name;
+                    document.getElementById("materialDescription").value = material.description || '';
+                    document.getElementById("materialUnit").value = material.unit;
+                    document.getElementById("materialPrice").value = material.unit_price;
+
+                    // Mark form as editing so AddMaterial handler will skip create
+                    const form = document.getElementById("form-add-material");
+                    form.dataset.editing = "true";
+
+                    // Change submit behavior to update
+                    form.onsubmit = (e) => {
+                        e.preventDefault();
+                        this.update(id, new FormData(form));
+                    };
+
+                    // Open offcanvas
+                    const offcanvas = new bootstrap.Offcanvas(document.getElementById('add-new-material'));
+                    offcanvas.show();
+                });
+        }
+
+        update(id, formData) {
+            fetch(`/materials/update/${id}`, {
+                    method: "POST",
+                    headers: {
+                        "X-CSRF-TOKEN": '{{ csrf_token() }}'
+                    },
+                    body: formData,
+                    credentials: "same-origin"
+                })
+                .then(res => res.json().then(json => ({
+                    ok: res.ok,
+                    json
+                })))
+                .then(({
+                    ok,
+                    json
+                }) => {
+                    if (!ok) {
+                        const msg = json.message || (json.errors ? Object.values(json.errors).flat().join(
+                            '\n') : 'Update failed');
+                        Swal.fire({
+                            title: msg,
+                            icon: 'error'
+                        });
+                        return;
+                    }
+
+                    Swal.fire({
+                        title: json.message || 'Updated',
+                        icon: "success"
+                    });
+
+                    const offcanvas = bootstrap.Offcanvas.getInstance(document.getElementById(
+                        'add-new-material'));
+                    if (offcanvas) offcanvas.hide();
+
+                    // clear editing flag and restore form
+                    const form = document.getElementById("form-add-material");
+                    if (form) {
+                        delete form.dataset.editing;
+                        form.onsubmit = null;
+                    }
+
+                    if (window.materialHandler) {
+                        window.materialHandler.loadMaterials();
+                    }
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    Swal.fire("Something went wrong!", "", "error");
+                });
+        }
     }
 
-    update(id, formData) {
-        fetch(`/materials/update/${id}`, {
-            method: "POST",
-            headers: { "X-CSRF-TOKEN": '{{ csrf_token() }}' },
-            body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
-            Swal.fire({
-                title: data.message,
-                icon: "success"
-            });
-
-            const offcanvas = bootstrap.Offcanvas.getInstance(document.getElementById('add-new-material'));
-            if (offcanvas) offcanvas.hide();
-
-            if (window.materialHandler) {
-                window.materialHandler.loadMaterials();
-            }
-        })
-        .catch(error => {
-            console.error("Error:", error);
-            Swal.fire("Something went wrong!", "", "error");
-        });
+    // Initialize once
+    if (!window.editMaterial) {
+        window.editMaterial = new EditMaterial();
     }
-}
-
-// Initialize once
-if (!window.editMaterial) {
-    window.editMaterial = new EditMaterial();
-}
 </script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-

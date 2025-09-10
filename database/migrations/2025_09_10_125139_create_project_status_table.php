@@ -13,9 +13,11 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('quotation_materials', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
+        Schema::create('project_status', function (Blueprint $table) {
+            $table->id(); // Primary Key (id)
+            $table->string('status_name', 50); // e.g. Ongoing, Completed, Archived
+            $table->text('description')->nullable(); // Optional details
+            $table->timestamps(); // created_at and updated_at
         });
     }
 
@@ -26,6 +28,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('quotation_materials');
+        Schema::dropIfExists('project_status');
     }
 };

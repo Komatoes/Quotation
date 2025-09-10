@@ -28,23 +28,25 @@ class MaterialController extends Controller
      */
     public function store(Request $request)
     {
-        // Validate input
-        $validated = $request->validate([
-            'name'        => 'required|string|max:255',
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'quantity'    => 'required|integer|min:0',
-            'unit'        => 'required|string|max:50',
-            'unit_price'  => 'required|numeric|min:0',
+            'unit' => 'required|string|max:50',
+            'unit_price' => 'required|numeric',
         ]);
 
-        // Create material
-        $material = Material::create($validated);
+        $material = Material::create([
+            'name' => $data['name'],
+            'description' => $data['description'] ?? null,
+            'unit' => $data['unit'],
+            'unit_price' => $data['unit_price'],
+        ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Material added successfully!',
-            'data'    => $material
-        ]);
+            'message' => 'Material created',
+            'material' => $material
+        ], 201);
     }
 
     /**
@@ -63,7 +65,6 @@ class MaterialController extends Controller
         $validated = $request->validate([
             'name'        => 'required|string|max:255',
             'description' => 'nullable|string',
-            'quantity'    => 'required|integer|min:0',
             'unit'        => 'required|string|max:50',
             'unit_price'  => 'required|numeric|min:0',
         ]);

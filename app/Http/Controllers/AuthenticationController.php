@@ -23,15 +23,25 @@ class AuthenticationController extends Controller
     }
     public function createUser(Request $request)
     {
-        User::create([
-            'name' => $request->username,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
+        $data = $request->validate([
+            'username' => 'required|string|max:255',
+            'email'    => 'required|email|unique:users,email',
+            'password' => 'required|string|min:6',
         ]);
+
+        $user = User::create([
+            'name' => $data['username'],
+            'email' => $data['email'],
+            'password' => Hash::make($data['password']),
+        ]);
+
+        // Log the user in immediately
+        auth()->login($user);
 
         return response()->json([
             'success' => true,
-            'message' => 'WOW ' . $request->username
+            'message' => 'Welcome ' . $user->name,
+            'redirect' => url('/'),
         ]);
     }
     public function loginUser(Request $request)

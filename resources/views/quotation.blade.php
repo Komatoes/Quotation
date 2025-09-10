@@ -47,9 +47,11 @@
                                     <td>{{ $mat->name }}</td>
                                     <td>{{ $mat->pivot->quantity }} {{ $mat->unit }}</td>
                                     <td>₱{{ number_format($mat->unit_price, 2) }}</td>
-                                    <td class="line-total">₱{{ number_format($mat->unit_cost * $mat->pivot->quantity, 2) }}
+                                    <td class="line-total">₱{{ number_format($mat->unit_price * $mat->pivot->quantity, 2) }}
                                     </td>
                                     <td class="text-center">
+
+
                                         <!-- Edit Button -->
                                         <a href="#" class="text-primary me-2 edit-material"
                                             data-id="{{ $mat->pivot->id }}" data-quot="{{ $quotation->id }}"
@@ -176,7 +178,7 @@
                         <tr>
                             <td>${material.name}</td>
                             <td>${material.unit}</td>
-                            <td>₱${parseFloat(material.unit_price).toFixed(2)}</td>
+                            <td>₱${parseFloat(material.unit_cost).toFixed(2)}</td>
                             <td>
                                 <input type="number" 
                                        name="quantity[${material.id}]" 
@@ -207,34 +209,159 @@
 
     <script>
         class AddMaterialtoQuotation {
-            add(id) {
+            async add(id) {
                 const form = document.getElementById(id);
+                if (!form) return;
                 const formData = new FormData(form);
 
-                fetch("/add-materialquotation", {
+                try {
+                    const res = await fetch("/add-materialquotation", {
                         method: "POST",
+                        credentials: "same-origin",
                         headers: {
-                            "X-CSRF-TOKEN": '{{ csrf_token() }}'
+                            "X-CSRF-TOKEN": '{{ csrf_token() }}',
+                            "Accept": "application/json"
                         },
                         body: formData
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.success) {
-                            Swal.fire({
-                                title: data.message,
-                                icon: "success"
-                            });
-                        } else {
-                            Swal.fire("Failed to create quotation", "", "error");
-                        }
-                    })
-                    .catch(error => {
-                        console.error("Error:", error);
-                        Swal.fire("Something went wrong!", "", "error");
                     });
+
+                    const data = await res.json();
+
+                    if (!res.ok || !data.success) {
+                        const msg = data.message || (data.errors ? Object.values(data.errors).flat().join('\n') :
+                            'Failed to add materials');
+                        Swal.fire({
+                            title: msg,
+                            icon: 'error'
+                        });
+                        return;
+                    }
+
+                    // Rebuild main materials table tbody from server response
+                    const tbody = document.querySelector('.card-datatable table.table tbody');
+                    if (tbody && Array.isArray(data.materials)) {
+                        tbody.innerHTML = '';
+                        data.materials.forEach(m => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                        <td>${m.name}</td>
+                        <td>${m.quantity} ${m.unit ?? ''}</td>
+                        <td>₱${parseFloat(m.unit_price).toFixed(2)}</td>
+                        <td class="line-total">₱${parseFloat(m.line_total).toFixed(2)}</td>
+                        <td class="text-center">
+                            <a href="#" class="text-danger delete-material" data-id="${m.pivot_id}" data-quot="${data.quotation_id ?? '{{ $quotation->id }}'}">
+                                <i class="ti ti-trash"></i>
+                            </a>
+                        </td>
+                    `;
+                            tbody.appendChild(tr);
+                        });
+                    }
+
+                    // Update fees and grand total if provided
+                    if (data.labor_fee !== undefined) {
+                        const laborInput = document.getElementById('laborFee');
+                        if (laborInput) laborInput.value = parseFloat(data.labor_fee).toFixed(2);
+                    }
+                    if (data.delivery_fee !== undefined) {
+                        const deliveryInput = document.getElementById('deliveryFee');
+                        if (deliveryInput) deliveryInput.value = parseFloat(data.delivery_fee).toFixed(2);
+                    }
+                    if (data.grand_total !== undefined) {
+                        const grandTotalEl = document.getElementById('grandTotal');
+                        if (grandTotalEl) grandTotalEl.textContent = '₱' + parseFloat(data.grand_total).toFixed(2);
+                    }
+
+                    const modalEl = document.getElementById('addMatModal');
+                    const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                    modal.hide();
+
+                    document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+                    document.body.classList.remove('modal-open');
+                    document.body.style.removeProperty('overflow');
+                    document.body.style.removeProperty('padding-right');
+
+                    Swal.fire({
+                        title: data.message || 'Materials updated',
+                        icon: 'success',
+                        timer: 1000,
+                        showConfirmButton: false,
+                        timerProgressBar: true,
+                        position: 'center'
+                    });;
+
+                } catch (error) {
+                    console.error("Error adding materials:", error);
+                    Swal.fire("Something went wrong!", "", "error");
+                }
             }
         }
         const addMaterialQuotation = new AddMaterialtoQuotation();
     </script>
+
+<script>
+class DeleteMaterialFromQuotation {
+    constructor(selector) {
+        this.selector = selector;
+        this.bindEvents();
+    }
+
+    bindEvents() {
+        document.addEventListener("click", (e) => {
+            const btn = e.target.closest(this.selector);
+            if (!btn) return;
+
+            e.preventDefault();
+            this.deleteMaterial(btn.dataset.quot, btn.dataset.id, btn.closest("tr"));
+        });
+    }
+
+    async deleteMaterial(quotationId, pivotId, rowEl) {
+        const confirm = await Swal.fire({
+            title: "Are you sure?",
+            text: "This material will be removed from the quotation",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#d33",
+            cancelButtonColor: "#6c757d",
+            confirmButtonText: "Yes, delete it"
+        });
+
+        if (!confirm.isConfirmed) return;
+
+        try {
+            const res = await fetch(`/quotation-materials/${pivotId}`, {
+                method: "DELETE",
+                headers: {
+                    "X-CSRF-TOKEN": '{{ csrf_token() }}',
+                    "Accept": "application/json"
+                }
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                Swal.fire("Deleted!", data.message, "success");
+
+                // Remove row from DOM
+                if (rowEl) rowEl.remove();
+
+                // Update grand total if server sends it back
+                if (data.grand_total !== undefined) {
+                    document.getElementById("grandTotal").textContent =
+                        "₱" + parseFloat(data.grand_total).toFixed(2);
+                }
+            } else {
+                Swal.fire("Error", data.message || "Failed to delete", "error");
+            }
+        } catch (error) {
+            console.error("Error deleting material:", error);
+            Swal.fire("Something went wrong!", "", "error");
+        }
+    }
+}
+
+// 🔹 Initialize
+const deleteMaterialHandler = new DeleteMaterialFromQuotation(".delete-material");
+</script>
 @endsection

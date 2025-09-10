@@ -6,6 +6,7 @@ use App\Models\Quotation;
 use App\Models\Material;
 use App\Models\QuotationMaterial;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class QuotationController extends Controller
 {
@@ -51,47 +52,91 @@ class QuotationController extends Controller
      */
     public function addMaterials(Request $request)
     {
-        $quotationId = $request->input('quot_id');
-        $selectedMaterials = $request->input('selected', []);
+        $data = $request->validate([
+            'quot_id'   => 'required|integer|exists:quotations,id',
+            'selected'  => 'required|array',
+            'quantity'  => 'array', // quantities keyed by material id
+        ]);
+
+        $quotation = Quotation::with(['materials'])->findOrFail($data['quot_id']);
+        $selected = $data['selected'];
         $quantities = $request->input('quantity', []);
 
-        if (!$quotationId || empty($selectedMaterials)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No materials selected or invalid quotation.'
-            ]);
-        }
+        foreach ($selected as $matId) {
+            $qty = isset($quantities[$matId]) ? (int) $quantities[$matId] : 1;
+            if ($qty < 1) $qty = 1;
 
-        foreach ($selectedMaterials as $materialId) {
-            $quantityToAdd = $quantities[$materialId] ?? 1;
-
-            $material = \App\Models\Material::find($materialId);
-            if (!$material) continue;
-
-            // Check if material already exists in the quotation
-            $existing = \App\Models\QuotationMaterial::where('quotation_id', $quotationId)
-                ->where('material_id', $materialId)
-                ->first();
-
+            $existing = $quotation->materials()->wherePivot('material_id', $matId)->first();
             if ($existing) {
-                // Update quantity
-                $existing->quantity += $quantityToAdd;
-                $existing->unit_cost = $material->unit_price; // ensure latest cost
-                $existing->save();
+                $newQty = ($existing->pivot->quantity ?? 0) + $qty;
+                $quotation->materials()->updateExistingPivot($matId, [
+                    'quantity'  => $newQty,
+                    'unit_cost' => $existing->unit_price, // or fetch fresh from Material
+                ]);
             } else {
-                // Insert new row
-                \App\Models\QuotationMaterial::create([
-                    'quotation_id' => $quotationId,
-                    'material_id'  => $materialId,
-                    'quantity'     => $quantityToAdd,
-                    'unit_cost'    => $material->unit_price,
+                $material = Material::find($matId);
+                $quotation->materials()->attach($matId, [
+                    'quantity'  => $qty,
+                    'unit_cost' => $material ? $material->unit_price : 0,
                 ]);
             }
         }
 
+        // reload relation
+        $quotation->load('materials');
+
+        // build response data
+        $materials = $quotation->materials->map(function ($m) {
+            return [
+                'id' => $m->id,
+                'name' => $m->name,
+                'unit' => $m->unit,
+                'unit_price' => (float) $m->pivot->unit_cost, // ✅ keep historical price
+                'quantity' => (int) ($m->pivot->quantity ?? 0),
+                'line_total' => (float) ($m->pivot->unit_cost * ($m->pivot->quantity ?? 0)), // ✅ correct total
+                'pivot_id' => $m->pivot->id ?? null,
+            ];
+        })->values();
+
+        $materialsSubtotal = $materials->sum('line_total');
+        $labor = (float) ($quotation->labor_fee ?? 0);
+        $delivery = (float) ($quotation->delivery_fee ?? 0);
+        $grandTotal = $materialsSubtotal + $labor + $delivery;
+
         return response()->json([
             'success' => true,
-            'message' => 'Materials added to quotation successfully.'
+            'message' => 'Materials added/updated on quotation',
+            'materials' => $materials,
+            'subtotal' => $materialsSubtotal,
+            'labor_fee' => $labor,
+            'delivery_fee' => $delivery,
+            'grand_total' => $grandTotal,
+        ]);
+    }
+
+    public function destroy($pivotId)
+    {
+        $pivot = DB::table('quotation_materials')->where('id', $pivotId)->first();
+
+        if (!$pivot) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Material not found in quotation.'
+            ], 404);
+        }
+
+        DB::table('quotation_materials')->where('id', $pivotId)->delete();
+
+        // Optionally recalc grand total
+        $quotation = Quotation::with('materials')->find($pivot->quotation_id);
+        $grandTotal = $quotation->materials->sum(function ($m) {
+            return $m->pivot->unit_cost * $m->pivot->quantity;
+        }) + $quotation->labor_fee + $quotation->delivery_fee;
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Material deleted successfully.',
+            'grand_total' => $grandTotal
         ]);
     }
 }

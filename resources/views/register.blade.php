@@ -57,28 +57,35 @@
 
 <script>
     class Register {
-        createUser(id) {
+        async createUser(id) {
             const form = document.getElementById(id);
             const formData = new FormData(form);
 
-            fetch("/create-user", {
+            try {
+                const res = await fetch("/create-user", {
                     method: "POST",
                     headers: {
-                        "X-CSRF-TOKEN": '{{ csrf_token() }}'
+                        "X-CSRF-TOKEN": '{{ csrf_token() }}',
+                        "Accept": "application/json"
                     },
                     body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    Swal.fire({
-                        title: data.message,
-                        icon: "success",
-                        draggable: true
-                    });
-                })
-                .catch(error => {
-                    console.error("Error:", error);
                 });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    const err = data.message || (data.errors ? Object.values(data.errors).flat().join('\n') : 'Registration failed');
+                    Swal.fire({ title: err, icon: 'error' });
+                    return;
+                }
+
+                Swal.fire({ title: data.message, icon: "success", timer: 900, showConfirmButton: false })
+                    .then(() => { window.location.href = data.redirect || '/'; });
+
+            } catch (error) {
+                console.error("Error:", error);
+                Swal.fire({ title: 'Network error', text: error.message, icon: 'error' });
+            }
         }
     }
 

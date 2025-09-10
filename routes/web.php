@@ -38,6 +38,10 @@ Route::post('/add-materialquotation', [QuotationController::class, 'addMaterials
 
 Route::post('/add-material', [MaterialController::class, 'store'])->name('materials.store');
 
+Route::delete('/quotation-materials/{pivotId}', [QuotationController::class, 'destroy'])->name('quotation-materials.destroy');
+
+Route::post('/edit-material', [MaterialController::class, 'update'])->name('materials.update');
+
 Route::get('/materials', [MaterialController::class, 'index'])->name('materials.index');
 
 Route::get('/materials/list', [MaterialController::class, 'list'])->name('materials.list');
