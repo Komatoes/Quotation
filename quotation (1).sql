@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 10, 2025 at 08:08 PM
+-- Generation Time: Sep 12, 2025 at 06:55 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -42,7 +42,8 @@ CREATE TABLE `clients` (
 --
 
 INSERT INTO `clients` (`id`, `first_name`, `last_name`, `contact_no`, `address`, `created_at`, `updated_at`) VALUES
-(1, 'Laurel', 'Baxter', '100', 'Itaque et ipsam minu', '2025-09-10 05:59:55', '2025-09-10 05:59:55');
+(1, 'Laurel', 'Baxter', '100', 'Itaque et ipsam minu', '2025-09-10 05:59:55', '2025-09-10 05:59:55'),
+(2, 'Ralph', 'Oconnor', '902', 'Id et culpa quas m', '2025-09-11 19:55:24', '2025-09-11 19:55:24');
 
 -- --------------------------------------------------------
 
@@ -81,8 +82,8 @@ CREATE TABLE `materials` (
 --
 
 INSERT INTO `materials` (`id`, `name`, `description`, `unit_price`, `unit`, `created_at`, `updated_at`) VALUES
-(1, 'Chiquita Hendrix', 'asdasd', 100.00, 'pcs', '2025-09-10 05:51:49', '2025-09-10 05:59:30'),
-(2, 'Axel Herman', 'Consectetur sunt ali', 307.00, 'Qui eiusmod culpa e', '2025-09-10 05:51:56', '2025-09-10 05:51:56');
+(1, 'Your mom', 'Heavy', 100000.00, 'KG', '2025-09-10 05:51:49', '2025-09-11 19:54:47'),
+(2, 'Bakal', 'metla', 200.00, 'Litre', '2025-09-10 05:51:56', '2025-09-11 19:55:12');
 
 -- --------------------------------------------------------
 
@@ -181,7 +182,8 @@ CREATE TABLE `quotations` (
 --
 
 INSERT INTO `quotations` (`id`, `subject`, `description`, `employee_id`, `client_id`, `status_id`, `labor_fee`, `delivery_fee`, `created_at`, `updated_at`) VALUES
-(1, 'Dolore quia in molli', 'Saepe sed enim rerum', 2, 1, 4, 0.00, 0.00, '2025-09-10 05:59:55', '2025-09-10 05:59:55');
+(1, 'Dolore quia in molli', 'Saepe sed enim rerum', 2, 1, 1, 0.00, 0.00, '2025-09-10 05:59:55', '2025-09-11 19:39:35'),
+(2, 'Porro sint architec', 'Sint inventore at m', 2, 2, 1, 0.00, 0.00, '2025-09-11 19:55:24', '2025-09-11 19:55:24');
 
 -- --------------------------------------------------------
 
@@ -204,7 +206,9 @@ CREATE TABLE `quotation_materials` (
 --
 
 INSERT INTO `quotation_materials` (`id`, `quotation_id`, `material_id`, `unit_cost`, `quantity`, `created_at`, `updated_at`) VALUES
-(5, 1, 1, 100.00, 1, NULL, NULL);
+(7, 1, 1, 100.00, 3, NULL, NULL),
+(8, 1, 2, 307.00, 2, NULL, NULL),
+(9, 2, 1, 100000.00, 100000, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -218,6 +222,15 @@ CREATE TABLE `quotation_status` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `quotation_status`
+--
+
+INSERT INTO `quotation_status` (`id`, `status_name`, `created_at`, `updated_at`) VALUES
+(1, 'Draft', '2025-09-11 16:45:43', '2025-09-11 16:45:43'),
+(2, 'Approved', '2025-09-11 16:45:43', '2025-09-11 16:45:43'),
+(3, 'Rejected', '2025-09-11 16:45:43', '2025-09-11 16:45:43');
 
 -- --------------------------------------------------------
 
@@ -330,7 +343,7 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `clients`
 --
 ALTER TABLE `clients`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `failed_jobs`
@@ -366,19 +379,19 @@ ALTER TABLE `projects`
 -- AUTO_INCREMENT for table `quotations`
 --
 ALTER TABLE `quotations`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `quotation_materials`
 --
 ALTER TABLE `quotation_materials`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `quotation_status`
 --
 ALTER TABLE `quotation_status`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `users`
