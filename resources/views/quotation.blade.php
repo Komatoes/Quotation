@@ -45,20 +45,20 @@
                             @foreach ($materials as $mat)
                                 <tr>
                                     <td>{{ $mat->name }}</td>
-                                    <td>{{ $mat->pivot->quantity }} {{ $mat->unit }}</td>
+                                    <td>
+                                        <input type="number" class="form-control update-quantity"
+                                            data-pivot="{{ $mat->pivot->id }}" data-quot="{{ $quotation->id }}"
+                                            value="{{ $mat->pivot->quantity }}" min="1"
+                                            style="width: 80px; display:inline-block;">
+                                        <span>{{ $mat->unit }}</span>
+                                    </td>
+
+
                                     <td>₱{{ number_format($mat->unit_price, 2) }}</td>
-                                    <td class="line-total">₱{{ number_format($mat->unit_price * $mat->pivot->quantity, 2) }}
+                                    <td class="line-total">
+                                        ₱{{ number_format($mat->unit_price * $mat->pivot->quantity, 2) }}
                                     </td>
                                     <td class="text-center">
-
-
-                                        <!-- Edit Button -->
-                                        <a href="#" class="text-primary me-2 edit-material"
-                                            data-id="{{ $mat->pivot->id }}" data-quot="{{ $quotation->id }}"
-                                            data-qty="{{ $mat->pivot->quantity }}">
-                                            <i class="ti ti-edit"></i>
-                                        </a>
-
                                         <!-- Delete Button -->
                                         <a href="#" class="text-danger delete-material"
                                             data-id="{{ $mat->pivot->id }}" data-quot="{{ $quotation->id }}">
@@ -299,69 +299,174 @@
         const addMaterialQuotation = new AddMaterialtoQuotation();
     </script>
 
-<script>
-class DeleteMaterialFromQuotation {
-    constructor(selector) {
-        this.selector = selector;
-        this.bindEvents();
-    }
-
-    bindEvents() {
-        document.addEventListener("click", (e) => {
-            const btn = e.target.closest(this.selector);
-            if (!btn) return;
-
-            e.preventDefault();
-            this.deleteMaterial(btn.dataset.quot, btn.dataset.id, btn.closest("tr"));
-        });
-    }
-
-    async deleteMaterial(quotationId, pivotId, rowEl) {
-        const confirm = await Swal.fire({
-            title: "Are you sure?",
-            text: "This material will be removed from the quotation",
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonColor: "#d33",
-            cancelButtonColor: "#6c757d",
-            confirmButtonText: "Yes, delete it"
-        });
-
-        if (!confirm.isConfirmed) return;
-
-        try {
-            const res = await fetch(`/quotation-materials/${pivotId}`, {
-                method: "DELETE",
-                headers: {
-                    "X-CSRF-TOKEN": '{{ csrf_token() }}',
-                    "Accept": "application/json"
-                }
-            });
-
-            const data = await res.json();
-
-            if (res.ok && data.success) {
-                Swal.fire("Deleted!", data.message, "success");
-
-                // Remove row from DOM
-                if (rowEl) rowEl.remove();
-
-                // Update grand total if server sends it back
-                if (data.grand_total !== undefined) {
-                    document.getElementById("grandTotal").textContent =
-                        "₱" + parseFloat(data.grand_total).toFixed(2);
-                }
-            } else {
-                Swal.fire("Error", data.message || "Failed to delete", "error");
+    <script>
+        class DeleteMaterialFromQuotation {
+            constructor(selector) {
+                this.selector = selector;
+                this.bindEvents();
             }
-        } catch (error) {
-            console.error("Error deleting material:", error);
-            Swal.fire("Something went wrong!", "", "error");
-        }
-    }
-}
 
-// 🔹 Initialize
-const deleteMaterialHandler = new DeleteMaterialFromQuotation(".delete-material");
-</script>
+            bindEvents() {
+                document.addEventListener("click", (e) => {
+                    const btn = e.target.closest(this.selector);
+                    if (!btn) return;
+
+                    e.preventDefault();
+                    this.deleteMaterial(btn.dataset.quot, btn.dataset.id, btn.closest("tr"));
+                });
+            }
+
+            async deleteMaterial(quotationId, pivotId, rowEl) {
+                const confirm = await Swal.fire({
+                    title: "Are you sure?",
+                    text: "This material will be removed from the quotation",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonColor: "#d33",
+                    cancelButtonColor: "#6c757d",
+                    confirmButtonText: "Yes, delete it"
+                });
+
+                if (!confirm.isConfirmed) return;
+
+                try {
+                    const res = await fetch(`/quotation-materials/${pivotId}`, {
+                        method: "DELETE",
+                        headers: {
+                            "X-CSRF-TOKEN": '{{ csrf_token() }}',
+                            "Accept": "application/json"
+                        }
+                    });
+
+                    const data = await res.json();
+
+                    if (res.ok && data.success) {
+                        Swal.fire("Deleted!", data.message, "success");
+
+                        // Remove row from DOM
+                        if (rowEl) rowEl.remove();
+
+                        // Update grand total if server sends it back
+                        if (data.grand_total !== undefined) {
+                            document.getElementById("grandTotal").textContent =
+                                "₱" + parseFloat(data.grand_total).toFixed(2);
+                        }
+                    } else {
+                        Swal.fire("Error", data.message || "Failed to delete", "error");
+                    }
+                } catch (error) {
+                    console.error("Error deleting material:", error);
+                    Swal.fire("Something went wrong!", "", "error");
+                }
+            }
+        }
+
+        const deleteMaterialHandler = new DeleteMaterialFromQuotation(".delete-material");
+    </script>
+
+    <script>
+        class QuantityUpdater {
+            constructor(selector) {
+                this.selector = selector;
+                this.init();
+            }
+
+            init() {
+                document.querySelectorAll(this.selector).forEach(input => {
+                    input.addEventListener("change", (e) => this.update(e));
+                });
+            }
+
+            update(e) {
+                const input = e.target;
+                const newQty = input.value;
+                const pivotId = input.dataset.pivot;
+                const quotId = input.dataset.quot;
+
+                fetch(`/quotation-materials/update-quantity`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content
+                        },
+                        body: JSON.stringify({
+                            pivot_id: pivotId,
+                            quot_id: quotId,
+                            quantity: newQty
+                        })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            // ✅ update line total in UI
+                            input.closest("tr").querySelector(".line-total").textContent =
+                                `₱${data.line_total.toFixed(2)}`;
+                        } else {
+                            Swal.fire("Update failed", data.message || "", "error");
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Error:", error);
+                        Swal.fire("Something went wrong!", "", "error");
+                    });
+            }
+        }
+
+        new QuantityUpdater(".update-quantity");
+    </script>
+    <script>
+        class QuotationStatusHandler {
+            constructor() {
+                this.csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute("content");
+                this.bindEvents();
+            }
+
+            bindEvents() {
+                document.querySelectorAll("#approveBtn, #saveDraftBtn, #rejectBtn").forEach(button => {
+                    button.addEventListener("click", (e) => {
+                        e.preventDefault();
+                        const quotationId = button.dataset.quot;
+                        let statusId = null;
+
+                        if (button.id === "saveDraftBtn") statusId = 1;
+                        if (button.id === "approveBtn") statusId = 2;
+                        if (button.id === "rejectBtn") statusId = 3;
+
+                        if (statusId) {
+                            this.updateStatus(quotationId, statusId);
+                        }
+                    });
+                });
+            }
+
+            async updateStatus(quotationId, statusId) {
+                try {
+                    const res = await fetch(`/quotations/${quotationId}/status`, {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRF-TOKEN": this.csrfToken
+                        },
+                        body: JSON.stringify({
+                            status_id: statusId
+                        })
+                    });
+
+                    const data = await res.json();
+                    if (data.success) {
+                        Swal.fire("Success", data.message, "success");
+                    } else {
+                        Swal.fire("Error", data.message, "error");
+                    }
+                } catch (error) {
+                    console.error("Error updating quotation status:", error);
+                    Swal.fire("Error", "Something went wrong!", "error");
+                }
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            new QuotationStatusHandler();
+        });
+    </script>
 @endsection

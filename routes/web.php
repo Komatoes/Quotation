@@ -40,6 +40,10 @@ Route::post('/add-material', [MaterialController::class, 'store'])->name('materi
 
 Route::delete('/quotation-materials/{pivotId}', [QuotationController::class, 'destroy'])->name('quotation-materials.destroy');
 
+Route::post('/quotation-materials/update-quantity', [QuotationController::class, 'updateQuantity'])->name('quotation-materials.updateQuantity');
+
+Route::put('/quotations/{id}/status', [QuotationController::class, 'updateStatus'])->name('quotations.updateStatus');
+
 Route::post('/edit-material', [MaterialController::class, 'update'])->name('materials.update');
 
 Route::get('/materials', [MaterialController::class, 'index'])->name('materials.index');
@@ -49,6 +53,3 @@ Route::get('/materials/list', [MaterialController::class, 'list'])->name('materi
 Route::post('/materials/update/{id}', [MaterialController::class, 'update'])->name('materials.update');
 
 Route::delete('/materials/{material}', [MaterialController::class, 'destroy'])->name('materials.destroy');
-
-
-

@@ -26,7 +26,7 @@ class QuotationController extends Controller
             'description'  => $request->description ?? '',
             'employee_id'  => auth()->id(),
             'client_id'    => $client->id,
-            'status_id'    => 4, // Ongoing by default
+            'status_id'    => 1, // default status
             'labor_fee'    => $request->labor_fee ?? 0,
             'delivery_fee' => $request->delivery_fee ?? 0,
         ]);
@@ -139,4 +139,56 @@ class QuotationController extends Controller
             'grand_total' => $grandTotal
         ]);
     }
+
+public function updateQuantity(Request $request)
+{
+    $request->validate([
+        'pivot_id' => 'required|integer',
+        'quot_id' => 'required|integer',
+        'quantity' => 'required|numeric|min:1',
+    ]);
+
+    // Find the pivot row in quotation_materials
+    $quotation = Quotation::findOrFail($request->quot_id);
+    $material = $quotation->materials()->wherePivot('id', $request->pivot_id)->first();
+
+    if (!$material) {
+        return response()->json(['success' => false, 'message' => 'Material not found in quotation.']);
+    }
+
+    // Update the pivot table (quantity only)
+    $quotation->materials()->updateExistingPivot($material->id, [
+        'quantity' => $request->quantity,
+    ]);
+
+    // Recalculate line total
+    $lineTotal = $material->pivot->unit_cost * $request->quantity;
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Quantity updated successfully.',
+        'line_total' => $lineTotal,
+    ]);
+}
+public function updateStatus(Request $request, $id)
+{
+    $quotation = Quotation::findOrFail($id);
+
+    $request->validate([
+        'status_id' => 'required|integer|exists:quotation_status,id'
+    ]);
+
+    $quotation->status_id = $request->status_id; // ✅ use status_id
+    $quotation->save();
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Quotation status updated successfully!',
+        'status_id' => $quotation->status_id
+    ]);
+}
+
+
+
+
 }

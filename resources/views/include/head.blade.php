@@ -7,6 +7,8 @@
     <title>Demo: DataTables - Tables | Vuexy - Bootstrap Dashboard PRO</title>
 
     <meta name="description" content="" />
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
 
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="../../assets/img/favicon/favicon.ico" />
