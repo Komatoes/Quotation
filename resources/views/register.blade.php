@@ -1,4 +1,4 @@
-<!doctype html>
+{{-- <!doctype html>
 
 <html lang="en" class="layout-wide customizer-hide" dir="ltr" data-skin="default" data-assets-path="../../assets/"
     data-template="vertical-menu-template-no-customizer" data-bs-theme="light">
@@ -212,4 +212,4 @@
 
 </body>
 
-</html>
+</html> --}}
