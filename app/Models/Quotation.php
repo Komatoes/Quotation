@@ -25,6 +25,18 @@ class Quotation extends Model
         return $this->belongsTo(Client::class);
     }
 
+    // Relation to employee (user who created it)
+    public function employee()
+    {
+        return $this->belongsTo(User::class, 'employee_id');
+    }
+
+    // Relation to status
+    public function status()
+    {
+        return $this->belongsTo(Quotationstatus::class, 'status_id');
+    }
+
     // Relation to materials (many-to-many via quotation_materials)
     public function materials()
     {

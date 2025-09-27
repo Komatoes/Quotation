@@ -469,4 +469,62 @@
             new QuotationStatusHandler();
         });
     </script>
+    <script>
+        class FeeUpdater {
+            constructor(selector) {
+                this.selector = selector;
+                this.csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+                this.init();
+            }
+
+            init() {
+                document.querySelectorAll(this.selector).forEach(input => {
+                    input.addEventListener("change", (e) => this.updateFee(e));
+                });
+            }
+
+            async updateFee(e) {
+                const input = e.target;
+                const value = input.value;
+                const field = input.dataset.field; // "labor_fee" or "delivery_fee"
+                const quotationId = "{{ $quotation->id }}";
+
+                try {
+                    const res = await fetch(`/quotations/${quotationId}/update-fee`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRF-TOKEN": this.csrfToken
+                        },
+                        body: JSON.stringify({
+                            field: field,
+                            value: value
+                        })
+                    });
+
+                    const data = await res.json();
+                    if (data.success) {
+                        document.getElementById("grandTotal").textContent =
+                            "₱" + parseFloat(data.grand_total).toFixed(2);
+
+                        Swal.fire({
+                            title: data.message,
+                            icon: "success",
+                            timer: 800,
+                            showConfirmButton: false
+                        });
+                    } else {
+                        Swal.fire("Error", data.message || "Update failed", "error");
+                    }
+                } catch (error) {
+                    console.error("Error updating fee:", error);
+                    Swal.fire("Error", "Something went wrong!", "error");
+                }
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            new FeeUpdater(".fee-input");
+        });
+    </script>
 @endsection

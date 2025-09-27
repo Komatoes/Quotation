@@ -6,72 +6,72 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
-class AuthenticationController extends Controller
-{
-    public function viewLogin()
-    {
-        if (!auth()->check()) {
-            return view('login'); // or any page
-        } else {
-            return view('dashboard'); // login/home page
-        }
-    }
+// class AuthenticationController extends Controller
+// {
+//     public function viewLogin()
+//     {
+//         if (!auth()->check()) {
+//             return view('login'); // or any page
+//         } else {
+//             return view('dashboard'); // login/home page
+//         }
+//     }
 
-    public function viewRegister()
-    {
-        return view('register');
-    }
-    public function createUser(Request $request)
-    {
-        $data = $request->validate([
-            'username' => 'required|string|max:255',
-            'email'    => 'required|email|unique:users,email',
-            'password' => 'required|string|min:6',
-        ]);
+//     public function viewRegister()
+//     {
+//         return view('register');
+//     }
+//     public function createUser(Request $request)
+//     {
+//         $data = $request->validate([
+//             'username' => 'required|string|max:255',
+//             'email'    => 'required|email|unique:users,email',
+//             'password' => 'required|string|min:6',
+//         ]);
 
-        $user = User::create([
-            'name' => $data['username'],
-            'email' => $data['email'],
-            'password' => Hash::make($data['password']),
-        ]);
+//         $user = User::create([
+//             'name' => $data['username'],
+//             'email' => $data['email'],
+//             'password' => Hash::make($data['password']),
+//         ]);
 
-        // Log the user in immediately
-        auth()->login($user);
+//         // Log the user in immediately
+//         auth()->login($user);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Welcome ' . $user->name,
-            'redirect' => url('/'),
-        ]);
-    }
-    public function loginUser(Request $request)
-    {
-        // Find the user by email
-        $user = User::where('name', $request->email_username)->first();
+//         return response()->json([
+//             'success' => true,
+//             'message' => 'Welcome ' . $user->name,
+//             'redirect' => url('/'),
+//         ]);
+//     }
+//     public function loginUser(Request $request)
+//     {
+//         // Find the user by email
+//         $user = User::where('name', $request->email_username)->first();
 
-        if (!$user) {
-            return response()->json(['message' => 'User not found'], 404);
-        }
+//         if (!$user) {
+//             return response()->json(['message' => 'User not found'], 404);
+//         }
 
-        // Check if password matches
-        if (Hash::check($request->password, $user->password)) {
+//         // Check if password matches
+//         if (Hash::check($request->password, $user->password)) {
 
-            auth()->login($user);
-            return response()->json(['success' => true]);
-        } else {
+//             auth()->login($user);
+//             return response()->json(['success' => true]);
+//         } else {
 
-            return response()->json(['message' => 'Invalid password'], 401);
-        }
-    }
-    public function logoutUser(Request $request)
-    {
-        auth()->logout(); // Log the current user out
+//             return response()->json(['message' => 'Invalid password'], 401);
+//         }
+//     }
+//     public function logoutUser(Request $request)
+//     {
+//         auth()->logout(); // Log the current user out
 
-        // Optional: invalidate the session
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+//         // Optional: invalidate the session
+//         $request->session()->invalidate();
+//         $request->session()->regenerateToken();
 
-        // OR if redirecting normally:
-        return redirect('/login');
-    }
-}
+//         // OR if redirecting normally:
+//         return redirect('/login');
+//     }
+// }

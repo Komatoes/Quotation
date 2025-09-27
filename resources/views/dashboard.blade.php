@@ -51,6 +51,24 @@
                 </div>
             </section>
 
+            <section id="current-projects" class="mt-5">
+                <div class="row">
+                    @include('currentprojects')
+                </div>
+            </section>
+
+            <section id="draft-quotations" class="mt-5">
+                <div class="row">
+                    @include('draftprojects')
+                </div>
+            </section>
+
+            <section id="rejected-quotations" class="mt-5">
+                <div class="row">
+                    @include('rejectedprojects')
+                </div>
+            </section>
+
         </div>
     </div>
 @endsection

@@ -10,6 +10,10 @@ use Illuminate\Support\Facades\DB;
 
 class QuotationController extends Controller
 {
+    public function viewHome()
+    {
+        return view('dashboard');
+    }
     public function store(Request $request)
     {
         // Create client
@@ -24,7 +28,7 @@ class QuotationController extends Controller
         $quotation = \App\Models\Quotation::create([
             'subject'      => $request->subject,
             'description'  => $request->description ?? '',
-            'employee_id'  => auth()->id(),
+            'employee_id'  => 1,
             'client_id'    => $client->id,
             'status_id'    => 1, // default status
             'labor_fee'    => $request->labor_fee ?? 0,
@@ -140,55 +144,101 @@ class QuotationController extends Controller
         ]);
     }
 
-public function updateQuantity(Request $request)
-{
-    $request->validate([
-        'pivot_id' => 'required|integer',
-        'quot_id' => 'required|integer',
-        'quantity' => 'required|numeric|min:1',
-    ]);
+    public function updateQuantity(Request $request)
+    {
+        $request->validate([
+            'pivot_id' => 'required|integer',
+            'quot_id' => 'required|integer',
+            'quantity' => 'required|numeric|min:1',
+        ]);
 
-    // Find the pivot row in quotation_materials
-    $quotation = Quotation::findOrFail($request->quot_id);
-    $material = $quotation->materials()->wherePivot('id', $request->pivot_id)->first();
+        // Find the pivot row in quotation_materials
+        $quotation = Quotation::findOrFail($request->quot_id);
+        $material = $quotation->materials()->wherePivot('id', $request->pivot_id)->first();
 
-    if (!$material) {
-        return response()->json(['success' => false, 'message' => 'Material not found in quotation.']);
+        if (!$material) {
+            return response()->json(['success' => false, 'message' => 'Material not found in quotation.']);
+        }
+
+        // Update the pivot table (quantity only)
+        $quotation->materials()->updateExistingPivot($material->id, [
+            'quantity' => $request->quantity,
+        ]);
+
+        // Recalculate line total
+        $lineTotal = $material->pivot->unit_cost * $request->quantity;
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Quantity updated successfully.',
+            'line_total' => $lineTotal,
+        ]);
+    }
+    public function updateStatus(Request $request, $id)
+    {
+        $quotation = Quotation::findOrFail($id);
+
+        $request->validate([
+            'status_id' => 'required|integer|exists:quotation_status,id'
+        ]);
+
+        $quotation->status_id = $request->status_id; // ✅ use status_id
+        $quotation->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Quotation status updated successfully!',
+            'status_id' => $quotation->status_id
+        ]);
     }
 
-    // Update the pivot table (quantity only)
-    $quotation->materials()->updateExistingPivot($material->id, [
-        'quantity' => $request->quantity,
-    ]);
+    public function updateFee(Request $request, $id)
+    {
+        $request->validate([
+            'field' => 'required|in:labor_fee,delivery_fee',
+            'value' => 'required|numeric|min:0'
+        ]);
 
-    // Recalculate line total
-    $lineTotal = $material->pivot->unit_cost * $request->quantity;
+        $quotation = Quotation::findOrFail($id);
 
-    return response()->json([
-        'success' => true,
-        'message' => 'Quantity updated successfully.',
-        'line_total' => $lineTotal,
-    ]);
-}
-public function updateStatus(Request $request, $id)
-{
-    $quotation = Quotation::findOrFail($id);
+        $quotation->{$request->field} = $request->value;
+        $quotation->save();
 
-    $request->validate([
-        'status_id' => 'required|integer|exists:quotation_status,id'
-    ]);
+        // ✅ Recalculate grand total
+        $materialsTotal = $quotation->materials->sum(fn($m) => $m->pivot->unit_cost * $m->pivot->quantity);
+        $grandTotal = $materialsTotal + $quotation->labor_fee + $quotation->delivery_fee;
 
-    $quotation->status_id = $request->status_id; // ✅ use status_id
-    $quotation->save();
+        return response()->json([
+            'success' => true,
+            'message' => ucfirst(str_replace('_', ' ', $request->field)) . ' updated successfully',
+            'grand_total' => $grandTotal,
+        ]);
+    }
 
-    return response()->json([
-        'success' => true,
-        'message' => 'Quotation status updated successfully!',
-        'status_id' => $quotation->status_id
-    ]);
-}
+    public function drafts()
+    {
+        $drafts = Quotation::with(['client', 'employee', 'status'])
+            ->where('status_id', 1) // Draft
+            ->get();
 
+        return response()->json($drafts);
+    }
 
+    public function approved()
+    {
+        $approved = Quotation::with(['client', 'employee', 'status'])
+            ->where('status_id', 2) // Approved
+            ->get();
 
+        return response()->json($approved);
+    }
 
+    public function rejected()
+    {
+        $rejected = Quotation::with(['client', 'employee', 'status'])
+            ->where('status_id', 3) // Rejected
+            ->get();
+
+        return response()->json($rejected);
+    }
 }
