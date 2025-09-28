@@ -29,8 +29,7 @@
                         </a>
                         <ul class="menu-sub">
                             <li class="menu-item">
-                                <a href="javascript:void(0);" class="menu-link" data-bs-toggle="offcanvas"
-                                    data-bs-target="#add-new-quotation">
+                                <a href="javascript:void(0);" class="menu-link" id="btn-add-quotation">
                                     Create Quotation
                                 </a>
                             </li>
@@ -201,6 +200,18 @@
         }
     }
     const addQuotation = new AddQuotation();
+</script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const btnAddQuotation = document.getElementById("btn-add-quotation");
+    if (btnAddQuotation) {
+        btnAddQuotation.addEventListener("click", () => {
+            const offcanvasEl = document.getElementById("add-new-quotation");
+            const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
+            offcanvas.show();
+        });
+    }
+});
 </script>
 
 

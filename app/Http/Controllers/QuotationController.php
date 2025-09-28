@@ -37,200 +37,9 @@ class QuotationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Quotation created successfully!',
-            'quotation' => $quotation,
-            'client' => $client
+            'quotation_id' => $quotation->id,
+            'client_id' => $client->id,
         ]);
-    }
-
-    public function show($id)
-    {
-        $quotation = Quotation::findOrFail($id);
-        $client = \App\Models\Client::findOrFail($quotation->client_id);
-        $materials = $quotation->materials; // Many-to-many via quotation_materials
-        return view('quotation', compact('quotation', 'client', 'materials'));
-    }
-
-    /**
-     * Store selected materials into quotation_materials table
-     */
-    public function addMaterials(Request $request)
-    {
-        $data = $request->validate([
-            'quot_id'   => 'required|integer|exists:quotations,id',
-            'selected'  => 'required|array',
-            'quantity'  => 'array', // quantities keyed by material id
-        ]);
-
-        $quotation = Quotation::with(['materials'])->findOrFail($data['quot_id']);
-        $selected = $data['selected'];
-        $quantities = $request->input('quantity', []);
-
-        foreach ($selected as $matId) {
-            $qty = isset($quantities[$matId]) ? (int) $quantities[$matId] : 1;
-            if ($qty < 1) $qty = 1;
-
-            $existing = $quotation->materials()->wherePivot('material_id', $matId)->first();
-            if ($existing) {
-                $newQty = ($existing->pivot->quantity ?? 0) + $qty;
-                $quotation->materials()->updateExistingPivot($matId, [
-                    'quantity'  => $newQty,
-                    'unit_cost' => $existing->unit_price, // or fetch fresh from Material
-                ]);
-            } else {
-                $material = Material::find($matId);
-                $quotation->materials()->attach($matId, [
-                    'quantity'  => $qty,
-                    'unit_cost' => $material ? $material->unit_price : 0,
-                ]);
-            }
-        }
-
-        // reload relation
-        $quotation->load('materials');
-
-        // build response data
-        $materials = $quotation->materials->map(function ($m) {
-            return [
-                'id' => $m->id,
-                'name' => $m->name,
-                'unit' => $m->unit,
-                'unit_price' => (float) $m->pivot->unit_cost, // ✅ keep historical price
-                'quantity' => (int) ($m->pivot->quantity ?? 0),
-                'line_total' => (float) ($m->pivot->unit_cost * ($m->pivot->quantity ?? 0)), // ✅ correct total
-                'pivot_id' => $m->pivot->id ?? null,
-            ];
-        })->values();
-
-        $materialsSubtotal = $materials->sum('line_total');
-        $labor = (float) ($quotation->labor_fee ?? 0);
-        $delivery = (float) ($quotation->delivery_fee ?? 0);
-        $grandTotal = $materialsSubtotal + $labor + $delivery;
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Materials added/updated on quotation',
-            'materials' => $materials,
-            'subtotal' => $materialsSubtotal,
-            'labor_fee' => $labor,
-            'delivery_fee' => $delivery,
-            'grand_total' => $grandTotal,
-        ]);
-    }
-
-    public function destroy($pivotId)
-    {
-        $pivot = DB::table('quotation_materials')->where('id', $pivotId)->first();
-
-        if (!$pivot) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Material not found in quotation.'
-            ], 404);
-        }
-
-        DB::table('quotation_materials')->where('id', $pivotId)->delete();
-
-        // Optionally recalc grand total
-        $quotation = Quotation::with('materials')->find($pivot->quotation_id);
-        $grandTotal = $quotation->materials->sum(function ($m) {
-            return $m->pivot->unit_cost * $m->pivot->quantity;
-        }) + $quotation->labor_fee + $quotation->delivery_fee;
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Material deleted successfully.',
-            'grand_total' => $grandTotal
-        ]);
-    }
-
-    public function updateQuantity(Request $request)
-    {
-        $request->validate([
-            'pivot_id' => 'required|integer',
-            'quot_id' => 'required|integer',
-            'quantity' => 'required|numeric|min:1',
-        ]);
-
-        // Find the pivot row in quotation_materials
-        $quotation = Quotation::findOrFail($request->quot_id);
-        $material = $quotation->materials()->wherePivot('id', $request->pivot_id)->first();
-
-        if (!$material) {
-            return response()->json(['success' => false, 'message' => 'Material not found in quotation.']);
-        }
-
-        // Update the pivot table (quantity only)
-        $quotation->materials()->updateExistingPivot($material->id, [
-            'quantity' => $request->quantity,
-        ]);
-
-        // Recalculate line total
-        $lineTotal = $material->pivot->unit_cost * $request->quantity;
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Quantity updated successfully.',
-            'line_total' => $lineTotal,
-        ]);
-    }
-    public function updateStatus(Request $request, $id)
-    {
-        $quotation = Quotation::findOrFail($id);
-
-        $request->validate([
-            'status_id' => 'required|integer|exists:quotation_status,id'
-        ]);
-
-        $quotation->status_id = $request->status_id; // ✅ use status_id
-        $quotation->save();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Quotation status updated successfully!',
-            'status_id' => $quotation->status_id
-        ]);
-    }
-
-    public function updateFee(Request $request, $id)
-    {
-        $request->validate([
-            'field' => 'required|in:labor_fee,delivery_fee',
-            'value' => 'required|numeric|min:0'
-        ]);
-
-        $quotation = Quotation::findOrFail($id);
-
-        $quotation->{$request->field} = $request->value;
-        $quotation->save();
-
-        // ✅ Recalculate grand total
-        $materialsTotal = $quotation->materials->sum(fn($m) => $m->pivot->unit_cost * $m->pivot->quantity);
-        $grandTotal = $materialsTotal + $quotation->labor_fee + $quotation->delivery_fee;
-
-        return response()->json([
-            'success' => true,
-            'message' => ucfirst(str_replace('_', ' ', $request->field)) . ' updated successfully',
-            'grand_total' => $grandTotal,
-        ]);
-    }
-
-    public function drafts()
-    {
-        $drafts = Quotation::with(['client', 'employee', 'status'])
-            ->where('status_id', 1) // Draft
-            ->get();
-
-        return response()->json($drafts);
-    }
-
-    public function approved()
-    {
-        $approved = Quotation::with(['client', 'employee', 'status'])
-            ->where('status_id', 2) // Approved
-            ->get();
-
-        return response()->json($approved);
     }
 
     public function rejected()
@@ -240,5 +49,82 @@ class QuotationController extends Controller
             ->get();
 
         return response()->json($rejected);
+    }
+
+    public function createMaterialAndAttach(Request $request)
+    {
+        $data = $request->validate([
+            'quot_id'   => 'required|integer|exists:quotations,id',
+            'name'      => 'required|string|max:255',
+            'unit'      => 'required|string|max:50',
+            'unit_price' => 'required|numeric|min:0',
+            'quantity'  => 'required|integer|min:1',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            // 1. Create the new material in the DB
+            $material = Material::create([
+                'name'       => $data['name'],
+                'unit'       => $data['unit'],
+                'unit_price' => $data['unit_price'],
+            ]);
+
+            // 2. Attach it to the quotation
+            $quotation = Quotation::findOrFail($data['quot_id']);
+            $quotation->materials()->attach($material->id, [
+                'quantity'  => $data['quantity'],
+                'unit_cost' => $data['unit_price'], // historical price
+            ]);
+
+            DB::commit();
+
+            // reload relation
+            $quotation->load('materials');
+
+            // prepare response
+            $materials = $quotation->materials->map(function ($m) {
+                return [
+                    'id'         => $m->id,
+                    'name'       => $m->name,
+                    'unit'       => $m->unit,
+                    'unit_price' => (float) $m->pivot->unit_cost,
+                    'quantity'   => (int) ($m->pivot->quantity ?? 0),
+                    'line_total' => (float) ($m->pivot->unit_cost * ($m->pivot->quantity ?? 0)),
+                    'pivot_id'   => $m->pivot->id ?? null,
+                ];
+            })->values();
+
+            $materialsSubtotal = $materials->sum('line_total');
+            $labor = (float) ($quotation->labor_fee ?? 0);
+            $delivery = (float) ($quotation->delivery_fee ?? 0);
+            $grandTotal = $materialsSubtotal + $labor + $delivery;
+
+            return response()->json([
+                'success' => true,
+                'message' => 'New material created and added to quotation',
+                'material' => $material,
+                'materials' => $materials,
+                'subtotal' => $materialsSubtotal,
+                'labor_fee' => $labor,
+                'delivery_fee' => $delivery,
+                'grand_total' => $grandTotal,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create material and attach',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+    public function show($id)
+    {
+        $quotation = Quotation::findOrFail($id);
+        $client = \App\Models\Client::findOrFail($quotation->client_id);
+        $materials = $quotation->materials; // Many-to-many via quotation_materials
+        return view('quotation', compact('quotation', 'client', 'materials'));
     }
 }
