@@ -183,11 +183,10 @@
                 .then(data => {
                     if (data.success) {
                         Swal.fire({
-                            title: data.message,
-                            icon: "success"
+                            title: "Quotation created successfully",
+                            icon: "success",
                         }).then(() => {
-                            // redirect to quotation details page with ID
-                            window.location.href = "/quotations/" + data.quotation.id;
+                            window.location.href = "/quotations/" + data.quotation_id;
                         });
                     } else {
                         Swal.fire("Failed to create quotation", "", "error");
@@ -202,16 +201,28 @@
     const addQuotation = new AddQuotation();
 </script>
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-    const btnAddQuotation = document.getElementById("btn-add-quotation");
-    if (btnAddQuotation) {
-        btnAddQuotation.addEventListener("click", () => {
-            const offcanvasEl = document.getElementById("add-new-quotation");
-            const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
-            offcanvas.show();
-        });
-    }
-});
+    document.addEventListener("DOMContentLoaded", () => {
+        const btnAddQuotation = document.getElementById("btn-add-quotation");
+        if (btnAddQuotation) {
+            btnAddQuotation.addEventListener("click", () => {
+                const offcanvasEl = document.getElementById("add-new-quotation");
+                const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
+                offcanvas.show();
+            });
+        }
+    });
+</script>
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const btnAddQuotation = document.getElementById("btn-add-quotation");
+        if (btnAddQuotation) {
+            btnAddQuotation.addEventListener("click", () => {
+                const offcanvasEl = document.getElementById("add-new-quotation");
+                const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
+                offcanvas.show();
+            });
+        }
+    });
 </script>
 
 

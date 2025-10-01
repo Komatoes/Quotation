@@ -127,4 +127,44 @@ class QuotationController extends Controller
         $materials = $quotation->materials; // Many-to-many via quotation_materials
         return view('quotation', compact('quotation', 'client', 'materials'));
     }
+        public function updateFee(Request $request, $id)
+    {
+        $request->validate([
+            'field' => 'required|in:labor_fee,delivery_fee',
+            'value' => 'required|numeric|min:0'
+        ]);
+
+        $quotation = Quotation::findOrFail($id);
+
+        $quotation->{$request->field} = $request->value;
+        $quotation->save();
+
+        // ✅ Recalculate grand total
+        $materialsTotal = $quotation->materials->sum(fn($m) => $m->pivot->unit_cost * $m->pivot->quantity);
+        $grandTotal = $materialsTotal + $quotation->labor_fee + $quotation->delivery_fee;
+
+        return response()->json([
+            'success' => true,
+            'message' => ucfirst(str_replace('_', ' ', $request->field)) . ' updated successfully',
+            'grand_total' => $grandTotal,
+        ]);
+    }
+        public function drafts()
+    {
+        $drafts = Quotation::with(['client', 'employee', 'status'])
+            ->where('status_id', 1) // Draft
+            ->get();
+
+        return response()->json($drafts);
+    }
+
+    public function approved()
+    {
+        $approved = Quotation::with(['client', 'employee', 'status'])
+            ->where('status_id', 2) // Approved
+            ->get();
+
+        return response()->json($approved);
+    }
+    
 }

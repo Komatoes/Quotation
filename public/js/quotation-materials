@@ -1,0 +1,30 @@
+window.addMaterialQuotation = {
+    add(formId) {
+        const form = document.getElementById(formId);
+        const formData = new FormData(form);
+
+        fetch(form.action, {
+            method: "POST",
+            body: formData,
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                // Close modal
+                const modalEl = document.getElementById('addMatModal');
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                modal.hide();
+
+                // Success alert
+                Swal.fire({
+                    icon: "success",
+                    title: "Success",
+                    text: "Materials added successfully!"
+                });
+            }
+        });
+    }
+};
