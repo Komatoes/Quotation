@@ -127,7 +127,7 @@
             if (this.form.dataset.editing === "true") return;
 
             const formData = new FormData(this.form);
-            fetch('/add-material', {
+            fetch('/materials/store', {
                     method: 'POST',
                     headers: {
                         "X-CSRF-TOKEN": '{{ csrf_token() }}'
