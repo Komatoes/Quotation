@@ -191,197 +191,225 @@
         new DeleteMaterialFromQuotation(".delete-material");
     </script>
 
-<script>
-class QuantityUpdater {
-    constructor(selector) {
-        this.selector = selector;
-        this.debounceTimers = new Map(); // per-input debounce
-        this.init();
-    }
-
-    init() {
-        document.querySelectorAll(this.selector).forEach(input => {
-            input.addEventListener("input", (e) => this.debounceUpdate(e));
-        });
-    }
-
-    debounceUpdate(e) {
-        const input = e.target;
-
-        // Clear previous timer for this input
-        if (this.debounceTimers.has(input)) {
-            clearTimeout(this.debounceTimers.get(input));
-        }
-
-        // Short debounce to avoid spamming backend
-        this.debounceTimers.set(input, setTimeout(() => {
-            this.update(input);
-        }, 150)); // 150ms delay
-    }
-
-    async update(input) {
-        const newQty = input.value,
-            pivotId = input.dataset.pivot,
-            quotId = input.dataset.quot;
-
-        try {
-            const res = await fetch(`/quotation-materials/update-quantity`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content
-                },
-                body: JSON.stringify({
-                    pivot_id: pivotId,
-                    quot_id: quotId,
-                    quantity: newQty
-                })
-            });
-
-            const data = await res.json();
-
-            if (data.success) {
-                // Update line total for this row
-                input.closest("tr").querySelector(".line-total").textContent =
-                    `₱${parseFloat(data.line_total).toFixed(2)}`;
-
-                // Update grand total
-                if (data.grand_total !== undefined) {
-                    document.getElementById("grandTotal").textContent =
-                        `₱${parseFloat(data.grand_total).toFixed(2)}`;
-                }
-            } else {
-                Swal.fire("Update failed", data.message || "", "error");
+    <script>
+        class QuantityUpdater {
+            constructor(selector) {
+                this.selector = selector;
+                this.debounceTimers = new Map(); // per-input debounce
+                this.init();
             }
-        } catch (error) {
-            console.error("Quantity update error:", error);
-            Swal.fire("Something went wrong!", "", "error");
-        }
-    }
-}
 
-// Initialize
-new QuantityUpdater(".update-quantity");
-</script>
+            init() {
+                document.querySelectorAll(this.selector).forEach(input => {
+                    input.addEventListener("input", (e) => this.debounceUpdate(e));
+                });
+            }
+
+            debounceUpdate(e) {
+                const input = e.target;
+
+                // Clear previous timer for this input
+                if (this.debounceTimers.has(input)) {
+                    clearTimeout(this.debounceTimers.get(input));
+                }
+
+                // Short debounce to avoid spamming backend
+                this.debounceTimers.set(input, setTimeout(() => {
+                    this.update(input);
+                }, 150)); // 150ms delay
+            }
+
+            async update(input) {
+                const newQty = input.value,
+                    pivotId = input.dataset.pivot,
+                    quotId = input.dataset.quot;
+
+                try {
+                    const res = await fetch(`/quotation-materials/update-quantity`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content
+                        },
+                        body: JSON.stringify({
+                            pivot_id: pivotId,
+                            quot_id: quotId,
+                            quantity: newQty
+                        })
+                    });
+
+                    const data = await res.json();
+
+                    if (data.success) {
+                        // Update line total for this row
+                        input.closest("tr").querySelector(".line-total").textContent =
+                            `₱${parseFloat(data.line_total).toFixed(2)}`;
+
+                        // Update grand total
+                        if (data.grand_total !== undefined) {
+                            document.getElementById("grandTotal").textContent =
+                                `₱${parseFloat(data.grand_total).toFixed(2)}`;
+                        }
+                    } else {
+                        Swal.fire("Update failed", data.message || "", "error");
+                    }
+                } catch (error) {
+                    console.error("Quantity update error:", error);
+                    Swal.fire("Something went wrong!", "", "error");
+                }
+            }
+        }
+
+        // Initialize
+        new QuantityUpdater(".update-quantity");
+    </script>
 
 
 
     <!-- Update Fees -->
-<script>
-class FeeUpdater {
-    constructor(selector, quotationId, csrfToken) {
-        this.selector = selector;
-        this.quotationId = quotationId;
-        this.csrfToken = csrfToken;
-        this.debounceTimer = null;
+    <script>
+        class FeeUpdater {
+            constructor(selector, quotationId, csrfToken) {
+                this.selector = selector;
+                this.quotationId = quotationId;
+                this.csrfToken = csrfToken;
+                this.debounceTimer = null;
 
-        document.querySelectorAll(this.selector).forEach(input => {
-            input.addEventListener("input", (e) => this.updateFee(e));
-        });
-    }
-
-    updateFee(e) {
-        if (!e.isTrusted) return; // ignore programmatic changes
-
-        const input = e.target;
-        const field = input.dataset.field;
-        const value = input.value;
-
-        // ✅ Debounce to avoid spamming backend
-        clearTimeout(this.debounceTimer);
-        this.debounceTimer = setTimeout(async () => {
-            try {
-                const res = await fetch(`/quotations/${this.quotationId}/update-fee`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-CSRF-TOKEN": this.csrfToken,
-                        "Accept": "application/json"
-                    },
-                    body: JSON.stringify({ field, value })
+                document.querySelectorAll(this.selector).forEach(input => {
+                    input.addEventListener("input", (e) => this.updateFee(e));
                 });
-
-                const data = await res.json();
-                console.log("Update Fee Response:", data);
-
-                if (res.ok && data.success) {
-                    // ✅ Update grand total UI
-                    if (document.getElementById("grandTotal")) {
-                        document.getElementById("grandTotal").textContent =
-                            "₱" + parseFloat(data.grand_total).toFixed(2);
-                    }
-
-                    Swal.fire({
-                        title: data.message,
-                        icon: "success",
-                        timer: 800,
-                        showConfirmButton: false
-                    });
-                } else {
-                    Swal.fire("Error", data.message || "Update failed", "error");
-                }
-            } catch (error) {
-                console.error("Fee update error:", error);
-                Swal.fire("Error", "Something went wrong!", "error");
             }
-        }, 500);
-    }
-}
 
-// ✅ Initialize with quotationId and CSRF
-if (!window.feeUpdater) {
-    window.feeUpdater = new FeeUpdater(
-        ".fee-input",
-        "{{ $quotation->id ?? '' }}",
-        "{{ csrf_token() }}"
-    );
-}
-</script>
+            updateFee(e) {
+                if (!e.isTrusted) return; // ignore programmatic changes
+
+                const input = e.target;
+                const field = input.dataset.field;
+                const value = input.value;
+
+                // ✅ Debounce to avoid spamming backend
+                clearTimeout(this.debounceTimer);
+                this.debounceTimer = setTimeout(async () => {
+                    try {
+                        const res = await fetch(`/quotations/${this.quotationId}/update-fee`, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-CSRF-TOKEN": this.csrfToken,
+                                "Accept": "application/json"
+                            },
+                            body: JSON.stringify({
+                                field,
+                                value
+                            })
+                        });
+
+                        const data = await res.json();
+                        console.log("Update Fee Response:", data);
+
+                        if (res.ok && data.success) {
+                            // ✅ Update grand total UI
+                            if (document.getElementById("grandTotal")) {
+                                document.getElementById("grandTotal").textContent =
+                                    "₱" + parseFloat(data.grand_total).toFixed(2);
+                            }
+
+                            Swal.fire({
+                                title: data.message,
+                                icon: "success",
+                                timer: 800,
+                                showConfirmButton: false
+                            });
+                        } else {
+                            Swal.fire("Error", data.message || "Update failed", "error");
+                        }
+                    } catch (error) {
+                        console.error("Fee update error:", error);
+                        Swal.fire("Error", "Something went wrong!", "error");
+                    }
+                }, 500);
+            }
+        }
+
+        // ✅ Initialize with quotationId and CSRF
+        if (!window.feeUpdater) {
+            window.feeUpdater = new FeeUpdater(
+                ".fee-input",
+                "{{ $quotation->id ?? '' }}",
+                "{{ csrf_token() }}"
+            );
+        }
+    </script>
 
 
 
 
     <!-- Quotation Status Buttons -->
-    <script>
-        class QuotationStatusHandler {
-            constructor() {
-                this.csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute("content");
-                this.bindEvents();
-            }
-            bindEvents() {
-                document.querySelectorAll("#approveBtn, #saveDraftBtn, #rejectBtn").forEach(button => {
-                    button.addEventListener("click", (e) => {
-                        e.preventDefault();
-                        const quotationId = button.dataset.quot;
-                        let statusId = null;
-                        if (button.id === "saveDraftBtn") statusId = 1;
-                        if (button.id === "approveBtn") statusId = 2;
-                        if (button.id === "rejectBtn") statusId = 3;
-                        if (statusId) this.updateStatus(quotationId, statusId);
-                    });
+<script>
+    class QuotationStatusHandler {
+        constructor() {
+            this.csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute("content");
+            this.bindEvents();
+        }
+
+        bindEvents() {
+            document.querySelectorAll("#approveBtn, #saveDraftBtn, #rejectBtn").forEach(button => {
+                button.addEventListener("click", (e) => {
+                    e.preventDefault();
+                    const quotationId = button.dataset.quot;
+                    let statusId = null;
+
+                    switch (button.id) {
+                        case "saveDraftBtn": statusId = 1; break;
+                        case "approveBtn":   statusId = 2; break;
+                        case "rejectBtn":    statusId = 3; break;
+                    }
+
+                    if (statusId) this.updateStatus(quotationId, statusId);
                 });
-            }
-            async updateStatus(quotationId, statusId) {
-                try {
-                    const res = await fetch(`/quotations/${quotationId}/status`, {
-                        method: "PUT",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "X-CSRF-TOKEN": this.csrfToken
-                        },
-                        body: JSON.stringify({
-                            status_id: statusId
-                        })
+            });
+        }
+
+        async updateStatus(quotationId, statusId) {
+            try {
+                const res = await fetch(`/quotations/${quotationId}/status`, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRF-TOKEN": this.csrfToken,
+                        "Accept": "application/json"
+                    },
+                    body: JSON.stringify({ status_id: statusId })
+                });
+
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    Swal.fire({
+                        title: "Success",
+                        text: data.message,
+                        icon: "success",
+                        timer: 1200,
+                        showConfirmButton: false
                     });
-                    const data = await res.json();
-                    if (data.success) Swal.fire("Success", data.message, "success");
-                    else Swal.fire("Error", data.message, "error");
-                } catch (error) {
-                    console.error(error);
-                    Swal.fire("Error", "Something went wrong!", "error");
+
+                    // ✅ Instantly update the status on the page (if you have an element for it)
+                    const statusLabel = document.getElementById("quotationStatus");
+                    if (statusLabel && data.quotation?.status?.name) {
+                        statusLabel.textContent = data.quotation.status.name;
+                    }
+
+                } else {
+                    Swal.fire("Error", data.message || "Failed to update status.", "error");
                 }
+            } catch (error) {
+                console.error("Status update error:", error);
+                Swal.fire("Error", "Something went wrong!", "error");
             }
         }
-        new QuotationStatusHandler();
-    </script>
+    }
+
+    new QuotationStatusHandler();
+</script>
+
 @endsection

@@ -41,15 +41,23 @@ class QuotationController extends Controller
             'client_id' => $client->id,
         ]);
     }
-
-    public function rejected()
+    public function updateStatus(Request $request, $id)
     {
-        $rejected = Quotation::with(['client', 'employee', 'status'])
-            ->where('status_id', 3) // Rejected
-            ->get();
+        $validated = $request->validate([
+            'status_id' => 'required|in:1,2,3', // only allow Draft, Approved, Rejected
+        ]);
 
-        return response()->json($rejected);
+        $quotation = Quotation::findOrFail($id);
+        $quotation->status_id = $validated['status_id'];
+        $quotation->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Quotation status updated successfully!',
+            'quotation' => $quotation
+        ]);
     }
+
 
     public function createMaterialAndAttach(Request $request)
     {
@@ -157,23 +165,5 @@ class QuotationController extends Controller
             'delivery_fee'  => $quotation->delivery_fee,
             'grand_total'   => $grandTotal,
         ]);
-    }
-
-    public function drafts()
-    {
-        $drafts = Quotation::with(['client', 'employee', 'status'])
-            ->where('status_id', 1) // Draft
-            ->get();
-
-        return response()->json($drafts);
-    }
-
-    public function approved()
-    {
-        $approved = Quotation::with(['client', 'employee', 'status'])
-            ->where('status_id', 2) // Approved
-            ->get();
-
-        return response()->json($approved);
     }
 }

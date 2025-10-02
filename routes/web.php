@@ -23,9 +23,8 @@ Route::get('/', [QuotationController::class, 'viewHome'])->name('dashboard');
 // -------------------------
 Route::post('/add-quotation', [QuotationController::class, 'store'])->name('quotations.store');
 
-Route::get('/quotations/drafts', [QuotationController::class, 'drafts'])->name('quotations.drafts');
-Route::get('/quotations/approved', [QuotationController::class, 'approved'])->name('quotations.approved');
-Route::get('/quotations/rejected', [QuotationController::class, 'rejected'])->name('quotations.rejected');
+Route::put('/quotations/{id}/status', [QuotationController::class, 'updateStatus']);
+
 
 Route::get('/quotations/{id}', [QuotationController::class, 'show'])
     ->whereNumber('id')
