@@ -4,8 +4,8 @@
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Materials</h5>
-            <!-- Add Material Button -->
-            <button class="btn btn-primary" data-bs-toggle="offcanvas" data-bs-target="#add-new-material">
+            <!-- Add Material Button (NO data-bs-toggle here anymore) -->
+            <button class="btn btn-primary" id="btn-add-material">
                 <i class="ti ti-plus me-1"></i> Add Material
             </button>
         </div>
@@ -29,10 +29,10 @@
 </div>
 
 
-<!-- Offcanvas: Add Material -->
+<!-- Offcanvas: Add/Edit Material -->
 <div class="offcanvas offcanvas-end" id="add-new-material">
     <div class="offcanvas-header border-bottom">
-        <h5 class="offcanvas-title">Add Material</h5>
+        <h5 class="offcanvas-title" id="offcanvas-title">Add Material</h5>
         <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
     <div class="offcanvas-body flex-grow-1">
@@ -62,7 +62,7 @@
             </div>
 
             <div class="col-sm-12">
-                <button type="submit" class="btn btn-primary data-submit me-sm-4 me-1">Save</button>
+                <button type="submit" class="btn btn-primary data-submit me-sm-4 me-1" id="form-submit-btn">Save</button>
                 <button type="reset" class="btn btn-outline-secondary" data-bs-dismiss="offcanvas">Cancel</button>
             </div>
         </form>
@@ -93,7 +93,7 @@
                                 <td>${material.unit}</td>
                                 <td>${material.unit_price}</td>
                                 <td>
-                                <button class="btn btn-sm btn-warning edit-btn" data-id="${material.id}">Edit</button>
+                                    <button class="btn btn-sm btn-warning edit-btn" data-id="${material.id}">Edit</button>
                                 </td>
                             </tr>
                         `;
@@ -175,8 +175,10 @@
         resetForm() {
             this.form.reset();
             delete this.form.dataset.editing;
-            // restore default submit behavior
             this.form.onsubmit = null;
+            // Reset UI
+            document.getElementById("offcanvas-title").innerText = "Add Material";
+            document.getElementById("form-submit-btn").innerText = "Save";
         }
     }
 
@@ -220,6 +222,10 @@
                     document.getElementById("materialUnit").value = material.unit;
                     document.getElementById("materialPrice").value = material.unit_price;
 
+                    // Update UI
+                    document.getElementById("offcanvas-title").innerText = "Edit Material";
+                    document.getElementById("form-submit-btn").innerText = "Update";
+
                     // Mark form as editing so AddMaterial handler will skip create
                     const form = document.getElementById("form-add-material");
                     form.dataset.editing = "true";
@@ -230,8 +236,9 @@
                         this.update(id, new FormData(form));
                     };
 
-                    // Open offcanvas
-                    const offcanvas = new bootstrap.Offcanvas(document.getElementById('add-new-material'));
+                    // Open offcanvas (reusing instance)
+                    const offcanvasEl = document.getElementById('add-new-material');
+                    const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
                     offcanvas.show();
                 });
         }
@@ -295,5 +302,27 @@
         window.editMaterial = new EditMaterial();
     }
 </script>
+
+<script>
+    // Unified Add Button JS
+    document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("btn-add-material").addEventListener("click", () => {
+            const offcanvasEl = document.getElementById('add-new-material');
+            const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
+
+            // Reset form & UI
+            const form = document.getElementById("form-add-material");
+            form.reset();
+            delete form.dataset.editing;
+            form.onsubmit = null;
+
+            document.getElementById("offcanvas-title").innerText = "Add Material";
+            document.getElementById("form-submit-btn").innerText = "Save";
+
+            offcanvas.show();
+        });
+    });
+</script>
+
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

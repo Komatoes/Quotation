@@ -1,0 +1,33 @@
+document.addEventListener("DOMContentLoaded", function () {
+    const newMaterialModal = document.getElementById("newMaterialModal");
+
+    if (newMaterialModal) {
+        newMaterialModal.addEventListener("hidden.bs.modal", function () {
+            if (document.querySelector("#addMatModal.show")) {
+                document.body.classList.add("modal-open");
+            }
+        });
+    }
+});
+
+// Handle stacking z-index when multiple modals are open
+document.addEventListener('show.bs.modal', function (event) {
+    if (document.querySelectorAll('.modal.show').length) {
+        const zIndex = 1050 + (10 * document.querySelectorAll('.modal.show').length);
+        event.target.style.zIndex = zIndex;
+        setTimeout(() => {
+            const modalBackdrop = document.querySelector('.modal-backdrop:last-of-type');
+            if (modalBackdrop) modalBackdrop.style.zIndex = zIndex - 1;
+        });
+    }
+});
+
+// Clean up when all modals are closed
+document.addEventListener('hidden.bs.modal', function () {
+    if (document.querySelectorAll('.modal.show').length === 0) {
+        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = ''; 
+        document.body.style.paddingRight = '';
+    }
+});

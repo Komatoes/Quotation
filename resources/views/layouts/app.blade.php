@@ -29,8 +29,7 @@
                         </a>
                         <ul class="menu-sub">
                             <li class="menu-item">
-                                <a href="javascript:void(0);" class="menu-link" data-bs-toggle="offcanvas"
-                                    data-bs-target="#add-new-quotation">
+                                <a href="javascript:void(0);" class="menu-link" id="btn-add-quotation">
                                     Create Quotation
                                 </a>
                             </li>
@@ -184,11 +183,10 @@
                 .then(data => {
                     if (data.success) {
                         Swal.fire({
-                            title: data.message,
-                            icon: "success"
+                            title: "Quotation created successfully",
+                            icon: "success",
                         }).then(() => {
-                            // redirect to quotation details page with ID
-                            window.location.href = "/quotations/" + data.quotation.id;
+                            window.location.href = "/quotations/" + data.quotation_id;
                         });
                     } else {
                         Swal.fire("Failed to create quotation", "", "error");
@@ -201,6 +199,30 @@
         }
     }
     const addQuotation = new AddQuotation();
+</script>
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const btnAddQuotation = document.getElementById("btn-add-quotation");
+        if (btnAddQuotation) {
+            btnAddQuotation.addEventListener("click", () => {
+                const offcanvasEl = document.getElementById("add-new-quotation");
+                const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
+                offcanvas.show();
+            });
+        }
+    });
+</script>
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const btnAddQuotation = document.getElementById("btn-add-quotation");
+        if (btnAddQuotation) {
+            btnAddQuotation.addEventListener("click", () => {
+                const offcanvasEl = document.getElementById("add-new-quotation");
+                const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
+                offcanvas.show();
+            });
+        }
+    });
 </script>
 
 
