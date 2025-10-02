@@ -104,37 +104,45 @@ class QuotationMaterialController extends Controller
     /**
      * Update material quantity in a quotation
      */
-    public function updateQuantity(Request $request)
-    {
-        $request->validate([
-            'pivot_id' => 'required|integer',
-            'quot_id'  => 'required|integer',
-            'quantity' => 'required|numeric|min:1',
-        ]);
+ public function updateQuantity(Request $request)
+{
+    $request->validate([
+        'pivot_id' => 'required|integer',
+        'quot_id'  => 'required|integer',
+        'quantity' => 'required|numeric|min:1',
+    ]);
 
-        $quotation = \App\Models\Quotation::findOrFail($request->quot_id);
-        $material = $quotation->materials()->wherePivot('id', $request->pivot_id)->first();
+    $quotation = \App\Models\Quotation::with('materials')->findOrFail($request->quot_id);
+    $material = $quotation->materials()->wherePivot('id', $request->pivot_id)->first();
 
-        if (!$material) {
-            return response()->json(['success' => false, 'message' => 'Material not found in quotation.']);
-        }
-
-        $quotation->materials()->updateExistingPivot($material->id, [
-            'quantity' => $request->quantity,
-        ]);
-
-        $lineTotal = $material->pivot->unit_cost * $request->quantity;
-
-        return response()->json([
-            'success'    => true,
-            'message'    => 'Quantity updated successfully.',
-            'line_total' => $lineTotal,
-        ]);
+    if (!$material) {
+        return response()->json(['success' => false, 'message' => 'Material not found in quotation.']);
     }
 
-    /**
-     * Create a new material and attach it to a quotation
-     */
+    $quotation->materials()->updateExistingPivot($material->id, [
+        'quantity' => $request->quantity,
+    ]);
+
+    // reload to get updated pivot
+    $quotation->load('materials');
+
+    // calculate new line total and grand total
+    $lineTotal = $material->pivot->unit_cost * $request->quantity;
+    $materialsSubtotal = $quotation->materials->sum(fn($m) => $m->pivot->unit_cost * $m->pivot->quantity);
+    $grandTotal = $materialsSubtotal + $quotation->labor_fee + $quotation->delivery_fee;
+
+    return response()->json([
+        'success'        => true,
+        'message'        => 'Quantity updated successfully.',
+        'line_total'     => $lineTotal,
+        'materials_total'=> $materialsSubtotal,
+        'grand_total'    => $grandTotal,
+        'labor_fee'      => $quotation->labor_fee,
+        'delivery_fee'   => $quotation->delivery_fee,
+    ]);
+}
+
+
     public function createMaterialAndAttach(Request $request)
     {
         $data = $request->validate([

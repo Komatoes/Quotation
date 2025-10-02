@@ -127,29 +127,39 @@ class QuotationController extends Controller
         $materials = $quotation->materials; // Many-to-many via quotation_materials
         return view('quotation', compact('quotation', 'client', 'materials'));
     }
-        public function updateFee(Request $request, $id)
+    public function updateFee(Request $request, $id)
     {
-        $request->validate([
+        //  Validate request
+        $validated = $request->validate([
             'field' => 'required|in:labor_fee,delivery_fee',
             'value' => 'required|numeric|min:0'
         ]);
 
-        $quotation = Quotation::findOrFail($id);
+        //  Find quotation
+        $quotation = Quotation::with('materials')->findOrFail($id);
 
-        $quotation->{$request->field} = $request->value;
+        //  Update the requested fee (labor_fee or delivery_fee)
+        $quotation->{$validated['field']} = $validated['value'];
         $quotation->save();
 
-        // ✅ Recalculate grand total
-        $materialsTotal = $quotation->materials->sum(fn($m) => $m->pivot->unit_cost * $m->pivot->quantity);
+        //  Recalculate totals
+        $materialsTotal = $quotation->materials->sum(
+            fn($m) => $m->pivot->unit_cost * $m->pivot->quantity
+        );
+
         $grandTotal = $materialsTotal + $quotation->labor_fee + $quotation->delivery_fee;
 
         return response()->json([
-            'success' => true,
-            'message' => ucfirst(str_replace('_', ' ', $request->field)) . ' updated successfully',
-            'grand_total' => $grandTotal,
+            'success'       => true,
+            'message'       => ucfirst(str_replace('_', ' ', $validated['field'])) . ' updated successfully',
+            'materials_total' => $materialsTotal,
+            'labor_fee'     => $quotation->labor_fee,
+            'delivery_fee'  => $quotation->delivery_fee,
+            'grand_total'   => $grandTotal,
         ]);
     }
-        public function drafts()
+
+    public function drafts()
     {
         $drafts = Quotation::with(['client', 'employee', 'status'])
             ->where('status_id', 1) // Draft
@@ -166,5 +176,4 @@ class QuotationController extends Controller
 
         return response()->json($approved);
     }
-    
 }

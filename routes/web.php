@@ -31,7 +31,10 @@ Route::get('/quotations/{id}', [QuotationController::class, 'show'])
     ->whereNumber('id')
     ->name('quotations.show');
 
-Route::post('/quotations/{id}/update-fee', [QuotationController::class, 'updateFee'])->name('quotations.updateFee');
+// routes/web.php
+Route::post('/quotations/{quotation}/update-fee', [QuotationController::class, 'updateFee'])
+    ->name('quotations.update-fee');
+
 Route::put('/quotations/{id}/status', [QuotationController::class, 'updateStatus'])->name('quotations.updateStatus');
 
 // -------------------------
