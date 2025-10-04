@@ -166,4 +166,31 @@ class QuotationController extends Controller
             'grand_total'   => $grandTotal,
         ]);
     }
+
+        public function drafts()
+    {
+        $drafts = Quotation::with(['client', 'employee', 'status'])
+            ->where('status_id', 1) // Draft
+            ->get();
+
+        return response()->json($drafts);
+    }
+
+    public function approved()
+    {
+        $approved = Quotation::with(['client', 'employee', 'status'])
+            ->where('status_id', 2) // Approved
+            ->get();
+
+        return response()->json($approved);
+    }
+
+    public function rejected()
+    {
+        $rejected = Quotation::with(['client', 'employee', 'status'])
+            ->where('status_id', 3) // Rejected
+            ->get();
+
+        return response()->json($rejected);
+    }
 }

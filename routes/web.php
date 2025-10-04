@@ -36,6 +36,15 @@ Route::post('/quotations/{quotation}/update-fee', [QuotationController::class, '
 
 Route::put('/quotations/{id}/status', [QuotationController::class, 'updateStatus'])->name('quotations.updateStatus');
 
+// Drafts
+Route::get('/quotations/drafts', [QuotationController::class, 'drafts'])->name('quotations.drafts');
+
+// Approved
+Route::get('/quotations/approved', [QuotationController::class, 'approved'])->name('quotations.approved');
+
+// Rejected
+Route::get('/quotations/rejected', [QuotationController::class, 'rejected'])->name('quotations.rejected');
+
 // -------------------------
 // Materials
 // -------------------------

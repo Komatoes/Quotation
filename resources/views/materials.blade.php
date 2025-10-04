@@ -2,13 +2,21 @@
 {{-- Do NOT extend layout here since it's included inside dashboard --}}
 <div class="col-12">
     <div class="card">
+        <!-- Card Header -->
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Materials</h5>
-            <!-- Add Material Button (NO data-bs-toggle here anymore) -->
-            <button class="btn btn-primary" id="btn-add-material">
-                <i class="ti ti-plus me-1"></i> Add Material
-            </button>
+            <div class="d-flex align-items-center gap-2">
+                <!-- 🔎 Search Bar (longer) -->
+                <input type="text" id="search-material" class="form-control" style="width: 250px;" placeholder="Search materials...">
+
+                <!-- ➕ Add Material Button -->
+                <button class="btn btn-primary" id="btn-add-material">
+                    <i class="ti ti-plus me-1"></i> Add Material
+                </button>
+            </div>
         </div>
+
+        <!-- Table -->
         <div class="card-datatable table-responsive pt-0">
             <table class="table" id="materials-table">
                 <thead>
@@ -20,15 +28,18 @@
                         <th>Action</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <!-- JS will populate this -->
-                </tbody>
+                <tbody></tbody>
             </table>
+        </div>
+
+        <!-- Card Footer with Pagination -->
+        <div class="card-footer d-flex justify-content-end">
+            <nav>
+                <ul class="pagination pagination-rounded mb-0" id="materials-pagination"></ul>
+            </nav>
         </div>
     </div>
 </div>
-
-
 <!-- Offcanvas: Add/Edit Material -->
 <div class="offcanvas offcanvas-end" id="add-new-material">
     <div class="offcanvas-header border-bottom">
@@ -68,45 +79,6 @@
         </form>
     </div>
 </div>
-
-
-<script>
-    // Handles table loading
-    class MaterialHandler {
-        constructor() {
-            this.loadMaterials();
-        }
-
-        loadMaterials() {
-            fetch('/materials/list')
-                .then(res => res.json())
-                .then(materials => {
-                    const table = document.getElementById("materials-table");
-                    const tbody = table.getElementsByTagName("tbody")[0];
-                    tbody.innerHTML = ""; // Clear existing rows
-
-                    materials.forEach(material => {
-                        const row = `
-                            <tr>
-                                <td>${material.name}</td>
-                                <td>${material.description || ''}</td>
-                                <td>${material.unit}</td>
-                                <td>${material.unit_price}</td>
-                                <td>
-                                    <button class="btn btn-sm btn-warning edit-btn" data-id="${material.id}">Edit</button>
-                                </td>
-                            </tr>
-                        `;
-                        tbody.insertAdjacentHTML("beforeend", row);
-                    });
-                })
-                .catch(error => console.error("Error loading materials:", error));
-        }
-    }
-
-    // Initialize and make it global
-    window.materialHandler = new MaterialHandler();
-</script>
 
 <script>
     class AddMaterial {
@@ -189,119 +161,227 @@
 </script>
 
 <script>
-    class EditMaterial {
-        constructor() {
-            document.addEventListener("click", (e) => {
-                if (e.target.classList.contains("edit-btn")) {
-                    const id = e.target.dataset.id;
-                    this.openEditForm(id);
-                }
-            });
+class MaterialHandler {
+    constructor() {
+        this.materials = [];
+        this.filtered = [];
+        this.currentPage = 1;
+        this.pageSize = 5;
 
-            // When offcanvas closes, ensure editing flag cleared
-            document.getElementById('add-new-material').addEventListener('hidden.bs.offcanvas', () => {
-                const form = document.getElementById("form-add-material");
-                if (form) {
-                    delete form.dataset.editing;
-                    form.onsubmit = null;
-                }
-            });
+        this.loadMaterials();
+
+        // Search listener
+        document.getElementById("search-material").addEventListener("input", (e) => {
+            const term = e.target.value.toLowerCase();
+            this.filtered = this.materials.filter(m =>
+                m.name.toLowerCase().includes(term) ||
+                (m.description && m.description.toLowerCase().includes(term))
+            );
+            this.currentPage = 1;
+            this.renderTable();
+        });
+    }
+
+    loadMaterials() {
+        fetch('/materials/list')
+            .then(res => res.json())
+            .then(materials => {
+                this.materials = materials;
+                this.filtered = materials; // default = all
+                this.renderTable();
+            })
+            .catch(error => console.error("Error loading materials:", error));
+    }
+
+    renderTable() {
+        const tbody = document.querySelector("#materials-table tbody");
+        tbody.innerHTML = "";
+
+        // Pagination math
+        const start = (this.currentPage - 1) * this.pageSize;
+        const end = start + this.pageSize;
+        const pageItems = this.filtered.slice(start, end);
+
+        // Rows
+        pageItems.forEach(material => {
+            const row = `
+                <tr>
+                    <td>${material.name}</td>
+                    <td>${material.description || ''}</td>
+                    <td>${material.unit}</td>
+                    <td>${material.unit_price}</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning edit-btn" data-id="${material.id}">Edit</button>
+                    </td>
+                </tr>
+            `;
+            tbody.insertAdjacentHTML("beforeend", row);
+        });
+
+        this.renderPagination();
+    }
+
+renderPagination() {
+    const pagination = document.getElementById("materials-pagination");
+    pagination.innerHTML = "";
+
+    const totalPages = Math.ceil(this.filtered.length / this.pageSize);
+    if (totalPages <= 1) return;
+
+    const ul = document.createElement("ul");
+    ul.className = "pagination pagination-rounded";
+
+    // First button
+    const firstLi = document.createElement("li");
+    firstLi.className = "page-item first" + (this.currentPage === 1 ? " disabled" : "");
+    firstLi.innerHTML = `
+        <a class="page-link" href="javascript:void(0);">
+            <i class="icon-base ti tabler-chevrons-left icon-sm"></i>
+        </a>`;
+    firstLi.addEventListener("click", () => {
+        if (this.currentPage > 1) {
+            this.currentPage = 1;
+            this.renderTable();
+        }
+    });
+    ul.appendChild(firstLi);
+
+    // Prev button
+    const prevLi = document.createElement("li");
+    prevLi.className = "page-item prev" + (this.currentPage === 1 ? " disabled" : "");
+    prevLi.innerHTML = `
+        <a class="page-link" href="javascript:void(0);">
+            <i class="icon-base ti tabler-chevron-left icon-sm"></i>
+        </a>`;
+    prevLi.addEventListener("click", () => {
+        if (this.currentPage > 1) {
+            this.currentPage--;
+            this.renderTable();
+        }
+    });
+    ul.appendChild(prevLi);
+
+    // Numbered buttons
+    for (let i = 1; i <= totalPages; i++) {
+        const li = document.createElement("li");
+        li.className = "page-item" + (i === this.currentPage ? " active" : "");
+        li.innerHTML = `<a class="page-link" href="javascript:void(0);">${i}</a>`;
+        li.addEventListener("click", () => {
+            this.currentPage = i;
+            this.renderTable();
+        });
+        ul.appendChild(li);
+    }
+
+    // Next button
+    const nextLi = document.createElement("li");
+    nextLi.className = "page-item next" + (this.currentPage === totalPages ? " disabled" : "");
+    nextLi.innerHTML = `
+        <a class="page-link" href="javascript:void(0);">
+            <i class="icon-base ti tabler-chevron-right icon-sm"></i>
+        </a>`;
+    nextLi.addEventListener("click", () => {
+        if (this.currentPage < totalPages) {
+            this.currentPage++;
+            this.renderTable();
+        }
+    });
+    ul.appendChild(nextLi);
+
+    // Last button
+    const lastLi = document.createElement("li");
+    lastLi.className = "page-item last" + (this.currentPage === totalPages ? " disabled" : "");
+    lastLi.innerHTML = `
+        <a class="page-link" href="javascript:void(0);">
+            <i class="icon-base ti tabler-chevrons-right icon-sm"></i>
+        </a>`;
+    lastLi.addEventListener("click", () => {
+        if (this.currentPage < totalPages) {
+            this.currentPage = totalPages;
+            this.renderTable();
+        }
+    });
+    ul.appendChild(lastLi);
+
+    pagination.appendChild(ul);
+}
+
+
+    }
+
+window.materialHandler = new MaterialHandler();
+</script>
+
+<script>
+    class MaterialHandler {
+        constructor() {
+            this.materials = [];
+            this.filtered = [];
+            this.searchInput = document.getElementById("search-material");
+
+            if (this.searchInput) {
+                this.searchInput.addEventListener("input", (e) => {
+                    this.filterMaterials(e.target.value);
+                });
+            }
+
+            this.loadMaterials();
         }
 
-        openEditForm(id) {
-            // Fetch material data and populate form
-            fetch(`/materials/list`)
+        loadMaterials() {
+            fetch('/materials/list')
                 .then(res => res.json())
                 .then(materials => {
-                    const material = materials.find(m => m.id == id);
-                    if (!material) return;
-
-                    // Fill form
-                    document.getElementById("materialName").value = material.name;
-                    document.getElementById("materialDescription").value = material.description || '';
-                    document.getElementById("materialUnit").value = material.unit;
-                    document.getElementById("materialPrice").value = material.unit_price;
-
-                    // Update UI
-                    document.getElementById("offcanvas-title").innerText = "Edit Material";
-                    document.getElementById("form-submit-btn").innerText = "Update";
-
-                    // Mark form as editing so AddMaterial handler will skip create
-                    const form = document.getElementById("form-add-material");
-                    form.dataset.editing = "true";
-
-                    // Change submit behavior to update
-                    form.onsubmit = (e) => {
-                        e.preventDefault();
-                        this.update(id, new FormData(form));
-                    };
-
-                    // Open offcanvas (reusing instance)
-                    const offcanvasEl = document.getElementById('add-new-material');
-                    const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
-                    offcanvas.show();
-                });
+                    this.materials = materials;
+                    this.filtered = materials;
+                    this.renderTable();
+                })
+                .catch(error => console.error("Error loading materials:", error));
         }
 
-        update(id, formData) {
-            fetch(`/materials/update/${id}`, {
-                    method: "POST",
-                    headers: {
-                        "X-CSRF-TOKEN": '{{ csrf_token() }}'
-                    },
-                    body: formData,
-                    credentials: "same-origin"
-                })
-                .then(res => res.json().then(json => ({
-                    ok: res.ok,
-                    json
-                })))
-                .then(({
-                    ok,
-                    json
-                }) => {
-                    if (!ok) {
-                        const msg = json.message || (json.errors ? Object.values(json.errors).flat().join(
-                            '\n') : 'Update failed');
-                        Swal.fire({
-                            title: msg,
-                            icon: 'error'
-                        });
-                        return;
-                    }
+        filterMaterials(searchText) {
+            const query = searchText.toLowerCase();
+            this.filtered = this.materials.filter(m =>
+                m.name.toLowerCase().includes(query) ||
+                (m.description || '').toLowerCase().includes(query) ||
+                (m.unit || '').toLowerCase().includes(query)
+            );
+            this.renderTable();
+        }
 
-                    Swal.fire({
-                        title: json.message || 'Updated',
-                        icon: "success"
-                    });
+        renderTable() {
+            const table = document.getElementById("materials-table");
+            if (!table) return;
 
-                    const offcanvas = bootstrap.Offcanvas.getInstance(document.getElementById(
-                        'add-new-material'));
-                    if (offcanvas) offcanvas.hide();
+            const tbody = table.querySelector("tbody");
+            tbody.innerHTML = "";
 
-                    // clear editing flag and restore form
-                    const form = document.getElementById("form-add-material");
-                    if (form) {
-                        delete form.dataset.editing;
-                        form.onsubmit = null;
-                    }
+            if (this.filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center">No materials found</td></tr>`;
+                return;
+            }
 
-                    if (window.materialHandler) {
-                        window.materialHandler.loadMaterials();
-                    }
-                })
-                .catch(error => {
-                    console.error("Error:", error);
-                    Swal.fire("Something went wrong!", "", "error");
-                });
+            this.filtered.forEach(material => {
+                const row = `
+                <tr>
+                    <td>${material.name}</td>
+                    <td>${material.description || ''}</td>
+                    <td>${material.unit}</td>
+                    <td>${material.unit_price}</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning edit-btn" data-id="${material.id}">Edit</button>
+                    </td>
+                </tr>
+            `;
+                tbody.insertAdjacentHTML("beforeend", row);
+            });
         }
     }
 
-    // Initialize once
-    if (!window.editMaterial) {
-        window.editMaterial = new EditMaterial();
-    }
+    // Initialize
+    window.materialHandler = new MaterialHandler();
 </script>
+
 
 <script>
     // Unified Add Button JS
