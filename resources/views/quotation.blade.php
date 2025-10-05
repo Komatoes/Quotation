@@ -92,10 +92,17 @@
 
             <!-- Action Buttons -->
             <div class="mt-3">
-                <button class="btn btn-success" id="approveBtn" data-quot="{{ $quotation->id }}">Approve</button>
-                <button class="btn btn-primary" id="saveDraftBtn" data-quot="{{ $quotation->id }}">Save as Draft</button>
-                <button class="btn btn-danger" id="rejectBtn" data-quot="{{ $quotation->id }}">Reject</button>
+                <button type="button" class="btn btn-success" id="approveBtn" data-quot="{{ $quotation->id }}">
+                    Approve
+                </button>
+                <button type="button" class="btn btn-primary" id="saveDraftBtn" data-quot="{{ $quotation->id }}">
+                    Save as Draft
+                </button>
+                <button type="button" class="btn btn-danger" id="rejectBtn" data-quot="{{ $quotation->id }}">
+                    Reject
+                </button>
             </div>
+
 
             <!-- Include Modals -->
             @include('include.modals.add_material')
@@ -345,71 +352,82 @@
 
 
     <!-- Quotation Status Buttons -->
-<script>
-    class QuotationStatusHandler {
-        constructor() {
-            this.csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute("content");
-            this.bindEvents();
-        }
+    <script>
+        class QuotationStatusHandler {
+            constructor() {
+                this.csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute("content");
+                this.bindEvents();
+            }
 
-        bindEvents() {
-            document.querySelectorAll("#approveBtn, #saveDraftBtn, #rejectBtn").forEach(button => {
-                button.addEventListener("click", (e) => {
-                    e.preventDefault();
-                    const quotationId = button.dataset.quot;
-                    let statusId = null;
+            bindEvents() {
+                document.querySelectorAll("#approveBtn, #saveDraftBtn, #rejectBtn").forEach(button => {
+                    button.addEventListener("click", (e) => {
+                        e.preventDefault();
+                        const quotationId = button.dataset.quot;
+                        let statusId = null;
 
-                    switch (button.id) {
-                        case "saveDraftBtn": statusId = 1; break;
-                        case "approveBtn":   statusId = 2; break;
-                        case "rejectBtn":    statusId = 3; break;
-                    }
+                        switch (button.id) {
+                            case "saveDraftBtn":
+                                statusId = 1;
+                                break;
+                            case "approveBtn":
+                                statusId = 2;
+                                break;
+                            case "rejectBtn":
+                                statusId = 3;
+                                break;
+                        }
 
-                    if (statusId) this.updateStatus(quotationId, statusId);
+                        if (statusId) this.updateStatus(quotationId, statusId);
+                    });
                 });
-            });
-        }
+            }
 
-        async updateStatus(quotationId, statusId) {
-            try {
-                const res = await fetch(`/quotations/${quotationId}/status`, {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-CSRF-TOKEN": this.csrfToken,
-                        "Accept": "application/json"
-                    },
-                    body: JSON.stringify({ status_id: statusId })
-                });
-
-                const data = await res.json();
-
-                if (res.ok && data.success) {
-                    Swal.fire({
-                        title: "Success",
-                        text: data.message,
-                        icon: "success",
-                        timer: 1200,
-                        showConfirmButton: false
+            async updateStatus(quotationId, statusId) {
+                try {
+                    const res = await fetch(`/quotations/${quotationId}/status`, {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRF-TOKEN": this.csrfToken,
+                            "Accept": "application/json"
+                        },
+                        body: JSON.stringify({
+                            status_id: statusId
+                        })
                     });
 
-                    // ✅ Instantly update the status on the page (if you have an element for it)
-                    const statusLabel = document.getElementById("quotationStatus");
-                    if (statusLabel && data.quotation?.status?.name) {
-                        statusLabel.textContent = data.quotation.status.name;
-                    }
+                    const data = await res.json();
 
-                } else {
-                    Swal.fire("Error", data.message || "Failed to update status.", "error");
+                    if (res.ok && data.success) {
+                        Swal.fire({
+                            title: "Success",
+                            text: data.message,
+                            icon: "success",
+                            timer: 1200,
+                            showConfirmButton: false
+                        }).then(() => {
+                            // 🔄 Redirect after success
+                            window.location.href = "{{ route('dashboard') }}";
+                            // OR: window.location.href = "/quotations";
+                        });
+
+                        // ✅ Instantly update the status on the page (if you stay on page)
+                        const statusLabel = document.getElementById("quotationStatus");
+                        if (statusLabel && data.quotation?.status?.name) {
+                            statusLabel.textContent = data.quotation.status.name;
+                        }
+
+                    } else {
+                        Swal.fire("Error", data.message || "Failed to update status.", "error");
+                    }
+                } catch (error) {
+                    console.error("Status update error:", error);
+                    Swal.fire("Error", "Something went wrong!", "error");
                 }
-            } catch (error) {
-                console.error("Status update error:", error);
-                Swal.fire("Error", "Something went wrong!", "error");
             }
         }
-    }
 
-    new QuotationStatusHandler();
-</script>
-
+        new QuotationStatusHandler();
+    </script>
 @endsection

@@ -14,6 +14,12 @@ class QuotationController extends Controller
     {
         return view('dashboard');
     }
+    public function viewReport($id)
+    {
+        $quotation = Quotation::with(['client', 'employee', 'materials'])->findOrFail($id);
+        return view('view-report', compact('quotation'));
+    }
+
     public function store(Request $request)
     {
         // Create client
@@ -165,5 +171,32 @@ class QuotationController extends Controller
             'delivery_fee'  => $quotation->delivery_fee,
             'grand_total'   => $grandTotal,
         ]);
+    }
+
+    public function drafts()
+    {
+        $drafts = Quotation::with(['client', 'employee', 'status'])
+            ->where('status_id', 1) // Draft
+            ->get();
+
+        return response()->json($drafts);
+    }
+
+    public function approved()
+    {
+        $approved = Quotation::with(['client', 'employee', 'status'])
+            ->where('status_id', 2) // Approved
+            ->get();
+
+        return response()->json($approved);
+    }
+
+    public function rejected()
+    {
+        $rejected = Quotation::with(['client', 'employee', 'status'])
+            ->where('status_id', 3) // Rejected
+            ->get();
+
+        return response()->json($rejected);
     }
 }

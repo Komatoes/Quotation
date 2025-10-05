@@ -8,78 +8,73 @@ use Illuminate\Http\Request;
 class ProjectController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Show the project report page.
      *
-     * @return \Illuminate\Http\Response
+     * @param  int  $id
+     * @return \Illuminate\View\View
+     */
+    public function viewReport($id)
+    {
+        $project = Project::with(['client', 'materials', 'progressLogs'])->findOrFail($id);
+        return view('view-report', compact('project'));
+    }
+
+
+    /**
+     * Display a listing of projects.
      */
     public function index()
     {
-        //
+        // Example: fetch all projects
+        $projects = Project::with('client')->get();
+        return view('projects.index', compact('projects'));
     }
 
     /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
+     * Show the form for creating a new project.
      */
     public function create()
     {
-        //
+        return view('projects.create');
     }
 
     /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * Store a newly created project.
      */
     public function store(Request $request)
     {
-        //
+        // Validation and storing logic here
     }
 
     /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\Project  $project
-     * @return \Illuminate\Http\Response
+     * Display the specified project.
      */
     public function show(Project $project)
     {
-        //
+        return view('projects.show', compact('project'));
     }
 
     /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \App\Models\Project  $project
-     * @return \Illuminate\Http\Response
+     * Show the form for editing the specified project.
      */
     public function edit(Project $project)
     {
-        //
+        return view('projects.edit', compact('project'));
     }
 
     /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Project  $project
-     * @return \Illuminate\Http\Response
+     * Update the specified project.
      */
     public function update(Request $request, Project $project)
     {
-        //
+        // Update logic here
     }
 
     /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\Project  $project
-     * @return \Illuminate\Http\Response
+     * Remove the specified project.
      */
     public function destroy(Project $project)
     {
-        //
+        // Delete logic here
     }
 }
