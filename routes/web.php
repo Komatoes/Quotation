@@ -4,7 +4,9 @@ use App\Http\Controllers\AuthenticationController;
 use App\Http\Controllers\ClientsController;
 use App\Http\Controllers\QuotationController;
 use App\Http\Controllers\MaterialController;
+use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\QuotationMaterialController;
+use App\Models\Project;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -18,13 +20,15 @@ use Illuminate\Support\Facades\Route;
 // -------------------------
 Route::get('/', [QuotationController::class, 'viewHome'])->name('dashboard');
 
+// web.php
+Route::get('/view-report/{id}', [QuotationController::class, 'viewReport'])->name('report');
+
+
+
 // -------------------------
 // Quotations
 // -------------------------
 Route::post('/add-quotation', [QuotationController::class, 'store'])->name('quotations.store');
-
-Route::put('/quotations/{id}/status', [QuotationController::class, 'updateStatus']);
-
 
 Route::get('/quotations/{id}', [QuotationController::class, 'show'])
     ->whereNumber('id')
