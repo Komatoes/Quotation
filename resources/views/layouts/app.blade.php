@@ -167,63 +167,82 @@
 </html>
 
 <script>
-    class AddQuotation {
-        add(id) {
-            const form = document.getElementById(id);
-            const formData = new FormData(form);
+class AddQuotation {
+    add(id) {
+        const form = document.getElementById(id);
+        const formData = new FormData(form);
 
-            fetch("/add-quotation", {
-                    method: "POST",
-                    headers: {
-                        "X-CSRF-TOKEN": '{{ csrf_token() }}'
-                    },
-                    body: formData
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
+        fetch("/add-quotation", {
+                method: "POST",
+                headers: {
+                    "X-CSRF-TOKEN": '{{ csrf_token() }}',
+                    "Accept": "application/json"
+                },
+                body: formData
+            })
+            .then(async res => {
+                const data = await res.json();
+                return { ok: res.ok, data };
+            })
+            .then(({ ok, data }) => {
+                if (!ok) {
+                    // 🧠 Laravel validation errors
+                    if (data.errors) {
+                        const messages = Object.values(data.errors)
+                            .flat()
+                            .map(msg => `<li>${msg}</li>`)
+                            .join("");
+
                         Swal.fire({
-                            title: "Quotation created successfully",
-                            icon: "success",
-                        }).then(() => {
-                            window.location.href = "/quotations/" + data.quotation_id;
+                            title: "Validation Error",
+                            html: `<ul style='text-align:left; margin:0; padding-left:1.5em;'>${messages}</ul>`,
+                            icon: "warning"
                         });
                     } else {
-                        Swal.fire("Failed to create quotation", "", "error");
+                        Swal.fire({
+                            title: "Error",
+                            text: data.message || "Failed to create quotation.",
+                            icon: "error"
+                        });
                     }
-                })
-                .catch(error => {
-                    console.error("Error:", error);
-                    Swal.fire("Something went wrong!", "", "error");
+                    return;
+                }
+
+                // ✅ Success
+                Swal.fire({
+                    title: data.message || "Quotation created successfully!",
+                    icon: "success"
+                }).then(() => {
+                    window.location.href = "/quotations/" + data.quotation_id;
                 });
-        }
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                Swal.fire({
+                    title: "Something went wrong!",
+                    text: "Please try again later.",
+                    icon: "error"
+                });
+            });
     }
-    const addQuotation = new AddQuotation();
+}
+
+const addQuotation = new AddQuotation();
 </script>
+
 <script>
-    document.addEventListener("DOMContentLoaded", () => {
-        const btnAddQuotation = document.getElementById("btn-add-quotation");
-        if (btnAddQuotation) {
-            btnAddQuotation.addEventListener("click", () => {
-                const offcanvasEl = document.getElementById("add-new-quotation");
-                const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
-                offcanvas.show();
-            });
-        }
-    });
+document.addEventListener("DOMContentLoaded", () => {
+    const btnAddQuotation = document.getElementById("btn-add-quotation");
+    if (btnAddQuotation) {
+        btnAddQuotation.addEventListener("click", () => {
+            const offcanvasEl = document.getElementById("add-new-quotation");
+            const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
+            offcanvas.show();
+        });
+    }
+});
 </script>
-<script>
-    document.addEventListener("DOMContentLoaded", () => {
-        const btnAddQuotation = document.getElementById("btn-add-quotation");
-        if (btnAddQuotation) {
-            btnAddQuotation.addEventListener("click", () => {
-                const offcanvasEl = document.getElementById("add-new-quotation");
-                const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
-                offcanvas.show();
-            });
-        }
-    });
-</script>
+
 
 
 

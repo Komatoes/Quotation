@@ -59,6 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
             this.tableId = tableId;
             this.fetchUrl = fetchUrl;
         }
+
         loadMaterials() {
             fetch(this.fetchUrl)
                 .then(res => res.json())
@@ -67,14 +68,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (!table) return;
                     const tbody = table.querySelector("tbody");
                     tbody.innerHTML = "";
+
                     materials.forEach(material => {
-                        const row = `<tr>
-                            <td>${material.name}</td>
-                            <td>${material.unit}</td>
-                            <td>₱${parseFloat(material.unit_cost).toFixed(2)}</td>
-                            <td><input type="number" name="quantity[${material.id}]" class="form-control" value="1" min="1"></td>
-                            <td class="text-center"><input type="checkbox" name="selected[]" value="${material.id}"></td>
-                        </tr>`;
+                        const row = `
+                            <tr>
+                                <td>${material.name}</td>
+                                <td>${material.unit}</td>
+                                <td>₱${parseFloat(material.unit_cost).toFixed(2)}</td>
+                                <td><input type="number" name="quantity[${material.id}]" class="form-control" value="1" min="1"></td>
+                                <td class="text-center"><input type="checkbox" name="selected[]" value="${material.id}"></td>
+                            </tr>`;
                         tbody.insertAdjacentHTML("beforeend", row);
                     });
                 })
@@ -82,7 +85,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // load materials when Add Material modal is opened
+    // Load materials when Add Material modal is opened
     const addMatModal = document.getElementById('addMatModal');
     addMatModal.addEventListener('shown.bs.modal', () => {
         window.modalMaterialHandler = new MaterialHandler("materialsTable", "/materials/list");
@@ -109,16 +112,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 const data = await res.json();
                 if (data.success) {
-                    // Close modal
-                    bootstrap.Modal.getInstance(addMatModal)?.hide();
+                    // ✅ Close modal
+                    const modalInstance = bootstrap.Modal.getInstance(addMatModal);
+                    if (modalInstance) modalInstance.hide();
 
-                    // Cleanup any leftover backdrop
+                    // ✅ Cleanup leftover backdrop (Bootstrap sometimes leaves it)
                     document.querySelectorAll(".modal-backdrop").forEach(el => el.remove());
                     document.body.classList.remove("modal-open");
 
-                    Swal.fire("Material added successfully", "", "success").then(() => {
-                        window.location.reload();
+                    // ✅ Refresh the quotation materials table dynamically
+                    Swal.fire("Material added successfully!", "", "success").then(() => {
+                        if (window.quotationMaterialHandler) {
+                            window.quotationMaterialHandler.loadMaterials();
+                        }
                     });
+
                 } else {
                     Swal.fire("Failed to add material", data.message || "", "error");
                 }
@@ -128,6 +136,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }
+
+    // Make class globally accessible
     window.addMaterialQuotation = new AddMaterialtoQuotation();
 
     /**

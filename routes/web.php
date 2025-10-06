@@ -49,6 +49,9 @@ Route::get('/quotations/approved', [QuotationController::class, 'approved'])->na
 // Rejected
 Route::get('/quotations/rejected', [QuotationController::class, 'rejected'])->name('quotations.rejected');
 
+Route::get('/quotation/{id}/materials', [QuotationController::class, 'getMaterials']);
+
+
 // -------------------------
 // Materials
 // -------------------------

@@ -22,31 +22,43 @@ class QuotationController extends Controller
 
     public function store(Request $request)
     {
-        // Create client
-        $client = \App\Models\Client::create([
-            'first_name'  => $request->client_first_name,
-            'last_name'   => $request->client_last_name,
-            'contact_no'  => $request->client_contact_no,
-            'address'     => $request->client_address,
+        $validated = $request->validate([
+            'client_first_name' => 'required|string|max:255',
+            'client_last_name'  => 'required|string|max:255',
+            'client_contact_no' => 'required|digits_between:11,11',
+            'client_address'    => 'required|string|max:255',
+            'subject'           => 'required|string|max:255',
+            'description'       => 'required|string|max:1000',
+            'labor_fee'         => 'nullable|numeric|min:0',
+            'delivery_fee'      => 'nullable|numeric|min:0',
         ]);
 
-        // Create quotation
+        $client = \App\Models\Client::create([
+            'first_name'  => $validated['client_first_name'],
+            'last_name'   => $validated['client_last_name'],
+            'contact_no'  => $validated['client_contact_no'],
+            'address'     => $validated['client_address'],
+        ]);
+
         $quotation = \App\Models\Quotation::create([
-            'subject'      => $request->subject,
-            'description'  => $request->description ?? '',
-            'employee_id'  => 1,
+            'subject'      => $validated['subject'],
+            'description'  => $validated['description'],
+            'employee_id'  => 1, // or auth()->id()
             'client_id'    => $client->id,
-            'status_id'    => 1, // default status
-            'labor_fee'    => $request->labor_fee ?? 0,
-            'delivery_fee' => $request->delivery_fee ?? 0,
+            'status_id'    => 1,
+            'labor_fee'    => $validated['labor_fee'] ?? 0,
+            'delivery_fee' => $validated['delivery_fee'] ?? 0,
         ]);
 
         return response()->json([
             'success' => true,
             'quotation_id' => $quotation->id,
             'client_id' => $client->id,
+            'message' => 'Quotation created successfully!',
         ]);
     }
+
+
     public function updateStatus(Request $request, $id)
     {
         $validated = $request->validate([
@@ -198,5 +210,28 @@ class QuotationController extends Controller
             ->get();
 
         return response()->json($rejected);
+    }
+    public function getMaterials($id)
+    {
+        $quotation = \App\Models\Quotation::with('materials')->findOrFail($id);
+
+        $materials = $quotation->materials->map(function ($m) {
+            return [
+                'pivot_id'   => $m->pivot->id,
+                'name'       => $m->name,
+                'unit'       => $m->unit,
+                'unit_price' => (float) $m->pivot->unit_cost,
+                'quantity'   => (int) $m->pivot->quantity,
+                'line_total' => (float) ($m->pivot->unit_cost * $m->pivot->quantity),
+            ];
+        });
+
+        $grandTotal = $materials->sum('line_total') + ($quotation->labor_fee ?? 0) + ($quotation->delivery_fee ?? 0);
+
+        return response()->json([
+            'success' => true,
+            'materials' => $materials,
+            'grand_total' => $grandTotal
+        ]);
     }
 }
