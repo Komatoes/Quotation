@@ -7,7 +7,8 @@
             <h5 class="mb-0">Materials</h5>
             <div class="d-flex align-items-center gap-2">
                 <!-- 🔎 Search Bar (longer) -->
-                <input type="text" id="search-material" class="form-control" style="width: 250px;" placeholder="Search materials...">
+                <input type="text" id="search-material" class="form-control" style="width: 250px;"
+                    placeholder="Search materials...">
 
                 <!-- ➕ Add Material Button -->
                 <button class="btn btn-primary" id="btn-add-material">
@@ -73,7 +74,8 @@
             </div>
 
             <div class="col-sm-12">
-                <button type="submit" class="btn btn-primary data-submit me-sm-4 me-1" id="form-submit-btn">Save</button>
+                <button type="submit" class="btn btn-primary data-submit me-sm-4 me-1"
+                    id="form-submit-btn">Save</button>
                 <button type="reset" class="btn btn-outline-secondary" data-bs-dismiss="offcanvas">Cancel</button>
             </div>
         </form>
@@ -81,129 +83,165 @@
 </div>
 
 <script>
-    class AddMaterial {
-        constructor() {
-            this.form = document.getElementById("form-add-material");
-            // Ensure we don't double-run when EditMaterial sets custom onsubmit
-            this.form.addEventListener("submit", (e) => this.onSubmit(e));
-            // Reset editing flag when offcanvas closes
-            const off = document.getElementById('add-new-material');
-            off.addEventListener('hidden.bs.offcanvas', () => {
-                this.resetForm();
-            });
-        }
+/* =====================================================
+   AddMaterial (handles both Add + Edit)
+   ===================================================== */
+class AddMaterial {
+    constructor() {
+        this.form = document.getElementById("form-add-material");
 
-        onSubmit(e) {
-            e.preventDefault();
-            // If editing, skip create (EditMaterial will handle)
-            if (this.form.dataset.editing === "true") return;
+        // Handle submit
+        this.form.addEventListener("submit", (e) => this.onSubmit(e));
 
-            const formData = new FormData(this.form);
-            fetch('/materials/store', {
-                    method: 'POST',
-                    headers: {
-                        "X-CSRF-TOKEN": '{{ csrf_token() }}'
-                    },
-                    body: formData,
-                    credentials: "same-origin"
-                })
-                .then(res => {
-                    return res.json().then(json => ({
-                        ok: res.ok,
-                        json
-                    }));
-                })
-                .then(({
-                    ok,
-                    json
-                }) => {
-                    if (!ok) {
-                        const msg = json.message || (json.errors ? Object.values(json.errors).flat().join(
-                            '\n') : 'Failed to add material');
+        // Reset when offcanvas closes
+        const off = document.getElementById('add-new-material');
+        off.addEventListener('hidden.bs.offcanvas', () => this.resetForm());
+    }
+
+    onSubmit(e) {
+        e.preventDefault();
+
+        const isEditing = this.form.dataset.editing === "true";
+        const id = this.form.dataset.id;
+        const formData = new FormData(this.form);
+
+        const url = isEditing ? `/materials/update/${id}` : `/materials/store`;
+        const method = "POST"; // keep consistent with Laravel form routes
+
+        fetch(url, {
+                method,
+                headers: {
+                    "X-CSRF-TOKEN": '{{ csrf_token() }}',
+                    "Accept": "application/json"
+                },
+                body: formData,
+                credentials: "same-origin"
+            })
+            .then(async (res) => {
+                const json = await res.json();
+                return { ok: res.ok, json };
+            })
+            .then(({ ok, json }) => {
+                if (!ok) {
+                    if (json.errors) {
+                        const messages = Object.values(json.errors)
+                            .flat()
+                            .map(msg => `<li>${msg}</li>`)
+                            .join("");
                         Swal.fire({
-                            title: msg,
-                            icon: 'error'
+                            title: "Validation Error",
+                            html: `<ul style='text-align:left; margin:0; padding-left:1.5em;'>${messages}</ul>`,
+                            icon: "warning"
                         });
-                        return;
+                    } else {
+                        Swal.fire({
+                            title: "Error",
+                            text: json.message || (isEditing ? "Failed to update material." : "Failed to add material."),
+                            icon: "error"
+                        });
                     }
+                    return;
+                }
 
-                    Swal.fire({
-                        title: json.message || 'Material added',
-                        icon: 'success'
-                    });
-                    const offcanvas = bootstrap.Offcanvas.getInstance(document.getElementById(
-                        'add-new-material'));
-                    if (offcanvas) offcanvas.hide();
-
-                    if (window.materialHandler) window.materialHandler.loadMaterials();
-                    this.resetForm();
-                })
-                .catch(err => {
-                    console.error("Error adding material:", err);
-                    Swal.fire("Something went wrong!", "", "error");
+                Swal.fire({
+                    title: json.message || (isEditing ? "Material updated successfully!" : "Material added successfully!"),
+                    icon: "success"
                 });
-        }
 
-        resetForm() {
-            this.form.reset();
-            delete this.form.dataset.editing;
-            this.form.onsubmit = null;
-            // Reset UI
-            document.getElementById("offcanvas-title").innerText = "Add Material";
-            document.getElementById("form-submit-btn").innerText = "Save";
-        }
+                const offcanvas = bootstrap.Offcanvas.getInstance(document.getElementById('add-new-material'));
+                if (offcanvas) offcanvas.hide();
+
+                if (window.materialHandler) window.materialHandler.loadMaterials();
+                this.resetForm();
+            })
+            .catch(err => {
+                console.error("Error submitting material:", err);
+                Swal.fire({
+                    title: "Something went wrong!",
+                    text: "Please try again later.",
+                    icon: "error"
+                });
+            });
     }
 
-    // Initialize add handler once
-    if (!window.addMaterial) {
-        window.addMaterial = new AddMaterial();
+    resetForm() {
+        this.form.reset();
+        delete this.form.dataset.editing;
+        delete this.form.dataset.id;
     }
-</script>
+}
 
-<script>
+if (!window.addMaterial) {
+    window.addMaterial = new AddMaterial();
+}
+
+/* =====================================================
+   MaterialHandler (with pagination restored)
+   ===================================================== */
 class MaterialHandler {
     constructor() {
         this.materials = [];
         this.filtered = [];
         this.currentPage = 1;
-        this.pageSize = 5;
+        this.pageSize = 10;
+
+        this.searchInput = document.getElementById("search-material");
+        if (this.searchInput) {
+            this.searchInput.addEventListener("input", (e) => this.filterMaterials(e.target.value));
+        }
+
+        this.paginationEl = document.getElementById("materials-pagination");
 
         this.loadMaterials();
-
-        // Search listener
-        document.getElementById("search-material").addEventListener("input", (e) => {
-            const term = e.target.value.toLowerCase();
-            this.filtered = this.materials.filter(m =>
-                m.name.toLowerCase().includes(term) ||
-                (m.description && m.description.toLowerCase().includes(term))
-            );
-            this.currentPage = 1;
-            this.renderTable();
-        });
     }
 
     loadMaterials() {
         fetch('/materials/list')
             .then(res => res.json())
-            .then(materials => {
-                this.materials = materials;
-                this.filtered = materials; // default = all
+            .then(data => {
+                this.materials = data;
+                this.filtered = data;
+                this.currentPage = 1;
                 this.renderTable();
+                this.renderPagination();
             })
-            .catch(error => console.error("Error loading materials:", error));
+            .catch(err => {
+                console.error("Error loading materials:", err);
+                Swal.fire("Failed to load materials", "", "error");
+            });
+    }
+
+    filterMaterials(searchText) {
+        const query = (searchText || '').toLowerCase();
+        this.filtered = this.materials.filter(m =>
+            (m.name || '').toLowerCase().includes(query) ||
+            (m.description || '').toLowerCase().includes(query) ||
+            (m.unit || '').toLowerCase().includes(query)
+        );
+        this.currentPage = 1;
+        this.renderTable();
+        this.renderPagination();
+    }
+
+    get paginatedItems() {
+        const start = (this.currentPage - 1) * this.pageSize;
+        const end = start + this.pageSize;
+        return this.filtered.slice(start, end);
     }
 
     renderTable() {
-        const tbody = document.querySelector("#materials-table tbody");
+        const table = document.getElementById("materials-table");
+        if (!table) return;
+
+        const tbody = table.querySelector("tbody");
         tbody.innerHTML = "";
 
-        // Pagination math
-        const start = (this.currentPage - 1) * this.pageSize;
-        const end = start + this.pageSize;
-        const pageItems = this.filtered.slice(start, end);
+        if (this.filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center">No materials found</td></tr>`;
+            return;
+        }
 
-        // Rows
-        pageItems.forEach(material => {
+        this.paginatedItems.forEach(material => {
             const row = `
                 <tr>
                     <td>${material.name}</td>
@@ -213,184 +251,111 @@ class MaterialHandler {
                     <td>
                         <button class="btn btn-sm btn-warning edit-btn" data-id="${material.id}">Edit</button>
                     </td>
-                </tr>
-            `;
+                </tr>`;
             tbody.insertAdjacentHTML("beforeend", row);
         });
 
-        this.renderPagination();
-    }
-
-renderPagination() {
-    const pagination = document.getElementById("materials-pagination");
-    pagination.innerHTML = "";
-
-    const totalPages = Math.ceil(this.filtered.length / this.pageSize);
-    if (totalPages <= 1) return;
-
-    const ul = document.createElement("ul");
-    ul.className = "pagination pagination-rounded";
-
-    // First button
-    const firstLi = document.createElement("li");
-    firstLi.className = "page-item first" + (this.currentPage === 1 ? " disabled" : "");
-    firstLi.innerHTML = `
-        <a class="page-link" href="javascript:void(0);">
-            <i class="icon-base ti tabler-chevrons-left icon-sm"></i>
-        </a>`;
-    firstLi.addEventListener("click", () => {
-        if (this.currentPage > 1) {
-            this.currentPage = 1;
-            this.renderTable();
-        }
-    });
-    ul.appendChild(firstLi);
-
-    // Prev button
-    const prevLi = document.createElement("li");
-    prevLi.className = "page-item prev" + (this.currentPage === 1 ? " disabled" : "");
-    prevLi.innerHTML = `
-        <a class="page-link" href="javascript:void(0);">
-            <i class="icon-base ti tabler-chevron-left icon-sm"></i>
-        </a>`;
-    prevLi.addEventListener("click", () => {
-        if (this.currentPage > 1) {
-            this.currentPage--;
-            this.renderTable();
-        }
-    });
-    ul.appendChild(prevLi);
-
-    // Numbered buttons
-    for (let i = 1; i <= totalPages; i++) {
-        const li = document.createElement("li");
-        li.className = "page-item" + (i === this.currentPage ? " active" : "");
-        li.innerHTML = `<a class="page-link" href="javascript:void(0);">${i}</a>`;
-        li.addEventListener("click", () => {
-            this.currentPage = i;
-            this.renderTable();
+        // Attach edit handlers
+        tbody.querySelectorAll(".edit-btn").forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                const id = e.currentTarget.dataset.id;
+                this.openEditOffcanvas(id);
+            });
         });
-        ul.appendChild(li);
     }
 
-    // Next button
-    const nextLi = document.createElement("li");
-    nextLi.className = "page-item next" + (this.currentPage === totalPages ? " disabled" : "");
-    nextLi.innerHTML = `
-        <a class="page-link" href="javascript:void(0);">
-            <i class="icon-base ti tabler-chevron-right icon-sm"></i>
-        </a>`;
-    nextLi.addEventListener("click", () => {
-        if (this.currentPage < totalPages) {
-            this.currentPage++;
-            this.renderTable();
-        }
-    });
-    ul.appendChild(nextLi);
+    renderPagination() {
+        if (!this.paginationEl) return;
 
-    // Last button
-    const lastLi = document.createElement("li");
-    lastLi.className = "page-item last" + (this.currentPage === totalPages ? " disabled" : "");
-    lastLi.innerHTML = `
-        <a class="page-link" href="javascript:void(0);">
-            <i class="icon-base ti tabler-chevrons-right icon-sm"></i>
-        </a>`;
-    lastLi.addEventListener("click", () => {
-        if (this.currentPage < totalPages) {
-            this.currentPage = totalPages;
-            this.renderTable();
-        }
-    });
-    ul.appendChild(lastLi);
+        const totalPages = Math.ceil(this.filtered.length / this.pageSize);
+        this.paginationEl.innerHTML = "";
 
-    pagination.appendChild(ul);
+        if (totalPages <= 1) return; // hide pagination if unnecessary
+
+        // Previous
+        const prevDisabled = this.currentPage === 1 ? "disabled" : "";
+        this.paginationEl.insertAdjacentHTML("beforeend", `
+            <li class="page-item ${prevDisabled}">
+                <a class="page-link" href="#" data-page="${this.currentPage - 1}">&laquo;</a>
+            </li>
+        `);
+
+        // Pages
+        for (let i = 1; i <= totalPages; i++) {
+            const active = i === this.currentPage ? "active" : "";
+            this.paginationEl.insertAdjacentHTML("beforeend", `
+                <li class="page-item ${active}">
+                    <a class="page-link" href="#" data-page="${i}">${i}</a>
+                </li>
+            `);
+        }
+
+        // Next
+        const nextDisabled = this.currentPage === totalPages ? "disabled" : "";
+        this.paginationEl.insertAdjacentHTML("beforeend", `
+            <li class="page-item ${nextDisabled}">
+                <a class="page-link" href="#" data-page="${this.currentPage + 1}">&raquo;</a>
+            </li>
+        `);
+
+        // Add click handlers
+        this.paginationEl.querySelectorAll("a.page-link").forEach(link => {
+            link.addEventListener("click", (e) => {
+                e.preventDefault();
+                const page = parseInt(e.target.dataset.page);
+                if (page >= 1 && page <= totalPages && page !== this.currentPage) {
+                    this.currentPage = page;
+                    this.renderTable();
+                    this.renderPagination();
+                }
+            });
+        });
+    }
+
+    openEditOffcanvas(id) {
+        const material = this.materials.find(m => m.id == id);
+        if (!material) return;
+
+        const form = document.getElementById("form-add-material");
+        form.dataset.editing = "true";
+        form.dataset.id = material.id;
+
+        form.querySelector("[name='name']").value = material.name;
+        form.querySelector("[name='description']").value = material.description || "";
+        form.querySelector("[name='unit']").value = material.unit;
+        form.querySelector("[name='unit_price']").value = material.unit_price;
+
+        document.getElementById("offcanvas-title").innerText = "Edit Material";
+        document.getElementById("form-submit-btn").innerText = "Update";
+
+        const offcanvasEl = document.getElementById('add-new-material');
+        const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
+        offcanvas.show();
+    }
+
+    resetForm() {
+        const form = document.getElementById("form-add-material");
+        form.reset();
+        delete form.dataset.editing;
+        delete form.dataset.id;
+
+        document.getElementById("offcanvas-title").innerText = "Add Material";
+        document.getElementById("form-submit-btn").innerText = "Save";
+    }
 }
 
+/* =====================================================
+   Initialize on DOM load
+   ===================================================== */
+window.addEventListener("DOMContentLoaded", () => {
+    if (!window.materialHandler) window.materialHandler = new MaterialHandler();
 
-    }
-
-window.materialHandler = new MaterialHandler();
-</script>
-
-<script>
-    class MaterialHandler {
-        constructor() {
-            this.materials = [];
-            this.filtered = [];
-            this.searchInput = document.getElementById("search-material");
-
-            if (this.searchInput) {
-                this.searchInput.addEventListener("input", (e) => {
-                    this.filterMaterials(e.target.value);
-                });
-            }
-
-            this.loadMaterials();
-        }
-
-        loadMaterials() {
-            fetch('/materials/list')
-                .then(res => res.json())
-                .then(materials => {
-                    this.materials = materials;
-                    this.filtered = materials;
-                    this.renderTable();
-                })
-                .catch(error => console.error("Error loading materials:", error));
-        }
-
-        filterMaterials(searchText) {
-            const query = searchText.toLowerCase();
-            this.filtered = this.materials.filter(m =>
-                m.name.toLowerCase().includes(query) ||
-                (m.description || '').toLowerCase().includes(query) ||
-                (m.unit || '').toLowerCase().includes(query)
-            );
-            this.renderTable();
-        }
-
-        renderTable() {
-            const table = document.getElementById("materials-table");
-            if (!table) return;
-
-            const tbody = table.querySelector("tbody");
-            tbody.innerHTML = "";
-
-            if (this.filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="text-center">No materials found</td></tr>`;
-                return;
-            }
-
-            this.filtered.forEach(material => {
-                const row = `
-                <tr>
-                    <td>${material.name}</td>
-                    <td>${material.description || ''}</td>
-                    <td>${material.unit}</td>
-                    <td>${material.unit_price}</td>
-                    <td>
-                        <button class="btn btn-sm btn-warning edit-btn" data-id="${material.id}">Edit</button>
-                    </td>
-                </tr>
-            `;
-                tbody.insertAdjacentHTML("beforeend", row);
-            });
-        }
-    }
-
-    // Initialize
-    window.materialHandler = new MaterialHandler();
-</script>
-
-
-<script>
-    // Unified Add Button JS
-    document.addEventListener("DOMContentLoaded", () => {
-        document.getElementById("btn-add-material").addEventListener("click", () => {
+    const addBtn = document.getElementById("btn-add-material");
+    if (addBtn) {
+        addBtn.addEventListener("click", () => {
             const offcanvasEl = document.getElementById('add-new-material');
             const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
 
-            // Reset form & UI
             const form = document.getElementById("form-add-material");
             form.reset();
             delete form.dataset.editing;
@@ -401,8 +366,11 @@ window.materialHandler = new MaterialHandler();
 
             offcanvas.show();
         });
-    });
+    }
+});
 </script>
+
+
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

@@ -31,7 +31,7 @@
             <!-- Materials Table -->
             <div class="card">
                 <div class="card-datatable table-responsive">
-                    <table class="table table-bordered">
+                    <table id="quotationMaterials" class="table table-bordered">
                         <thead class="table-light">
                             <tr>
                                 <th>Material</th>
@@ -430,4 +430,57 @@
 
         new QuotationStatusHandler();
     </script>
+
+    <script>
+    window.quotationMaterialHandler = {
+        loadMaterials: async function() {
+            const quotationId = "{{ $quotation->id }}";
+
+            try {
+                const res = await fetch(`/quotation/${quotationId}/materials`);
+                const data = await res.json();
+
+                if (data.success) {
+                    const tableBody = document.querySelector("#quotationMaterials tbody");
+                    tableBody.innerHTML = "";
+
+                    data.materials.forEach(mat => {
+                        const row = `
+                            <tr>
+                                <td>${mat.name}</td>
+                                <td>
+                                    <input type="number" class="form-control update-quantity" 
+                                        data-pivot="${mat.pivot_id}" data-quot="${quotationId}"
+                                        value="${mat.quantity}" min="1"
+                                        style="width: 80px; display:inline-block;">
+                                    <span>${mat.unit}</span>
+                                </td>
+                                <td>₱${parseFloat(mat.unit_price).toFixed(2)}</td>
+                                <td class="line-total">₱${parseFloat(mat.line_total).toFixed(2)}</td>
+                                <td class="text-center">
+                                    <a href="#" class="text-danger delete-material" 
+                                        data-id="${mat.pivot_id}" data-quot="${quotationId}">
+                                        <i class="ti ti-trash"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        `;
+                        tableBody.insertAdjacentHTML("beforeend", row);
+                    });
+
+                    // ✅ Update total
+                    document.getElementById("grandTotal").textContent =
+                        "₱" + parseFloat(data.grand_total).toFixed(2);
+
+                    // ✅ Rebind handlers
+                    new QuantityUpdater(".update-quantity");
+                    new DeleteMaterialFromQuotation(".delete-material");
+                }
+            } catch (err) {
+                console.error("Failed to reload materials:", err);
+            }
+        }
+    };
+</script>
+
 @endsection
