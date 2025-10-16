@@ -77,4 +77,34 @@ class ProjectController extends Controller
     {
         // Delete logic here
     }
+
+
+    // NEWWWWWWWWWWWWWWWWWWWWWWWW
+    /**
+     * Update the progress of a specific project.
+     */
+    public function updateProgress(Request $request, $quotationId)
+    {
+        $request->validate([
+            'progress' => 'required|numeric|min:0|max:100',
+            'latest_progress_report' => 'nullable|string|max:255',
+        ]);
+
+        $project = Project::where('quotation_id', $quotationId)->firstOrFail();
+
+        // Update progress
+        $project->progress = $request->input('progress');
+        $project->latest_progress_report = $request->input('latest_progress_report');
+        $project->save();
+
+        // Optionally, log the progress update
+        $project->progressLogs()->create([
+            'progress' => $request->input('progress'),
+            'note' => $request->input('latest_progress_report'),
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Project progress updated successfully.']);
+    }
+
+
 }
