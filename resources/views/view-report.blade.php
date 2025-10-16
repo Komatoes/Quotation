@@ -13,7 +13,7 @@
     <div class="card mb-3">
         <div class="card-body">
             <p><b>Client Name:</b> {{ $quotation->client->first_name }} {{ $quotation->client->last_name }}</p>
-            <p><b>Project:</b> {{ $quotation->name }}</p>
+            <p><b>Project:</b> {{ $quotation->Subject }}</p>
             <p><b>Date:</b> {{ $quotation->created_at->format('F d, Y') }}</p>
         </div>
     </div>
