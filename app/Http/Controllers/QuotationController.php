@@ -25,7 +25,7 @@ class QuotationController extends Controller
         $validated = $request->validate([
             'client_first_name' => 'required|string|max:255',
             'client_last_name'  => 'required|string|max:255',
-            'client_contact_no' => 'required|digits_between:11,11',
+            'client_contact_no' => 'required|digits:11',
             'client_address'    => 'required|string|max:255',
             'subject'           => 'required|string|max:255',
             'description'       => 'required|string|max:1000',
