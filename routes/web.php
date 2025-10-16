@@ -51,6 +51,11 @@ Route::get('/quotations/rejected', [QuotationController::class, 'rejected'])->na
 
 Route::get('/quotation/{id}/materials', [QuotationController::class, 'getMaterials']);
 
+    // NEWWWWWWWWWWWWWWWWWWWWWWWW
+
+Route::post('/quotations/{quotationId}/update-progress', [ProjectController::class, 'updateProgress'])
+    ->name('quotations.updateProgress');
+
 
 // -------------------------
 // Materials
