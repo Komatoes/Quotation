@@ -60,18 +60,62 @@
         <div class="card-body">
             <h3 class="mb-3">Progress Tracking</h3>
             <div class="progress mb-3">
-                <div id="progress-bar" class="progress-bar" role="progressbar" style="width:{{ $quotation->progress ?? 0 }}%" aria-valuenow="{{ $quotation->progress ?? 0 }}" aria-valuemin="0" aria-valuemax="100"></div>
+                <div id="progress-bar" class="progress-bar" role="progressbar" style="width:{{ $quotation->progress ?? 0 }}%" 
+                aria-valuenow="{{ $quotation->progress ?? 0 }}" aria-valuemin="0" aria-valuemax="100"></div>
             </div>
 
             <label for="progress-input"><b>Set Progress:</b></label>
-            <input type="range" id="progress-input" class="form-range mb-3" min="0" max="100" step="5" value="{{ $quotation->progress ?? 0 }}" oninput="updateProgress(this.value)">
+            <input type="range" id="progress-input" class="form-range mb-3" min="0" max="100" step="5" 
+            value="{{ $quotation->progress ?? 0 }}" oninput="updateProgress(this.value)">
 
             <label for="progress-report"><b>Progress Report:</b></label>
             <textarea id="progress-report" class="form-control mb-2" rows="3">{{ $quotation->latest_progress_report ?? '' }}</textarea>
+
+            <!-- <button class="btn btn-success mb-3" onclick="saveProgress({{ $quotation->id }})">Save Progress</button> -->
             <button class="btn btn-success mb-3" onclick="saveProgress({{ $quotation->id }})">Save Progress</button>
+
 
 
         </div>
     </div>
 </div>  
 @endsection
+
+
+<script>
+    // NEWWWWWWWWWWWWWWWWWWWWWWWW
+
+    function updateProgress(value) {
+        const progressBar = document.getElementById('progress-bar');
+        progressBar.style.width = value + '%';
+        progressBar.setAttribute('aria-valuenow', value);
+    }
+
+    async function saveProgress(quotationId) {
+        const progressValue = document.getElementById('progress-input').value;
+        const progressReport = document.getElementById('progress-report').value;
+
+        try {
+            const response = await fetch(`/quotations/${quotationId}/update-progress`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    progress: progressValue,
+                    latest_progress_report: progressReport
+                })
+            });
+
+            if (response.ok) {
+                alert('Progress updated successfully!');
+            } else {
+                alert('Failed to update progress.');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred while updating progress.');
+        }
+    }
+</script>
