@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthenticationController;
 use App\Http\Controllers\ClientsController;
 use App\Http\Controllers\QuotationController;
+use App\Http\Controllers\ProjectReportController;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\QuotationMaterialController;
@@ -53,8 +54,14 @@ Route::get('/quotation/{id}/materials', [QuotationController::class, 'getMateria
 
     // NEWWWWWWWWWWWWWWWWWWWWWWWW
 
-Route::post('/quotations/{quotationId}/update-progress', [ProjectController::class, 'updateProgress'])
+Route::post('/quotations/{quotationId}/update-progress', [ProjectReportController::class, 'updateProgress'])
     ->name('quotations.updateProgress');
+
+
+// Route to display the progress tracking page and all past reports for a specific quotation.
+Route::get('/quotations/{id}', [QuotationController::class, 'show'])->name('quotations.show');
+
+
 
 
 // -------------------------
