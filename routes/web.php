@@ -59,7 +59,7 @@ Route::post('/quotations/{quotationId}/update-progress', [ProjectReportControlle
 
 
 // Route to display the progress tracking page and all past reports for a specific quotation.
-Route::get('/quotations/{id}', [QuotationController::class, 'show'])->name('quotations.show');
+Route::get('/view-report/{id}', [ProjectReportController::class, 'showReports'])->name('quotations.showReports');
 
 
 

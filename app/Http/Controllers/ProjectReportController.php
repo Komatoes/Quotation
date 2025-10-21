@@ -45,7 +45,10 @@ class ProjectReportController extends Controller
      * @param  \App\Models\ProjectReport  $projectReport
      * @return \Illuminate\Http\Response
      */
-    
+    public function show(ProjectReport $projectReport)
+    {
+        //
+    }
 
     /**
      * Show the form for editing the specified resource.
@@ -126,17 +129,18 @@ class ProjectReportController extends Controller
 
     // ... inside your controller class ...
 
-  public function show($id)
-{
-    $quotation = Quotation::with(['client', 'materials', 'progressReports'])->findOrFail($id);
-    
-    // Retrieve all progress reports ordered by latest first
-    $reports = $quotation->progressReports()->orderBy('created_at', 'desc')->get();
-    
-    // Pass both quotation and reports to the blade view
-    return view('view-report', compact('quotation', 'reports'));
-}
+    public function showReports($quotationId)
+    {
+        $quotation = Quotation::findOrFail($quotationId);
 
+        $reports = ProjectReport::where('quotation_id', $quotationId)
+                                ->orderBy('created_at', 'desc')
+                                ->get();
 
+        return view('view-report', [
+            'quotation' => $quotation,
+            'reports' => $reports,
+        ]);
+    }
 
 }
