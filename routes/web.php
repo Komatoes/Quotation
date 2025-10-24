@@ -74,6 +74,7 @@ Route::post('/quotations/{id}/mark-completed', [QuotationController::class, 'mar
 Route::post('/quotations/{id}/create-revision', [QuotationController::class, 'createRevision']);
 
 
+Route::get('/quotations/completed', [QuotationController::class, 'getCompleted']);
 
 
 

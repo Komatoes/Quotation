@@ -297,4 +297,12 @@ class QuotationController extends Controller
             'quotation_id' => $quotation->id
         ]);
     }
+    public function getCompleted()
+    {
+        $completed = Quotation::with(['client', 'employee', 'status'])
+            ->where('status_id', 4)
+            ->get();
+
+        return response()->json($completed);
+    }
 }

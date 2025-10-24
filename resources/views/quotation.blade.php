@@ -70,16 +70,16 @@
                                 <td colspan="3" class="text-end fw-bold">Labor Fee:</td>
                                 <td colspan="2">
                                     <input type="number" class="form-control text-end fee-input" id="laborFee"
-                                        value="{{ number_format($quotation->labor_fee, 2) }}" step="0.01" data-field="labor_fee"
-                                        onfocus="if(this.value == '0.00') this.value = ''">
+                                        value="{{ number_format($quotation->labor_fee, 2) }}" step="0.01"
+                                        data-field="labor_fee" onfocus="if(this.value == '0.00') this.value = ''">
                                 </td>
                             </tr>
                             <tr>
                                 <td colspan="3" class="text-end fw-bold">Delivery/Hauling Fee:</td>
                                 <td colspan="2">
                                     <input type="number" class="form-control text-end fee-input" id="deliveryFee"
-                                        value="{{ number_format($quotation->delivery_fee, 2) }}" step="0.01" data-field="delivery_fee"
-                                        onfocus="if(this.value == '0.00') this.value = ''">
+                                        value="{{ number_format($quotation->delivery_fee, 2) }}" step="0.01"
+                                        data-field="delivery_fee" onfocus="if(this.value == '0.00') this.value = ''">
                                 </td>
                             </tr>
                             <tr>
@@ -107,6 +107,11 @@
                 <a href="{{ route('quotations.export', ['id' => $quotation->id]) }}" class="btn btn-info">
                     <i class="ti ti-file-export me-1"></i>Export to DOC
                 </a>
+            </div>
+            <div class="text-end mt-4">
+                <button class="btn btn-warning" id="createRevisionBtn" data-id="{{ $quotation->id }}">
+                    <i class="bi bi-pencil-square"></i> Create Revision
+                </button>
             </div>
 
 
@@ -291,14 +296,14 @@
                 document.querySelectorAll(this.selector).forEach(input => {
                     // Add input event listener
                     input.addEventListener("input", (e) => this.updateFee(e));
-                    
+
                     // Add focus event listener
                     input.addEventListener("focus", (e) => {
                         if (e.target.value === "0.00") {
                             e.target.value = "";
                         }
                     });
-                    
+
                     // Add blur event listener
                     input.addEventListener("blur", (e) => {
                         if (e.target.value === "" || e.target.value === "0") {
@@ -453,22 +458,22 @@
     </script>
 
     <script>
-    window.quotationMaterialHandler = {
-        loadMaterials: async function() {
-            const quotationId = "{{ $quotation->id }}";
+        window.quotationMaterialHandler = {
+            loadMaterials: async function() {
+                const quotationId = "{{ $quotation->id }}";
 
-            try {
-                const res = await fetch(`/quotation/${quotationId}/materials`);
-                const data = await res.json();
-                // Store scroll position
-                const scrollPosition = window.scrollY;
+                try {
+                    const res = await fetch(`/quotation/${quotationId}/materials`);
+                    const data = await res.json();
+                    // Store scroll position
+                    const scrollPosition = window.scrollY;
 
-                if (data.success) {
-                    const tableBody = document.querySelector("#quotationMaterials tbody");
-                    tableBody.innerHTML = "";
+                    if (data.success) {
+                        const tableBody = document.querySelector("#quotationMaterials tbody");
+                        tableBody.innerHTML = "";
 
-                    data.materials.forEach(mat => {
-                        const row = `
+                        data.materials.forEach(mat => {
+                            const row = `
                             <tr>
                                 <td>${mat.name}</td>
                                 <td>
@@ -488,29 +493,83 @@
                                 </td>
                             </tr>
                         `;
-                        tableBody.insertAdjacentHTML("beforeend", row);
-                    });
+                            tableBody.insertAdjacentHTML("beforeend", row);
+                        });
 
-                    // ✅ Update total
-                    document.getElementById("grandTotal").textContent =
-                        "₱" + parseFloat(data.grand_total).toFixed(2);
+                        // ✅ Update total
+                        document.getElementById("grandTotal").textContent =
+                            "₱" + parseFloat(data.grand_total).toFixed(2);
 
-                    // ✅ Rebind handlers
-                    new QuantityUpdater(".update-quantity");
-                    new DeleteMaterialFromQuotation(".delete-material");
+                        // ✅ Rebind handlers
+                        new QuantityUpdater(".update-quantity");
+                        new DeleteMaterialFromQuotation(".delete-material");
 
-                    // Restore scroll position after content update
-                    window.scrollTo(0, scrollPosition);
+                        // Restore scroll position after content update
+                        window.scrollTo(0, scrollPosition);
 
-                    // Ensure the page is scrollable to the new content
-                    document.body.style.height = 'auto';
-                    document.body.style.overflow = 'visible';
+                        // Ensure the page is scrollable to the new content
+                        document.body.style.height = 'auto';
+                        document.body.style.overflow = 'visible';
+                    }
+                } catch (err) {
+                    console.error("Failed to reload materials:", err);
                 }
-            } catch (err) {
-                console.error("Failed to reload materials:", err);
             }
-        }
-    };
-</script>
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        document.getElementById('createRevisionBtn').addEventListener('click', function() {
+            const id = this.dataset.id;
 
+            Swal.fire({
+                title: 'Create a revision?',
+                text: "Do you want to create a revision for this quotation?",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, create it!',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (!result.isConfirmed) return;
+
+                fetch(`/quotations/${id}/create-revision`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            reason: 'Client requested changes' // optional reason
+                        }),
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                title: 'Success!',
+                                text: data.message,
+                                icon: 'success'
+                            }).then(() => {
+                                // redirect to quotation edit page
+                                window.location.href = `/quotations/${data.quotation_id}`;
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'Failed',
+                                text: data.message,
+                                icon: 'error'
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        Swal.fire({
+                            title: 'Error',
+                            text: 'Error creating revision.',
+                            icon: 'error'
+                        });
+                        console.error(err);
+                    });
+            });
+        });
+    </script>
 @endsection

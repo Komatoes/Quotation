@@ -68,6 +68,12 @@
                     @include('rejectedprojects')
                 </div>
             </section>
+            <section id="completed-projects" class="mt-5">
+                <div class="row">
+                    @include('completedprojects')
+                </div>
+            </section>
+
 
         </div>
     </div>

@@ -1,16 +1,16 @@
-{{-- resources/views/drafts.blade.php --}}
+{{-- resources/views/completed.blade.php --}}
 <div class="col-12">
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Draft Quotations</h5>
+            <h5 class="mb-0">Completed Quotations</h5>
             <div class="d-flex align-items-center gap-2">
                 <!-- 🔎 Search Bar -->
-                <input type="text" id="search-drafts" class="form-control" placeholder="Search drafts...">
+                <input type="text" id="search-completed" class="form-control" placeholder="Search completed quotations...">
             </div>
         </div>
 
         <div class="card-datatable table-responsive pt-0">
-            <table class="table" id="drafts-table">
+            <table class="table" id="completed-table">
                 <thead>
                     <tr>
                         <th>Subject</th>
@@ -18,7 +18,7 @@
                         <th>Client</th>
                         <th>Created By</th>
                         <th>Status</th>
-                        <th>Created At</th>
+                        <th>Completed At</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -27,7 +27,7 @@
             <!-- 📄 Pagination -->
             <div class="card-footer d-flex justify-content-end">
                 <nav>
-                    <ul class="pagination pagination-rounded" id="drafts-pagination"></ul>
+                    <ul class="pagination pagination-rounded" id="completed-pagination"></ul>
                 </nav>
             </div>
         </div>
@@ -35,7 +35,7 @@
 </div>
 
 <script>
-    class DraftHandler {
+    class CompletedHandler {
         constructor() {
             this.currentPage = 1;
             this.perPage = 5; // items per page
@@ -43,25 +43,25 @@
             this.quotations = [];
 
             this.initEvents();
-            this.loadDrafts();
+            this.loadCompleted();
         }
 
         initEvents() {
-            document.getElementById("search-drafts").addEventListener("input", (e) => {
+            document.getElementById("search-completed").addEventListener("input", (e) => {
                 this.searchQuery = e.target.value.toLowerCase();
                 this.currentPage = 1;
                 this.renderTable();
             });
         }
 
-        loadDrafts() {
-            fetch("{{ url('quotations/drafts') }}")
+        loadCompleted() {
+            fetch("{{ url('quotations/completed') }}")
                 .then(res => res.json())
                 .then(data => {
                     this.quotations = data;
                     this.renderTable();
                 })
-                .catch(error => console.error("Error loading drafts:", error));
+                .catch(error => console.error("Error loading completed quotations:", error));
         }
 
         getFilteredData() {
@@ -69,14 +69,13 @@
             return this.quotations.filter(q =>
                 (q.subject && q.subject.toLowerCase().includes(this.searchQuery)) ||
                 (q.description && q.description.toLowerCase().includes(this.searchQuery)) ||
-                (q.client && ((q.client.first_name + " " + q.client.last_name).toLowerCase().includes(this
-                    .searchQuery))) ||
+                (q.client && ((q.client.first_name + " " + q.client.last_name).toLowerCase().includes(this.searchQuery))) ||
                 (q.employee && q.employee.name.toLowerCase().includes(this.searchQuery))
             );
         }
 
         renderTable() {
-            const tbody = document.getElementById("drafts-table").getElementsByTagName("tbody")[0];
+            const tbody = document.getElementById("completed-table").getElementsByTagName("tbody")[0];
             tbody.innerHTML = "";
 
             const filtered = this.getFilteredData();
@@ -85,62 +84,56 @@
 
             pageData.forEach(q => {
                 // 🔗 Make subject clickable — styled properly
-                    const subjectLink = `<a href="/quotations/${q.id}">${q.subject}</a>`;
+                const subjectLink = `<a href="/quotations/${q.id}/view-completed">${q.subject}</a>`;
 
                 const row = `
-            <tr>
-                <td>${subjectLink}</td>
-                <td>${q.description}</td>
-                <td>${q.client ? (q.client.first_name + " " + q.client.last_name) : 'N/A'}</td>
-                <td>${q.employee ? q.employee.name : 'N/A'}</td>
-                <td>
-                    <span class="badge bg-warning text-dark">
-                        ${q.status ? q.status.status_name : 'Draft'}
-                    </span>
-                </td>
-                <td>${new Date(q.created_at).toLocaleDateString()}</td>
-            </tr>
-        `;
+                    <tr>
+                        <td>${subjectLink}</td>
+                        <td>${q.description}</td>
+                        <td>${q.client ? (q.client.first_name + " " + q.client.last_name) : 'N/A'}</td>
+                        <td>${q.employee ? q.employee.name : 'N/A'}</td>
+                        <td>
+                            <span class="badge bg-success">
+                                ${q.status ? q.status.status_name : 'Completed'}
+                            </span>
+                        </td>
+                        <td>${new Date(q.updated_at).toLocaleDateString()}</td>
+                    </tr>
+                `;
                 tbody.insertAdjacentHTML("beforeend", row);
             });
 
             this.renderPagination(filtered.length);
         }
 
-
-
         renderPagination(totalItems) {
             const totalPages = Math.ceil(totalItems / this.perPage);
-            const pagination = document.getElementById("drafts-pagination");
+            const pagination = document.getElementById("completed-pagination");
             pagination.innerHTML = "";
 
-            // Prev button
             const prevDisabled = this.currentPage === 1 ? "disabled" : "";
             pagination.insertAdjacentHTML("beforeend", `
-            <li class="page-item ${prevDisabled}">
-                <a class="page-link" href="javascript:void(0);"><i class="ti ti-chevron-left"></i></a>
-            </li>
-        `);
+                <li class="page-item ${prevDisabled}">
+                    <a class="page-link" href="javascript:void(0);"><i class="ti ti-chevron-left"></i></a>
+                </li>
+            `);
 
-            // Page numbers
             for (let i = 1; i <= totalPages; i++) {
                 const active = i === this.currentPage ? "active" : "";
                 pagination.insertAdjacentHTML("beforeend", `
-                <li class="page-item ${active}">
-                    <a class="page-link" href="javascript:void(0);">${i}</a>
-                </li>
-            `);
+                    <li class="page-item ${active}">
+                        <a class="page-link" href="javascript:void(0);">${i}</a>
+                    </li>
+                `);
             }
 
-            // Next button
             const nextDisabled = this.currentPage === totalPages ? "disabled" : "";
             pagination.insertAdjacentHTML("beforeend", `
-            <li class="page-item ${nextDisabled}">
-                <a class="page-link" href="javascript:void(0);"><i class="ti ti-chevron-right"></i></a>
-            </li>
-        `);
+                <li class="page-item ${nextDisabled}">
+                    <a class="page-link" href="javascript:void(0);"><i class="ti ti-chevron-right"></i></a>
+                </li>
+            `);
 
-            // Event binding
             pagination.querySelectorAll(".page-link").forEach((btn) => {
                 btn.addEventListener("click", () => {
                     if (btn.querySelector(".ti-chevron-left")) {
@@ -156,7 +149,7 @@
         }
     }
 
-    new DraftHandler();
+    new CompletedHandler();
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
