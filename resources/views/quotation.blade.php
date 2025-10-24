@@ -104,6 +104,9 @@
                 <button type="button" class="btn btn-danger" id="rejectBtn" data-quot="{{ $quotation->id }}">
                     Reject
                 </button>
+                <a href="{{ route('quotations.export', ['id' => $quotation->id]) }}" class="btn btn-info">
+                    <i class="ti ti-file-export me-1"></i>Export to DOC
+                </a>
             </div>
 
 

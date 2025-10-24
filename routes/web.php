@@ -6,6 +6,7 @@ use App\Http\Controllers\QuotationController;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\QuotationMaterialController;
+use App\Http\Controllers\QuotationExportController;
 use App\Models\Project;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +34,10 @@ Route::post('/add-quotation', [QuotationController::class, 'store'])->name('quot
 Route::get('/quotations/{id}', [QuotationController::class, 'show'])
     ->whereNumber('id')
     ->name('quotations.show');
+
+// Export quotation to DOC
+Route::get('/quotations/{id}/export', [QuotationExportController::class, 'export'])
+    ->name('quotations.export');
 
 // routes/web.php
 Route::post('/quotations/{quotation}/update-fee', [QuotationController::class, 'updateFee'])
