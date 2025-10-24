@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <tr>
                                 <td>${material.name}</td>
                                 <td>${material.unit}</td>
-                                <td>₱${parseFloat(material.unit_cost).toFixed(2)}</td>
+                                <td>₱${parseFloat(material.unit_price).toFixed(2)}</td>
                                 <td><input type="number" name="quantity[${material.id}]" class="form-control" value="1" min="1"></td>
                                 <td class="text-center"><input type="checkbox" name="selected[]" value="${material.id}"></td>
                             </tr>`;
