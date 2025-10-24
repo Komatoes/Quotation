@@ -12,8 +12,8 @@
         <!-- Project Info -->
         <div class="card mb-3">
             <div class="card-body">
+                <h3 class="mb-3">{{ $quotation->subject }}</h3>
                 <p><b>Client Name:</b> {{ $quotation->client->first_name }} {{ $quotation->client->last_name }}</p>
-                <p><b>Project:</b> {{ $quotation->Subject }}</p>
                 <p><b>Date:</b> {{ $quotation->created_at->format('F d, Y') }}</p>
             </div>
         </div>
@@ -164,7 +164,6 @@
         const progressBar = document.getElementById('progress-bar');
         const display = document.getElementById('pending-progress-display');
 
-        // Prevent lowering the progress dynamically
         if (parseInt(value) < latestSavedProgress) {
             Swal.fire({
                 icon: 'warning',
@@ -193,7 +192,7 @@
         const saveButton = document.getElementById('save-button');
         const progressBar = document.getElementById('progress-bar');
         const display = document.getElementById('pending-progress-display');
-        const reportList = document.getElementById('report-list'); // where reports are displayed
+        const reportList = document.getElementById('report-list');
 
         const progressValue = parseInt(progressInput.value);
         const progressReport = reportInput.value.trim();
@@ -208,7 +207,6 @@
             return;
         }
 
-        // Disable button during save
         saveButton.disabled = true;
         saveButton.textContent = 'Saving...';
 
@@ -229,10 +227,8 @@
             const data = await response.json();
 
             if (response.ok) {
-                // Update the latest progress tracker
                 latestSavedProgress = progressValue;
 
-                // Update progress bar visually
                 if (progressBar) {
                     progressBar.style.width = progressValue + '%';
                     progressBar.setAttribute('aria-valuenow', progressValue);
@@ -246,61 +242,70 @@
                     display.classList.add('text-success');
                 }
 
-                // ✅ Add new report dynamically
                 if (reportList) {
                     const newReport = document.createElement('div');
                     newReport.classList.add(
-                        'list-group-item',
-                        'list-group-item-action',
-                        'flex-column',
-                        'align-items-start',
-                        'mb-2',
-                        'border-primary',
-                        'border-3',
-                        'border-start',
-                        'shadow-sm',
-                        'fade-in' // animation class
+                        'list-group-item', 'list-group-item-action', 'flex-column',
+                        'align-items-start', 'mb-2', 'border-primary', 'border-3',
+                        'border-start', 'shadow-sm', 'fade-in'
                     );
 
                     newReport.innerHTML = `
-        <div class="d-flex w-100 justify-content-between align-items-center">
-            <h5 class="mb-1">
-                Progress Set To:
-                <span class="badge ${progressValue == 100 ? 'bg-success' : 'bg-primary'} fs-6">
-                    ${progressValue}%
-                </span>
-            </h5>
-            <small class="text-muted text-end">
-                Updated: ${new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}<br>
-                at ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-            </small>
-        </div>
-        <hr class="my-2">
-        <p class="mb-1 text-dark">
-            <strong>Report Details:</strong>
-            ${progressReport || 'No details provided in this report entry.'}
-        </p>
-    `;
-
+                        <div class="d-flex w-100 justify-content-between align-items-center">
+                            <h5 class="mb-1">
+                                Progress Set To:
+                                <span class="badge ${progressValue == 100 ? 'bg-success' : 'bg-primary'} fs-6">
+                                    ${progressValue}%
+                                </span>
+                            </h5>
+                            <small class="text-muted text-end">
+                                Updated: ${new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}<br>
+                                at ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                            </small>
+                        </div>
+                        <hr class="my-2">
+                        <p class="mb-1 text-dark">
+                            <strong>Report Details:</strong>
+                            ${progressReport || 'No details provided in this report entry.'}
+                        </p>
+                    `;
                     reportList.prepend(newReport);
                 }
 
-
-                // ✅ SweetAlert confirmation
                 Swal.fire({
                     icon: 'success',
                     title: 'Progress Updated!',
                     text: data.message || 'Progress successfully saved.',
                     confirmButtonColor: '#28a745',
-                    timer: 1500,
+                    timer: 1200,
                     showConfirmButton: false
                 });
 
-                // Re-enable inputs for future updates
+                // ✅ If progress reaches 100%, confirm project completion
+                if (progressValue === 100) {
+                    setTimeout(() => {
+                        Swal.fire({
+                            icon: 'question',
+                            title: 'Mark as Completed?',
+                            text: 'Progress has reached 100%. Do you want to mark this project as completed?',
+                            showCancelButton: true,
+                            confirmButtonText: 'Yes, mark as completed',
+                            cancelButtonText: 'Not yet',
+                            confirmButtonColor: '#28a745',
+                            cancelButtonColor: '#d33'
+                        }).then(async (result) => {
+                            if (result.isConfirmed) {
+                                await markAsCompleted(quotationId);
+                            }
+                        });
+                    }, 1300);
+                }
+
+                // Reset input states
                 saveButton.textContent = 'Save Progress';
                 saveButton.disabled = false;
                 progressInput.disabled = false;
-                reportInput.value = ''; // clear input
+                reportInput.value = '';
             } else {
                 Swal.fire({
                     icon: 'error',
@@ -323,4 +328,53 @@
             saveButton.disabled = false;
         }
     }
+
+    // ✅ Function to mark quotation as completed
+    async function markAsCompleted(quotationId) {
+        try {
+            const response = await fetch(`/quotations/${quotationId}/mark-completed`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                },
+                credentials: 'same-origin'
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Project Completed!',
+                    text: data.message || 'Quotation successfully marked as completed.',
+                    confirmButtonColor: '#28a745'
+                });
+
+                // Optional: update UI
+                const statusBadge = document.getElementById('quotation-status');
+                if (statusBadge) {
+                    statusBadge.textContent = 'Completed';
+                    statusBadge.classList.remove('bg-primary', 'bg-warning');
+                    statusBadge.classList.add('bg-success');
+                }
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.message || 'Failed to mark as completed.',
+                    confirmButtonColor: '#d33'
+                });
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'An error occurred while marking as completed.',
+                confirmButtonColor: '#d33'
+            });
+        }
+    }
 </script>
+

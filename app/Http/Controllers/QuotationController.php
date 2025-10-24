@@ -19,6 +19,11 @@ class QuotationController extends Controller
         $quotation = Quotation::with(['client', 'employee', 'materials'])->findOrFail($id);
         return view('view-report', compact('quotation'));
     }
+    public function viewdraft($id)
+    {
+        $quotation = Quotation::with(['client', 'employee', 'materials'])->findOrFail($id);
+        return view('view-draft', compact('quotation'));
+    }
 
     public function store(Request $request)
     {
@@ -232,6 +237,64 @@ class QuotationController extends Controller
             'success' => true,
             'materials' => $materials,
             'grand_total' => $grandTotal
+        ]);
+    }
+    public function markCompleted($id)
+    {
+        $quotation = Quotation::findOrFail($id);
+        $completedStatus = DB::table('quotation_status')->where('status_name', 'Completed')->first();
+
+        if ($completedStatus) {
+            $quotation->status_id = $completedStatus->id;
+            $quotation->save();
+
+            return response()->json(['message' => 'Quotation marked as completed successfully.']);
+        }
+
+        return response()->json(['message' => 'Completed status not found.'], 400);
+    }
+    public function createRevision(Request $request, $id)
+    {
+        $quotation = Quotation::with(['client', 'materials'])->findOrFail($id);
+
+        // Optional: reason for revision
+        $reason = $request->input('reason', 'No reason provided');
+
+        // Store the old data as JSON
+        $revisionData = [
+            'subject'      => $quotation->subject,
+            'description'  => $quotation->description,
+            'labor_fee'    => $quotation->labor_fee,
+            'delivery_fee' => $quotation->delivery_fee,
+            'status_id'    => $quotation->status_id,
+            'materials'    => $quotation->materials->map(function ($m) {
+                return [
+                    'id' => $m->id,
+                    'name' => $m->name,
+                    'unit' => $m->unit,
+                    'unit_price' => $m->pivot->unit_cost,
+                    'quantity' => $m->pivot->quantity,
+                ];
+            }),
+        ];
+
+        // Create revision record
+        DB::table('quotation_revisions')->insert([
+            'quotation_id' => $quotation->id,
+            'old_data'     => json_encode($revisionData),
+            'reason'       => $reason,
+            'created_at'   => now(),
+            'updated_at'   => now(),
+        ]);
+
+        // Optional: reset quotation to Draft for editing
+        $quotation->status_id = 1; // Draft
+        $quotation->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Quotation revision created successfully.',
+            'quotation_id' => $quotation->id
         ]);
     }
 }

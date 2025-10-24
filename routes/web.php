@@ -62,9 +62,17 @@ Route::get('/quotation/{id}/materials', [QuotationController::class, 'getMateria
 Route::post('/quotations/{quotationId}/update-progress', [ProjectReportController::class, 'updateProgress'])
     ->name('quotations.updateProgress');
 
+Route::get('/quotations/{id}/view-draft', [QuotationController::class, 'viewDraft'])
+    ->name('quotations.view-draft');
+
 
 // Route to display the progress tracking page and all past reports for a specific quotation.
 Route::get('/view-report/{id}', [ProjectReportController::class, 'showReports'])->name('quotations.showReports');
+
+
+Route::post('/quotations/{id}/mark-completed', [QuotationController::class, 'markCompleted']);
+Route::post('/quotations/{id}/create-revision', [QuotationController::class, 'createRevision']);
+
 
 
 
