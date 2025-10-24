@@ -17,6 +17,7 @@ class Quotation extends Model
         'status_id',
         'labor_fee',
         'delivery_fee',
+        'latest_progress',
     ];
 
     // Relation to client
@@ -46,6 +47,6 @@ class Quotation extends Model
 
     public function progressReports()
 {
-    return $this->hasMany(ProgressReport::class);
+    return $this->hasMany(ProjectReport::class);
 }
 }
