@@ -1,0 +1,26 @@
+.content-wrapper {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.container-xxl {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 2rem;
+}
+
+.modal-body {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+/* Ensure tables are responsive */
+.card-datatable {
+    overflow-x: auto;
+}
+
+/* Ensure proper spacing for action buttons */
+.mt-3 {
+    margin-bottom: 2rem;
+}

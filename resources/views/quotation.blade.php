@@ -2,6 +2,7 @@
 @include('include.head')
 
 @section('content')
+    <link href="{{ asset('assets/css/quotation-styles.css') }}" rel="stylesheet">
     <div class="content-wrapper">
         <!-- Content -->
         <div class="container-xxl flex-grow-1 container-p-y">
@@ -69,14 +70,16 @@
                                 <td colspan="3" class="text-end fw-bold">Labor Fee:</td>
                                 <td colspan="2">
                                     <input type="number" class="form-control text-end fee-input" id="laborFee"
-                                        value="{{ $quotation->labor_fee }}" step="0.01" data-field="labor_fee">
+                                        value="{{ number_format($quotation->labor_fee, 2) }}" step="0.01" data-field="labor_fee"
+                                        onfocus="if(this.value == '0.00') this.value = ''">
                                 </td>
                             </tr>
                             <tr>
                                 <td colspan="3" class="text-end fw-bold">Delivery/Hauling Fee:</td>
                                 <td colspan="2">
                                     <input type="number" class="form-control text-end fee-input" id="deliveryFee"
-                                        value="{{ $quotation->delivery_fee }}" step="0.01" data-field="delivery_fee">
+                                        value="{{ number_format($quotation->delivery_fee, 2) }}" step="0.01" data-field="delivery_fee"
+                                        onfocus="if(this.value == '0.00') this.value = ''">
                                 </td>
                             </tr>
                             <tr>
@@ -283,7 +286,22 @@
                 this.debounceTimer = null;
 
                 document.querySelectorAll(this.selector).forEach(input => {
+                    // Add input event listener
                     input.addEventListener("input", (e) => this.updateFee(e));
+                    
+                    // Add focus event listener
+                    input.addEventListener("focus", (e) => {
+                        if (e.target.value === "0.00") {
+                            e.target.value = "";
+                        }
+                    });
+                    
+                    // Add blur event listener
+                    input.addEventListener("blur", (e) => {
+                        if (e.target.value === "" || e.target.value === "0") {
+                            e.target.value = "0.00";
+                        }
+                    });
                 });
             }
 
@@ -439,6 +457,8 @@
             try {
                 const res = await fetch(`/quotation/${quotationId}/materials`);
                 const data = await res.json();
+                // Store scroll position
+                const scrollPosition = window.scrollY;
 
                 if (data.success) {
                     const tableBody = document.querySelector("#quotationMaterials tbody");
@@ -475,6 +495,13 @@
                     // ✅ Rebind handlers
                     new QuantityUpdater(".update-quantity");
                     new DeleteMaterialFromQuotation(".delete-material");
+
+                    // Restore scroll position after content update
+                    window.scrollTo(0, scrollPosition);
+
+                    // Ensure the page is scrollable to the new content
+                    document.body.style.height = 'auto';
+                    document.body.style.overflow = 'visible';
                 }
             } catch (err) {
                 console.error("Failed to reload materials:", err);
