@@ -40,6 +40,13 @@ return new class extends Migration
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
+            [
+                'id' => 4,
+                'status_name' => 'Completed', // ✅ new status
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+
         ]);
     }
 
