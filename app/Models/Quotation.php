@@ -43,4 +43,9 @@ class Quotation extends Model
         return $this->belongsToMany(Material::class, 'quotation_materials')
                     ->withPivot('quantity', 'unit_cost', 'id'); 
     }
+
+    public function progressReports()
+{
+    return $this->hasMany(ProgressReport::class);
+}
 }
