@@ -46,7 +46,12 @@ class Quotation extends Model
     }
 
     public function progressReports()
-{
-    return $this->hasMany(ProjectReport::class);
-}
+    {
+        return $this->hasMany(ProjectReport::class);
+    }
+
+    public function revisions()
+    {
+        return $this->hasMany(QuotationRevision::class);
+    }
 }

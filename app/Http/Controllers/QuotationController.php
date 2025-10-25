@@ -153,9 +153,9 @@ class QuotationController extends Controller
     }
     public function show($id)
     {
-        $quotation = Quotation::findOrFail($id);
-        $client = \App\Models\Client::findOrFail($quotation->client_id);
-        $materials = $quotation->materials; // Many-to-many via quotation_materials
+        $quotation = Quotation::with(['client', 'materials'])->findOrFail($id);
+        $client = $quotation->client; // Already loaded via with()
+        $materials = $quotation->materials; // Already loaded via with()
         return view('quotation', compact('quotation', 'client', 'materials'));
     }
     public function updateFee(Request $request, $id)
@@ -278,13 +278,10 @@ class QuotationController extends Controller
             }),
         ];
 
-        // Create revision record
-        DB::table('quotation_revisions')->insert([
-            'quotation_id' => $quotation->id,
-            'old_data'     => json_encode($revisionData),
-            'reason'       => $reason,
-            'created_at'   => now(),
-            'updated_at'   => now(),
+        // Create revision record using the model
+        $quotation->revisions()->create([
+            'old_data' => $revisionData,  // Model will handle JSON encoding
+            'reason'   => $reason
         ]);
 
         // Optional: reset quotation to Draft for editing
@@ -304,5 +301,22 @@ class QuotationController extends Controller
             ->get();
 
         return response()->json($completed);
+    }
+
+    public function getRevisionsJson($id)
+    {
+        $quotation = Quotation::findOrFail($id);
+
+        // Get revisions with automatic JSON decoding through model casting
+        $revisions = $quotation->revisions()->orderBy('created_at', 'desc')->get()->map(function ($rev) {
+            return [
+                'id' => $rev->id,
+                'created_at' => $rev->created_at->format('Y-m-d H:i:s'),
+                'reason' => $rev->reason,
+                'data' => $rev->old_data // already decoded by model casting
+            ];
+        });
+
+        return response()->json($revisions);
     }
 }

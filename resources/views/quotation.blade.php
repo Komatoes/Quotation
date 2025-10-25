@@ -112,13 +112,35 @@
                 <button class="btn btn-warning" id="createRevisionBtn" data-id="{{ $quotation->id }}">
                     <i class="bi bi-pencil-square"></i> Create Revision
                 </button>
+
+                <button class="btn btn-secondary" id="viewRevisionsBtn" data-id="{{ $quotation->id }}">
+                    <i class="bi bi-clock-history"></i> View Revisions
+                </button>
             </div>
+
 
 
             <!-- Include Modals -->
             @include('include.modals.add_material')
             @include('include.modals.new_material')
 
+            <!-- Revision History Modal -->
+            <div class="modal fade" id="revisionHistoryModal" tabindex="-1" aria-labelledby="revisionHistoryLabel"
+                aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="revisionHistoryLabel">Revision History</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <ul class="list-group" id="revisionList">
+                                <!-- Past revisions will be loaded here dynamically -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
         </div>
     </div>
@@ -320,10 +342,18 @@
                 const field = input.dataset.field;
                 const value = input.value;
 
+                console.log('Fee Update Initiated:', { field, value, quotationId: this.quotationId });
+
                 // ✅ Debounce to avoid spamming backend
                 clearTimeout(this.debounceTimer);
                 this.debounceTimer = setTimeout(async () => {
                     try {
+                        console.log('Sending Fee Update Request:', {
+                            url: `/quotations/${this.quotationId}/update-fee`,
+                            field,
+                            value
+                        });
+
                         const res = await fetch(`/quotations/${this.quotationId}/update-fee`, {
                             method: "POST",
                             headers: {
@@ -337,15 +367,29 @@
                             })
                         });
 
+                        console.log('Raw Response:', res);
                         const data = await res.json();
-                        console.log("Update Fee Response:", data);
+                        console.log("Fee Update Response:", {
+                            status: res.status,
+                            ok: res.ok,
+                            data
+                        });
 
                         if (res.ok && data.success) {
+                            console.log('Fee Update Success:', {
+                                newGrandTotal: data.grand_total,
+                                field,
+                                value
+                            });
+
                             // ✅ Update grand total UI
                             if (document.getElementById("grandTotal")) {
                                 document.getElementById("grandTotal").textContent =
                                     "₱" + parseFloat(data.grand_total).toFixed(2);
                             }
+
+                            // Store the updated fee value in the input
+                            input.value = parseFloat(value).toFixed(2);
 
                             Swal.fire({
                                 title: data.message,
@@ -354,10 +398,11 @@
                                 showConfirmButton: false
                             });
                         } else {
+                            console.error('Fee Update Failed:', data);
                             Swal.fire("Error", data.message || "Update failed", "error");
                         }
                     } catch (error) {
-                        console.error("Fee update error:", error);
+                        console.error("Fee Update Error:", error);
                         Swal.fire("Error", "Something went wrong!", "error");
                     }
                 }, 500);
@@ -570,6 +615,69 @@
                         console.error(err);
                     });
             });
+        });
+    </script>
+
+    <script>
+        document.getElementById('viewRevisionsBtn').addEventListener('click', function() {
+            const id = this.dataset.id;
+
+            fetch(`/quotations/${id}/revisions-json`) // new route returning JSON
+                .then(res => res.json())
+                .then(data => {
+                    const container = document.getElementById('revisionList');
+                    container.innerHTML = '';
+
+                    if (data.length === 0) {
+                        container.innerHTML = '<p>No past revisions found.</p>';
+                        return;
+                    }
+
+                    data.forEach((rev, index) => {
+                        const div = document.createElement('div');
+                        div.className = 'card mb-3';
+                        div.innerHTML = `
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <strong>Revision v${index + 1}</strong> - ${new Date(rev.created_at).toLocaleDateString()}
+                        ${rev.reason ? `<small class="text-muted">(${rev.reason})</small>` : ''}
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Subject:</strong> ${rev.data.subject}</p>
+                        <p><strong>Description:</strong> ${rev.data.description}</p>
+                        <p><strong>Labor Fee:</strong> ₱${parseFloat(rev.data.labor_fee).toFixed(2)}</p>
+                        <p><strong>Delivery Fee:</strong> ₱${parseFloat(rev.data.delivery_fee).toFixed(2)}</p>
+
+                        <h6>Materials:</h6>
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Material</th>
+                                    <th>Unit</th>
+                                    <th>Price/Unit</th>
+                                    <th>Quantity</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rev.data.materials.map(mat => `
+                                        <tr>
+                                            <td>${mat.name}</td>
+                                            <td>${mat.unit}</td>
+                                            <td>₱${parseFloat(mat.unit_price).toFixed(2)}</td>
+                                            <td>${mat.quantity}</td>
+                                            <td>₱${(parseFloat(mat.unit_price) * mat.quantity).toFixed(2)}</td>
+                                        </tr>
+                                    `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                        container.appendChild(div);
+                    });
+
+                    new bootstrap.Modal(document.getElementById('revisionHistoryModal')).show();
+                })
+                .catch(err => console.error(err));
         });
     </script>
 @endsection
