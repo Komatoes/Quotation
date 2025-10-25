@@ -19,6 +19,11 @@ class QuotationController extends Controller
         $quotation = Quotation::with(['client', 'employee', 'materials'])->findOrFail($id);
         return view('view-report', compact('quotation'));
     }
+    public function viewdraft($id)
+    {
+        $quotation = Quotation::with(['client', 'employee', 'materials'])->findOrFail($id);
+        return view('view-draft', compact('quotation'));
+    }
 
     public function store(Request $request)
     {
@@ -148,9 +153,9 @@ class QuotationController extends Controller
     }
     public function show($id)
     {
-        $quotation = Quotation::findOrFail($id);
-        $client = \App\Models\Client::findOrFail($quotation->client_id);
-        $materials = $quotation->materials; // Many-to-many via quotation_materials
+        $quotation = Quotation::with(['client', 'materials'])->findOrFail($id);
+        $client = $quotation->client; // Already loaded via with()
+        $materials = $quotation->materials; // Already loaded via with()
         return view('quotation', compact('quotation', 'client', 'materials'));
     }
     public function updateFee(Request $request, $id)
@@ -233,5 +238,85 @@ class QuotationController extends Controller
             'materials' => $materials,
             'grand_total' => $grandTotal
         ]);
+    }
+    public function markCompleted($id)
+    {
+        $quotation = Quotation::findOrFail($id);
+        $completedStatus = DB::table('quotation_status')->where('status_name', 'Completed')->first();
+
+        if ($completedStatus) {
+            $quotation->status_id = $completedStatus->id;
+            $quotation->save();
+
+            return response()->json(['message' => 'Quotation marked as completed successfully.']);
+        }
+
+        return response()->json(['message' => 'Completed status not found.'], 400);
+    }
+    public function createRevision(Request $request, $id)
+    {
+        $quotation = Quotation::with(['client', 'materials'])->findOrFail($id);
+
+        // Optional: reason for revision
+        $reason = $request->input('reason', 'No reason provided');
+
+        // Store the old data as JSON
+        $revisionData = [
+            'subject'      => $quotation->subject,
+            'description'  => $quotation->description,
+            'labor_fee'    => $quotation->labor_fee,
+            'delivery_fee' => $quotation->delivery_fee,
+            'status_id'    => $quotation->status_id,
+            'materials'    => $quotation->materials->map(function ($m) {
+                return [
+                    'id' => $m->id,
+                    'name' => $m->name,
+                    'unit' => $m->unit,
+                    'unit_price' => $m->pivot->unit_cost,
+                    'quantity' => $m->pivot->quantity,
+                ];
+            }),
+        ];
+
+        // Create revision record using the model
+        $quotation->revisions()->create([
+            'old_data' => $revisionData,  // Model will handle JSON encoding
+            'reason'   => $reason
+        ]);
+
+        // Optional: reset quotation to Draft for editing
+        $quotation->status_id = 1; // Draft
+        $quotation->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Quotation revision created successfully.',
+            'quotation_id' => $quotation->id
+        ]);
+    }
+    public function getCompleted()
+    {
+        $completed = Quotation::with(['client', 'employee', 'status'])
+            ->where('status_id', 4)
+            ->get();
+
+        return response()->json($completed);
+    }
+
+    public function getRevisionsJson($id)
+    {
+        $quotation = Quotation::findOrFail($id);
+
+        // Get revisions with automatic JSON decoding through model casting
+        $revisions = $quotation->revisions()->orderBy('created_at', 'desc')->get()->map(function ($rev) {
+            return [
+                'id' => $rev->id,
+                'created_at' => $rev->created_at->format('Y-m-d H:i:s'),
+                'reason' => $rev->reason,
+                'data' => $rev->old_data // already decoded by model casting
+            ];
+        });
+
+        return response()->json($revisions);
     }
 }
