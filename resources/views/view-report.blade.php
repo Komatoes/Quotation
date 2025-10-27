@@ -1,17 +1,55 @@
 @extends('layouts.app')
 @section('content')
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <div class="container-fluid py-3">
 
         <!-- Header -->
-        <div class="card mb-4 shadow-sm">
+    <div class="card mb-4 shadow-sm">
             <div class="card-body text-center bg-light">
                 <h1 class="h3 mb-0 text-dark">{{ $quotation->name }}</h1>
             </div>
         </div>
 
         <!-- Project Info -->
-        <div class="card mb-3">
+    <div class="card mb-3">
             <div class="card-body">
+                @if(empty($readonly))
+                <!-- Generate Link Button -->
+                <button type="button" class="btn btn-outline-secondary mb-2" id="generateLinkBtn" onclick="copyPublicLink()">
+                    <i class="bi bi-link-45deg"></i> Generate & Copy Public Link
+                </button>
+                @endif
+@if(empty($readonly))
+<script>
+function copyPublicLink() {
+    const token = "{{ $quotation->public_token }}";
+    if (!token) {
+        Swal.fire({
+            icon: 'error',
+            title: 'No Link Available',
+            text: 'This quotation does not have a public link yet.'
+        });
+        return;
+    }
+    const link = `${window.location.origin}/quotation/public/${token}`;
+    navigator.clipboard.writeText(link).then(() => {
+        Swal.fire({
+            icon: 'success',
+            title: 'Link Copied!',
+            text: link,
+            timer: 1500,
+            showConfirmButton: false
+        });
+    }, () => {
+        Swal.fire({
+            icon: 'error',
+            title: 'Copy Failed',
+            text: 'Could not copy the link.'
+        });
+    });
+}
+</script>
+@endif
                 <h3 class="mb-3">{{ $quotation->subject }}</h3>
                 <p><b>Client Name:</b> {{ $quotation->client->first_name }} {{ $quotation->client->last_name }}</p>
                 <p><b>Date:</b> {{ $quotation->created_at->format('F d, Y') }}</p>
@@ -20,8 +58,8 @@
 
         <!-- Materials Table -->
         <div class="card mb-3">
-            <div class="card-body">
-                <table class="table table-bordered table-striped">
+            <div class="card-body table-responsive">
+                <table class="table table-bordered table-striped align-middle">
                     <thead class="table-light">
                         <tr>
                             <th>Material</th>
@@ -48,9 +86,9 @@
                 @endphp
 
                 <div class="text-end mt-3">
-                    <p><b>Total Material Cost:</b> ₱{{ number_format($totalMaterial, 2) }}</p>
-                    <p><b>Labour Cost:</b> ₱{{ number_format($labourCost, 2) }}</p>
-                    <h4><b>Grand Total:</b> ₱{{ number_format($totalMaterial + $labourCost, 2) }}</h4>
+                    <p class="mb-1"><b>Total Material Cost:</b> ₱{{ number_format($totalMaterial, 2) }}</p>
+                    <p class="mb-1"><b>Labour Cost:</b> ₱{{ number_format($labourCost, 2) }}</p>
+                    <h4 class="mb-0"><b>Grand Total:</b> ₱{{ number_format($totalMaterial + $labourCost, 2) }}</h4>
                 </div>
             </div>
         </div>
@@ -65,7 +103,7 @@
 
                 <span id="pending-progress-display">Current Selection: {{ $quotation->latest_progress ?? 0 }}%</span>
 
-                <div class="progress mb-3">
+                <div class="progress mb-3" style="height: 2rem;">
                     <div id="progress-bar" class="progress-bar" role="progressbar"
                         style="width:{{ $quotation->latest_progress ?? 0 }}%"
                         aria-valuenow="{{ $quotation->latest_progress ?? 0 }}" aria-valuemin="0" aria-valuemax="100">
@@ -83,10 +121,15 @@
 
 
                 <label for="progress-input"><b>Set Progress:</b></label>
-                <input type="range" id="progress-input" class="form-range mb-3" min="0" max="100"
+                @if(empty($readonly))
+                <input type="range" id="progress-input" class="form-range mb-3 w-100" min="0" max="100"
                     step="5" value="{{ $quotation->latest_progress ?? 0 }}" oninput="updateProgress(this.value)">
+                @else
+                <span>{{ $quotation->latest_progress ?? 0 }}%</span>
+                @endif
 
 
+                @if(empty($readonly))
                 <div class="mb-3">
                     <label for="progress-report" class="form-label">Progress Report</label>
                     <textarea class="form-control" id="progress-report" rows="2"></textarea>
@@ -94,6 +137,7 @@
 
                 <button class="btn btn-success mb-3" id="save-button" onclick="saveProgress({{ $quotation->id }})">Save
                     Progress</button>
+                @endif
 
 
 

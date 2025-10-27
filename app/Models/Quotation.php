@@ -18,6 +18,7 @@ class Quotation extends Model
         'labor_fee',
         'delivery_fee',
         'latest_progress',
+        'public_token',
     ];
 
     // Relation to client

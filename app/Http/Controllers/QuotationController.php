@@ -10,6 +10,34 @@ use Illuminate\Support\Facades\DB;
 
 class QuotationController extends Controller
 {
+    /**
+     * Public view for guest/client by token
+     */
+    public function publicView($token)
+    {
+        $quotation = Quotation::with(['client', 'employee', 'materials', 'status', 'progressReports', 'revisions'])
+            ->where('public_token', $token)
+            ->firstOrFail();
+
+        // If not approved, show read-only quotation view
+        if ($quotation->status && strtolower($quotation->status->status_name) !== 'approved') {
+            return view('quotation', [
+                'quotation' => $quotation,
+                'client' => $quotation->client,
+                'materials' => $quotation->materials,
+                'readonly' => true,
+            ]);
+        }
+        // If approved, show view-report page with report history and percentage
+        return view('view-report', [
+            'quotation' => $quotation,
+            'client' => $quotation->client,
+            'materials' => $quotation->materials,
+            'progressReports' => $quotation->progressReports,
+            'revisions' => $quotation->revisions,
+            'readonly' => true,
+        ]);
+    }
     public function viewHome()
     {
         return view('dashboard');
@@ -53,6 +81,7 @@ class QuotationController extends Controller
             'status_id'    => 1,
             'labor_fee'    => $validated['labor_fee'] ?? 0,
             'delivery_fee' => $validated['delivery_fee'] ?? 0,
+            'public_token' => bin2hex(random_bytes(16)),
         ]);
 
         return response()->json([
