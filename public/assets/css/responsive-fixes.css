@@ -1,0 +1,139 @@
+/* Responsive fixes for Quotation System */
+
+/* Table responsiveness */
+.table-wrapper {
+    position: relative;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -1rem;  /* Compensate for mobile padding */
+    padding: 0 1rem;
+}
+
+@media (max-width: 768px) {
+    /* Adjust table font size on mobile */
+    .table {
+        font-size: 0.875rem;
+    }
+
+    /* Make sure buttons don't overflow */
+    .btn-group, 
+    .btn-group-vertical {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    /* Ensure modals are usable on mobile */
+    .modal-dialog {
+        margin: 0.5rem;
+        max-width: calc(100% - 1rem);
+    }
+
+    .modal-body {
+        padding: 1rem;
+    }
+
+    /* Fix input groups on mobile */
+    .input-group {
+        flex-wrap: wrap;
+    }
+
+    .input-group > .form-control {
+        flex: 1 1 auto;
+        width: auto;
+        min-width: 0;
+    }
+
+    /* Make sure action buttons are always visible */
+    .action-buttons {
+        position: sticky;
+        bottom: 0;
+        background: var(--bs-body-bg);
+        padding: 1rem;
+        margin: 0 -1rem -1rem -1rem;
+        border-top: 1px solid var(--bs-border-color);
+        z-index: 1020;
+    }
+}
+
+/* Fix modal backdrop issues */
+.modal-backdrop {
+    z-index: 1040;
+}
+
+.modal {
+    z-index: 1045;
+}
+
+/* Prevent multiple backdrops */
+.modal-backdrop + .modal-backdrop {
+    display: none;
+}
+
+/* Sidebar improvements */
+.sidebar {
+    position: fixed;
+    height: 100vh;
+    overflow-y: auto;
+    z-index: 1030;
+}
+
+@media (max-width: 992px) {
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease-in-out;
+    }
+
+    .sidebar.show {
+        transform: translateX(0);
+    }
+}
+
+/* Search bar improvements */
+.search-wrapper {
+    position: sticky;
+    top: 0;
+    background: var(--bs-body-bg);
+    padding: 1rem 0;
+    z-index: 1010;
+}
+
+.search-input {
+    border-radius: 1.5rem;
+    padding-left: 2.5rem;
+}
+
+.search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--bs-gray-500);
+}
+
+/* Card and button improvements for mobile */
+@media (max-width: 576px) {
+    .card-body {
+        padding: 1rem;
+    }
+
+    .btn-group {
+        width: 100%;
+    }
+
+    .btn-group .btn {
+        flex: 1;
+    }
+
+    .table td, 
+    .table th {
+        min-width: 100px;  /* Prevent too narrow columns */
+        white-space: normal;  /* Allow text wrapping */
+    }
+}
+
+/* Fix for multiple modal scroll issues */
+body.modal-open {
+    overflow: hidden;
+    padding-right: 0 !important;  /* Prevent layout shift */
+}

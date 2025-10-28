@@ -160,5 +160,17 @@
     new ApprovedHandler();
 </script>
 
+<!-- In head section -->
+<link href="{{ asset('assets/css/responsive-fixes.css') }}" rel="stylesheet">
+
+<!-- Before closing body tag -->
+<script src="{{ asset('assets/js/responsive-fixes.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initializeSidebar();
+    initializeResponsiveTables();
+});
+</script>
+
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
