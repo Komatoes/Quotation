@@ -30,6 +30,8 @@ Route::get('/view-report/{id}', [QuotationController::class, 'viewReport'])->nam
 // -------------------------
 // Quotations
 // -------------------------
+// Public route for guest/client to view quotation or report
+Route::get('/quotation/public/{token}', [QuotationController::class, 'publicView'])->name('quotation.public');
 Route::post('/add-quotation', [QuotationController::class, 'store'])->name('quotations.store');
 
 Route::get('/quotations/{id}', [QuotationController::class, 'show'])

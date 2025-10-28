@@ -1,9 +1,10 @@
 @extends('layouts.app')
 @include('include.head')
 @section('content')
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <div class="content-wrapper">
         <!-- Content -->
-        <div class="container-xxl flex-grow-1 container-p-y">
+        <div class="container-fluid flex-grow-1 container-p-y">
             <div class="row g-6">
 
                 <!-- Total Profit -->

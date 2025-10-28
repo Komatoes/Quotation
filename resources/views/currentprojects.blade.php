@@ -1,4 +1,5 @@
 {{-- resources/views/approved.blade.php --}}
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <div class="col-12">
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -9,8 +10,8 @@
             </div>
         </div>
 
-        <div class="card-datatable table-responsive pt-0">
-            <table class="table" id="approved-table">
+        <div class="table-responsive pt-0">
+            <table class="table table-bordered table-striped align-middle" id="approved-table">
                 <thead>
                     <tr>
                         <th>Subject</th>
@@ -157,6 +158,18 @@
     }
 
     new ApprovedHandler();
+</script>
+
+<!-- In head section -->
+<link href="{{ asset('assets/css/responsive-fixes.css') }}" rel="stylesheet">
+
+<!-- Before closing body tag -->
+<script src="{{ asset('assets/js/responsive-fixes.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initializeSidebar();
+    initializeResponsiveTables();
+});
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

@@ -2,37 +2,40 @@
 @include('include.head')
 
 @section('content')
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="{{ asset('assets/css/quotation-styles.css') }}" rel="stylesheet">
     <div class="content-wrapper">
         <!-- Content -->
-        <div class="container-xxl flex-grow-1 container-p-y">
+    <div class="container-fluid flex-grow-1 container-p-y">
 
             <!-- Header -->
-            <div class="card mb-6">
+            <div class="card mb-4">
                 <div class="card-body text-center bg-light rounded shadow-sm">
                     <h1 class="h3 mb-0 text-dark">Creating Quotation...</h1>
                 </div>
             </div>
 
             <!-- Quotation Info -->
-            <div class="card mb-6">
+            <div class="card mb-4">
                 <div class="card-body">
                     <h3 class="mb-3">{{ $quotation->subject }}</h3>
                     <p><strong>Customer:</strong> {{ $client->first_name }} {{ $client->last_name }}</p>
                     <p><strong>Contact:</strong> {{ $client->contact_no }}</p>
                     <p><strong>Address:</strong> {{ $client->address }}</p>
 
-                    <!-- Add Material Button -->
+                    <!-- Add Material Button (hidden for guests/clients) -->
+                    @if(empty($readonly))
                     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addMatModal">
                         Add Material
                     </button>
+                    @endif
                 </div>
             </div>
 
             <!-- Materials Table -->
             <div class="card">
-                <div class="card-datatable table-responsive">
-                    <table id="quotationMaterials" class="table table-bordered">
+                <div class="table-responsive">
+                    <table id="quotationMaterials" class="table table-bordered table-striped align-middle">
                         <thead class="table-light">
                             <tr>
                                 <th>Material</th>
@@ -47,20 +50,26 @@
                                 <tr>
                                     <td>{{ $mat->name }}</td>
                                     <td>
+                                        @if(empty($readonly))
                                         <input type="number" class="form-control update-quantity"
                                             data-pivot="{{ $mat->pivot->id }}" data-quot="{{ $quotation->id }}"
                                             value="{{ $mat->pivot->quantity }}" min="1"
                                             style="width: 80px; display:inline-block;">
+                                        @else
+                                        <span>{{ $mat->pivot->quantity }}</span>
+                                        @endif
                                         <span>{{ $mat->unit }}</span>
                                     </td>
                                     <td>₱{{ number_format($mat->unit_price, 2) }}</td>
                                     <td class="line-total">
                                         ₱{{ number_format($mat->unit_price * $mat->pivot->quantity, 2) }}</td>
                                     <td class="text-center">
+                                        @if(empty($readonly))
                                         <a href="#" class="text-danger delete-material"
                                             data-id="{{ $mat->pivot->id }}" data-quot="{{ $quotation->id }}">
                                             <i class="ti ti-trash"></i>
                                         </a>
+                                        @endif
                                     </td>
                                 </tr>
                             @endforeach
@@ -69,17 +78,25 @@
                             <tr>
                                 <td colspan="3" class="text-end fw-bold">Labor Fee:</td>
                                 <td colspan="2">
+                                    @if(empty($readonly))
                                     <input type="number" class="form-control text-end fee-input" id="laborFee"
                                         value="{{ number_format($quotation->labor_fee, 2) }}" step="0.01"
                                         data-field="labor_fee" onfocus="if(this.value == '0.00') this.value = ''">
+                                    @else
+                                    <span>{{ number_format($quotation->labor_fee, 2) }}</span>
+                                    @endif
                                 </td>
                             </tr>
                             <tr>
                                 <td colspan="3" class="text-end fw-bold">Delivery/Hauling Fee:</td>
                                 <td colspan="2">
+                                    @if(empty($readonly))
                                     <input type="number" class="form-control text-end fee-input" id="deliveryFee"
                                         value="{{ number_format($quotation->delivery_fee, 2) }}" step="0.01"
                                         data-field="delivery_fee" onfocus="if(this.value == '0.00') this.value = ''">
+                                    @else
+                                    <span>{{ number_format($quotation->delivery_fee, 2) }}</span>
+                                    @endif
                                 </td>
                             </tr>
                             <tr>
@@ -93,8 +110,44 @@
                 </div>
             </div>
 
-            <!-- Action Buttons -->
-            <div class="mt-3">
+            <!-- Action Buttons (hidden for guests/clients) -->
+            @if(empty($readonly))
+            <div class="row mt-3 g-2">
+                <div class="col-12 col-md-auto">
+                <!-- Generate Link Button -->
+                <button type="button" class="btn btn-outline-secondary w-100" id="generateLinkBtn" onclick="copyPublicLink()">
+                    <i class="bi bi-link-45deg"></i> Generate & Copy Public Link
+                </button>
+                </div>
+    <script>
+    function copyPublicLink() {
+        const token = "{{ $quotation->public_token }}";
+        if (!token) {
+            Swal.fire({
+                icon: 'error',
+                title: 'No Link Available',
+                text: 'This quotation does not have a public link yet.'
+            });
+            return;
+        }
+        const link = `${window.location.origin}/quotation/public/${token}`;
+        navigator.clipboard.writeText(link).then(() => {
+            Swal.fire({
+                icon: 'success',
+                title: 'Link Copied!',
+                text: link,
+                timer: 1500,
+                showConfirmButton: false
+            });
+        }, () => {
+            Swal.fire({
+                icon: 'error',
+                title: 'Copy Failed',
+                text: 'Could not copy the link.'
+            });
+        });
+    }
+    </script>
                 <button type="button" class="btn btn-success" id="approveBtn" data-quot="{{ $quotation->id }}">
                     Approve
                 </button>
@@ -108,15 +161,17 @@
                     <i class="ti ti-file-export me-1"></i>Export to DOC
                 </a>
             </div>
-            <div class="text-end mt-4">
-                <button class="btn btn-warning" id="createRevisionBtn" data-id="{{ $quotation->id }}">
+            <div class="row mt-4 g-2">
+                <div class="col-12 col-md-auto text-end">
+                <button class="btn btn-warning w-100 mb-2" id="createRevisionBtn" data-id="{{ $quotation->id }}">
                     <i class="bi bi-pencil-square"></i> Create Revision
                 </button>
-
-                <button class="btn btn-secondary" id="viewRevisionsBtn" data-id="{{ $quotation->id }}">
+                <button class="btn btn-secondary w-100" id="viewRevisionsBtn" data-id="{{ $quotation->id }}">
                     <i class="bi bi-clock-history"></i> View Revisions
                 </button>
+                </div>
             </div>
+            @endif
 
 
 

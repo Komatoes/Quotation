@@ -1,4 +1,5 @@
 {{-- resources/views/drafts.blade.php --}}
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <div class="col-12">
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -9,8 +10,8 @@
             </div>
         </div>
 
-        <div class="card-datatable table-responsive pt-0">
-            <table class="table" id="drafts-table">
+        <div class="table-responsive pt-0">
+            <table class="table table-bordered table-striped align-middle" id="drafts-table">
                 <thead>
                     <tr>
                         <th>Subject</th>
