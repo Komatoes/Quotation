@@ -3,15 +3,15 @@
 <div class="col-12">
     <div class="card">
         <!-- Card Header -->
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Materials</h5>
-            <div class="d-flex align-items-center gap-2">
-                <!-- 🔎 Search Bar (longer) -->
-                <input type="text" id="search-material" class="form-control" style="width: 250px;"
-                    placeholder="Search materials...">
+        <div class="card-header flex-wrap d-flex justify-content-between align-items-center gap-2">
+            <h5 class="mb-0 flex-grow-1">Materials</h5>
+            <div class="d-flex flex-wrap justify-content-end align-items-center gap-2 w-100 w-sm-auto">
+                <!-- 🔎 Search Bar -->
+                <input type="text" id="search-material" class="form-control"
+                    style="max-width: 250px; flex: 1 1 auto;" placeholder="Search materials...">
 
                 <!-- ➕ Add Material Button -->
-                <button class="btn btn-primary" id="btn-add-material">
+                <button class="btn btn-primary flex-shrink-0" id="btn-add-material">
                     <i class="ti ti-plus me-1"></i> Add Material
                 </button>
             </div>
@@ -41,6 +41,7 @@
         </div>
     </div>
 </div>
+
 <!-- Offcanvas: Add/Edit Material -->
 <div class="offcanvas offcanvas-end" id="add-new-material">
     <div class="offcanvas-header border-bottom">
@@ -51,8 +52,7 @@
         <form class="add-new-record pt-0 row g-2" id="form-add-material">
             <div class="col-sm-12 form-control-validation">
                 <label class="form-label" for="materialName">Material Name</label>
-                <input type="text" id="materialName" class="form-control" name="name" placeholder="Cement"
-                    required />
+                <input type="text" id="materialName" class="form-control" name="name" placeholder="Cement" required />
             </div>
 
             <div class="col-sm-12 form-control-validation">
@@ -74,13 +74,30 @@
             </div>
 
             <div class="col-sm-12">
-                <button type="submit" class="btn btn-primary data-submit me-sm-4 me-1"
-                    id="form-submit-btn">Save</button>
+                <button type="submit" class="btn btn-primary data-submit me-sm-4 me-1" id="form-submit-btn">Save</button>
                 <button type="reset" class="btn btn-outline-secondary" data-bs-dismiss="offcanvas">Cancel</button>
             </div>
         </form>
     </div>
 </div>
+
+<!-- Responsive fix for mobile view -->
+<style>
+@media (max-width: 576px) {
+    #search-material {
+        width: 100% !important;
+    }
+
+    .card-header > div.d-flex {
+        flex-direction: column;
+        align-items: stretch !important;
+    }
+
+    #btn-add-material {
+        width: 100%;
+    }
+}
+</style>
 
 <script>
 /* =====================================================
@@ -369,8 +386,6 @@ window.addEventListener("DOMContentLoaded", () => {
     }
 });
 </script>
-
-
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
