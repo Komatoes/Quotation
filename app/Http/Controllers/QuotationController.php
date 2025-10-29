@@ -348,4 +348,15 @@ class QuotationController extends Controller
 
         return response()->json($revisions);
     }
+
+    public function archive()
+    {
+        $archive = Quotation::with(['client', 'employee', 'status'])
+            ->whereHas('status', function ($q) {
+                $q->whereIn('status_name', ['Rejected', 'Completed']);
+            })
+            ->get();
+
+        return response()->json($archive);
+    }
 }
