@@ -36,7 +36,7 @@ class Quotation extends Model
     // Relation to status
     public function status()
     {
-        return $this->belongsTo(Quotationstatus::class, 'status_id');
+        return $this->belongsTo(QuotationStatus::class, 'status_id');
     }
 
     // Relation to materials (many-to-many via quotation_materials)

@@ -130,7 +130,7 @@
             });
             return;
         }
-        const link = `${window.location.origin}/quotation/public/${token}`;
+    const link = "{{ asset('quotation/public/' . $quotation->public_token) }}";
         navigator.clipboard.writeText(link).then(() => {
             Swal.fire({
                 icon: 'success',

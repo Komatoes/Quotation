@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends($layout ?? 'layouts.app')
 @section('content')
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <div class="container-fluid py-3">
@@ -31,7 +31,7 @@ function copyPublicLink() {
         });
         return;
     }
-    const link = `${window.location.origin}/quotation/public/${token}`;
+    const link = "{{ asset('quotation/public/' . $quotation->public_token) }}";
     navigator.clipboard.writeText(link).then(() => {
         Swal.fire({
             icon: 'success',
@@ -82,13 +82,17 @@ function copyPublicLink() {
 
                 @php
                     $totalMaterial = $quotation->materials->sum(fn($m) => $m->unit_price * ($m->pivot->quantity ?? 0));
-                    $labourCost = $quotation->labour_cost ?? 0;
+                    $laborfee = $quotation->labor_fee ?? 0;
+                    $deliveryFee = $quotation->delivery_fee ?? 0;
+                    $grandTotal = $totalMaterial + $laborfee + $deliveryFee;
                 @endphp
 
                 <div class="text-end mt-3">
                     <p class="mb-1"><b>Total Material Cost:</b> ₱{{ number_format($totalMaterial, 2) }}</p>
-                    <p class="mb-1"><b>Labour Cost:</b> ₱{{ number_format($labourCost, 2) }}</p>
-                    <h4 class="mb-0"><b>Grand Total:</b> ₱{{ number_format($totalMaterial + $labourCost, 2) }}</h4>
+                    <p class="mb-1"><b>Labor Fee:</b> ₱{{ number_format($laborfee, 2) }}</p>
+                    <p class="mb-1"><b>Delivery Fee:</b> ₱{{ number_format($deliveryFee, 2) }}</p>
+                    <hr class="mt-2 mb-2">
+                    <h4 class="mb-0"><b>Grand Total:</b> ₱{{ number_format($grandTotal, 2) }}</h4>
                 </div>
             </div>
         </div>
