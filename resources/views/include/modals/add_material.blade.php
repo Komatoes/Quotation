@@ -52,45 +52,82 @@
 document.addEventListener('DOMContentLoaded', function() {
 
     /**
-     * Material Loader
+     * Material Loader + Search
      */
     class MaterialHandler {
-        constructor(tableId, fetchUrl) {
+        constructor(tableId, fetchUrl, searchInputId) {
             this.tableId = tableId;
             this.fetchUrl = fetchUrl;
+            this.searchInput = document.getElementById(searchInputId);
+            this.allMaterials = [];
+
+            // Bind search event
+            if (this.searchInput) {
+                this.searchInput.addEventListener("input", () => {
+                    this.filterMaterials(this.searchInput.value.trim().toLowerCase());
+                });
+            }
         }
 
+        // Load materials from the backend
         loadMaterials() {
             fetch(this.fetchUrl)
                 .then(res => res.json())
                 .then(materials => {
-                    const table = document.getElementById(this.tableId);
-                    if (!table) return;
-                    const tbody = table.querySelector("tbody");
-                    tbody.innerHTML = "";
-
-                    materials.forEach(material => {
-                        const row = `
-                            <tr>
-                                <td>${material.name}</td>
-                                <td>${material.unit}</td>
-                                <td>₱${parseFloat(material.unit_price).toFixed(2)}</td>
-                                <td><input type="number" name="quantity[${material.id}]" class="form-control" value="1" min="1"></td>
-                                <td class="text-center"><input type="checkbox" name="selected[]" value="${material.id}"></td>
-                            </tr>`;
-                        tbody.insertAdjacentHTML("beforeend", row);
-                    });
+                    this.allMaterials = materials;
+                    this.renderTable(materials);
                 })
                 .catch(err => console.error("Error loading materials:", err));
+        }
+
+        // Render materials to table
+        renderTable(materials) {
+            const table = document.getElementById(this.tableId);
+            if (!table) return;
+            const tbody = table.querySelector("tbody");
+            tbody.innerHTML = "";
+
+            if (materials.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">No materials found</td></tr>`;
+                return;
+            }
+
+            materials.forEach(material => {
+                const row = `
+                    <tr>
+                        <td>${material.name}</td>
+                        <td>${material.unit}</td>
+                        <td>₱${parseFloat(material.unit_price).toFixed(2)}</td>
+                        <td><input type="number" name="quantity[${material.id}]" class="form-control" value="1" min="1"></td>
+                        <td class="text-center"><input type="checkbox" name="selected[]" value="${material.id}"></td>
+                    </tr>`;
+                tbody.insertAdjacentHTML("beforeend", row);
+            });
+        }
+
+        // Filter materials (client-side)
+        filterMaterials(searchTerm) {
+            if (!searchTerm) {
+                this.renderTable(this.allMaterials);
+                return;
+            }
+
+            const filtered = this.allMaterials.filter(material =>
+                material.name.toLowerCase().includes(searchTerm) ||
+                material.unit.toLowerCase().includes(searchTerm)
+            );
+
+            this.renderTable(filtered);
         }
     }
 
     // Load materials when Add Material modal is opened
     const addMatModal = document.getElementById('addMatModal');
     addMatModal.addEventListener('shown.bs.modal', () => {
-        window.modalMaterialHandler = new MaterialHandler("materialsTable", "/materials/list");
+        window.modalMaterialHandler = new MaterialHandler("materialsTable", "/materials/list", "materialSearch");
         window.modalMaterialHandler.loadMaterials();
     });
+
 
     /**
      * AJAX submit for attaching materials
@@ -112,21 +149,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 const data = await res.json();
                 if (data.success) {
-                    // ✅ Close modal
                     const modalInstance = bootstrap.Modal.getInstance(addMatModal);
                     if (modalInstance) modalInstance.hide();
 
-                    // ✅ Cleanup leftover backdrop (Bootstrap sometimes leaves it)
                     document.querySelectorAll(".modal-backdrop").forEach(el => el.remove());
                     document.body.classList.remove("modal-open");
 
-                    // ✅ Refresh the quotation materials table dynamically
                     Swal.fire("Material added successfully!", "", "success").then(() => {
                         if (window.quotationMaterialHandler) {
                             window.quotationMaterialHandler.loadMaterials();
                         }
                     });
-
                 } else {
                     Swal.fire("Failed to add material", data.message || "", "error");
                 }
@@ -137,7 +170,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Make class globally accessible
     window.addMaterialQuotation = new AddMaterialtoQuotation();
 
     /**
@@ -154,8 +186,6 @@ document.addEventListener('DOMContentLoaded', function() {
             addMatModal.addEventListener("hidden.bs.modal", function handler() {
                 const newMatModal = new bootstrap.Modal(newMaterialModalEl);
                 newMatModal.show();
-
-                // cleanup handler so it fires once
                 addMatModal.removeEventListener("hidden.bs.modal", handler);
             });
         });
@@ -170,3 +200,4 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+

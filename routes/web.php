@@ -59,7 +59,9 @@ Route::get('/quotations/rejected', [QuotationController::class, 'rejected'])->na
 
 Route::get('/quotation/{id}/materials', [QuotationController::class, 'getMaterials']);
 
-Route::get('/quotations/{id}/revisions-json', [QuotationController::class, 'getRevisionsJson']);
+
+Route::get('/quotations/archive', [QuotationController::class, 'archive']);
+
 
 
     // NEWWWWWWWWWWWWWWWWWWWWWWWW

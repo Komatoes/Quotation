@@ -111,7 +111,8 @@
         <!-- /Layout wrapper -->
 
         @include('include.scripts')
-
+        <!-- Modal Handler -->
+        <script src="{{ asset('assets/js/modal-handler.js') }}"></script>
 
         <!-- Offcanvas: Create Quotation -->
         <div class="offcanvas offcanvas-end" id="add-new-quotation">

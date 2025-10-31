@@ -63,18 +63,12 @@
                     @include('draftprojects')
                 </div>
             </section>
-
-            <section id="rejected-quotations" class="mt-5">
+            <section id="archived-projects" class="mt-5">
                 <div class="row">
-                    @include('rejectedprojects')
+                    @include('archivedprojects')
                 </div>
-            </section>
-            <section id="completed-projects" class="mt-5">
-                <div class="row">
-                    @include('completedprojects')
-                </div>
-            </section>
 
+            </section>
 
         </div>
     </div>

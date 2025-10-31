@@ -80,7 +80,7 @@
                                 <td colspan="2">
                                     @if(empty($readonly))
                                     <input type="number" class="form-control text-end fee-input" id="laborFee"
-                                        value="{{ number_format($quotation->labor_fee, 2) }}" step="0.01"
+                                        value="{{ $quotation->labor_fee }}" step="0.01"
                                         data-field="labor_fee" onfocus="if(this.value == '0.00') this.value = ''">
                                     @else
                                     <span>{{ number_format($quotation->labor_fee, 2) }}</span>
@@ -92,7 +92,7 @@
                                 <td colspan="2">
                                     @if(empty($readonly))
                                     <input type="number" class="form-control text-end fee-input" id="deliveryFee"
-                                        value="{{ number_format($quotation->delivery_fee, 2) }}" step="0.01"
+                                        value="{{ $quotation->delivery_fee }}" step="0.01"
                                         data-field="delivery_fee" onfocus="if(this.value == '0.00') this.value = ''">
                                     @else
                                     <span>{{ number_format($quotation->delivery_fee, 2) }}</span>
@@ -130,7 +130,7 @@
             });
             return;
         }
-        const link = `${window.location.origin}/quotation/public/${token}`;
+    const link = "{{ asset('quotation/public/' . $quotation->public_token) }}";
         navigator.clipboard.writeText(link).then(() => {
             Swal.fire({
                 icon: 'success',

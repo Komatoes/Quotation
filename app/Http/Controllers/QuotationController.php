@@ -19,23 +19,24 @@ class QuotationController extends Controller
             ->where('public_token', $token)
             ->firstOrFail();
 
-        // If not approved, show read-only quotation view
-        if ($quotation->status && strtolower($quotation->status->status_name) !== 'approved') {
-            return view('quotation', [
+        // If quotation is approved, show the report/progress view in a public layout
+        if ($quotation->status && strtolower($quotation->status->status_name) === 'approved') {
+            return view('view-report', [
                 'quotation' => $quotation,
                 'client' => $quotation->client,
                 'materials' => $quotation->materials,
+                'reports' => $quotation->progressReports,
+                'revisions' => $quotation->revisions,
                 'readonly' => true,
+                'layout' => 'layouts.public',
             ]);
         }
-        // If approved, show view-report page with report history and percentage
-        return view('view-report', [
+
+        // Otherwise show the read-only quotation view in public layout
+        return view('public-quotation', [
             'quotation' => $quotation,
             'client' => $quotation->client,
-            'materials' => $quotation->materials,
-            'progressReports' => $quotation->progressReports,
-            'revisions' => $quotation->revisions,
-            'readonly' => true,
+            'materials' => $quotation->materials
         ]);
     }
     public function viewHome()
@@ -347,5 +348,16 @@ class QuotationController extends Controller
         });
 
         return response()->json($revisions);
+    }
+
+    public function archive()
+    {
+        $archive = Quotation::with(['client', 'employee', 'status'])
+            ->whereHas('status', function ($q) {
+                $q->whereIn('status_name', ['Rejected', 'Completed']);
+            })
+            ->get();
+
+        return response()->json($archive);
     }
 }
