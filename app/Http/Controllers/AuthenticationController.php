@@ -4,74 +4,72 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
-// class AuthenticationController extends Controller
-// {
-//     public function viewLogin()
-//     {
-//         if (!auth()->check()) {
-//             return view('login'); // or any page
-//         } else {
-//             return view('dashboard'); // login/home page
-//         }
-//     }
+class AuthenticationController extends Controller
+{
+	public function viewLogin()
+	{
+		return view('auth.login');
+	}
 
-//     public function viewRegister()
-//     {
-//         return view('register');
-//     }
-//     public function createUser(Request $request)
-//     {
-//         $data = $request->validate([
-//             'username' => 'required|string|max:255',
-//             'email'    => 'required|email|unique:users,email',
-//             'password' => 'required|string|min:6',
-//         ]);
+	public function loginUser(Request $request)
+	{
+		$credentials = $request->validate([
+			'email' => 'required|email',
+			'password' => 'required|string'
+		]);
 
-//         $user = User::create([
-//             'name' => $data['username'],
-//             'email' => $data['email'],
-//             'password' => Hash::make($data['password']),
-//         ]);
+		if (Auth::attempt($credentials, $request->boolean('remember'))) {
+			$request->session()->regenerate();
+			return redirect()->intended('/');
+		}
 
-//         // Log the user in immediately
-//         auth()->login($user);
+		return back()->withErrors([
+			'email' => 'The provided credentials do not match our records.',
+		]);
+	}
 
-//         return response()->json([
-//             'success' => true,
-//             'message' => 'Welcome ' . $user->name,
-//             'redirect' => url('/'),
-//         ]);
-//     }
-//     public function loginUser(Request $request)
-//     {
-//         // Find the user by email
-//         $user = User::where('name', $request->email_username)->first();
+	public function viewRegister()
+	{
+		return view('auth.register');
+	}
 
-//         if (!$user) {
-//             return response()->json(['message' => 'User not found'], 404);
-//         }
+	public function createUser(Request $request)
+	{
+		$validated = $request->validate([
+			'name' => 'required|string|max:255',
+			'email' => 'required|email|unique:users,email',
+			'password' => 'required|string|min:6|confirmed'
+		]);
 
-//         // Check if password matches
-//         if (Hash::check($request->password, $user->password)) {
+		$user = User::create([
+			'name' => $validated['name'],
+			'email' => $validated['email'],
+			'password' => Hash::make($validated['password']),
+		]);
 
-//             auth()->login($user);
-//             return response()->json(['success' => true]);
-//         } else {
+		// Assign Customer role if Spatie is installed and role exists
+		try {
+			if (method_exists($user, 'assignRole')) {
+				$user->assignRole('Customer');
+			}
+		} catch (\Exception $e) {
+			// ignore
+		}
 
-//             return response()->json(['message' => 'Invalid password'], 401);
-//         }
-//     }
-//     public function logoutUser(Request $request)
-//     {
-//         auth()->logout(); // Log the current user out
+		Auth::login($user);
 
-//         // Optional: invalidate the session
-//         $request->session()->invalidate();
-//         $request->session()->regenerateToken();
+		return redirect('/');
+	}
 
-//         // OR if redirecting normally:
-//         return redirect('/login');
-//     }
-// }
+	public function logoutUser(Request $request)
+	{
+		Auth::logout();
+		$request->session()->invalidate();
+		$request->session()->regenerateToken();
+
+		return redirect('/');
+	}
+}

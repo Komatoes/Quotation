@@ -21,32 +21,35 @@
                 @endif
 @if(empty($readonly))
 <script>
-function copyPublicLink() {
-    const token = "{{ $quotation->public_token }}";
-    if (!token) {
-        Swal.fire({
-            icon: 'error',
-            title: 'No Link Available',
-            text: 'This quotation does not have a public link yet.'
+async function copyPublicLink() {
+    const btn = document.getElementById('generateLinkBtn');
+    btn.disabled = true;
+    btn.textContent = 'Generating...';
+
+    try {
+        const resp = await fetch(`/quotations/{{ $quotation->id }}/generate-public-account`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json'
+            },
+            credentials: 'same-origin'
         });
-        return;
+
+        const data = await resp.json();
+        if (resp.ok && data.url) {
+            await navigator.clipboard.writeText(data.url);
+            Swal.fire({icon: 'success', title: 'Link Generated & Copied', text: data.url, timer:1500, showConfirmButton:false});
+        } else {
+            Swal.fire({icon: 'error', title: 'Failed', text: data.message || 'Could not generate link.'});
+        }
+    } catch (err) {
+        console.error(err);
+        Swal.fire({icon: 'error', title: 'Error', text: 'An unexpected error occurred.'});
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-link-45deg"></i> Generate & Copy Public Link';
     }
-    const link = "{{ asset('quotation/public/' . $quotation->public_token) }}";
-    navigator.clipboard.writeText(link).then(() => {
-        Swal.fire({
-            icon: 'success',
-            title: 'Link Copied!',
-            text: link,
-            timer: 1500,
-            showConfirmButton: false
-        });
-    }, () => {
-        Swal.fire({
-            icon: 'error',
-            title: 'Copy Failed',
-            text: 'Could not copy the link.'
-        });
-    });
 }
 </script>
 @endif
@@ -56,7 +59,27 @@ function copyPublicLink() {
             </div>
         </div>
 
-        <!-- Materials Table -->
+            <!-- Client's Past Quotations (if any) -->
+            @if(!empty($client_quotations) && $client_quotations->isNotEmpty())
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="mb-3">Past Quotations for {{ $quotation->client->first_name }} {{ $quotation->client->last_name }}</h5>
+                    <div class="list-group">
+                        @foreach($client_quotations as $cq)
+                            <a href="{{ route('quotations.show', $cq->id) }}" class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">#{{ $cq->id }} - {{ $cq->subject }}</h6>
+                                    <small>{{ $cq->created_at->format('M d, Y') }}</small>
+                                </div>
+                                <p class="mb-1">Status: {{ optional($cq->status)->status_name ?? 'N/A' }}</p>
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+            @endif
+
+            <!-- Materials Table -->
         <div class="card mb-3">
             <div class="card-body table-responsive">
                 <table class="table table-bordered table-striped align-middle">

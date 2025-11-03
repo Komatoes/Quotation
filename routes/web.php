@@ -8,6 +8,8 @@ use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\QuotationMaterialController;
 use App\Http\Controllers\QuotationExportController;
+use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\RoleController;
 use App\Models\Project;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +35,10 @@ Route::get('/view-report/{id}', [QuotationController::class, 'viewReport'])->nam
 // Public route for guest/client to view quotation or report
 Route::get('/quotation/public/{token}', [QuotationController::class, 'publicView'])->name('quotation.public');
 Route::post('/add-quotation', [QuotationController::class, 'store'])->name('quotations.store');
+
+// Generate public account + link for a quotation (staff only)
+Route::middleware(['auth'])->post('/quotations/{quotation}/generate-public-account', [QuotationController::class, 'generatePublicAccount'])
+    ->name('quotations.generatePublicAccount');
 
 Route::get('/quotations/{id}', [QuotationController::class, 'show'])
     ->whereNumber('id')
@@ -109,8 +115,33 @@ Route::delete('/quotation-materials/{pivotId}', [QuotationMaterialController::cl
 // -------------------------
 // Authentication (commented for now, but left for future use)
 // -------------------------
-// Route::get('/login', [AuthenticationController::class, 'viewLogin'])->name('auth.login');
-// Route::post('/login-user', [AuthenticationController::class, 'loginUser'])->name('auth.loginUser');
-// Route::get('/logout-user', [AuthenticationController::class, 'logoutUser'])->name('auth.logout');
-// Route::get('/register', [AuthenticationController::class, 'viewRegister'])->name('auth.register');
-// Route::post('/create-user', [AuthenticationController::class, 'createUser'])->name('auth.createUser');
+Route::get('/login', [AuthenticationController::class, 'viewLogin'])->name('auth.login');
+Route::post('/login-user', [AuthenticationController::class, 'loginUser'])->name('auth.loginUser');
+Route::get('/logout-user', [AuthenticationController::class, 'logoutUser'])->name('auth.logout');
+Route::get('/register', [AuthenticationController::class, 'viewRegister'])->name('auth.register');
+Route::post('/create-user', [AuthenticationController::class, 'createUser'])->name('auth.createUser');
+
+// -------------------------
+// Customer Management
+// -------------------------
+Route::middleware(['auth'])->group(function () {
+    Route::resource('customers', CustomerController::class);
+    Route::post('customers/{client}/interactions', [CustomerController::class, 'addInteraction'])
+        ->name('customers.interactions.store');
+    Route::post('customers/{client}/services', [CustomerController::class, 'addServiceRecord'])
+        ->name('customers.services.store');
+    // Link an existing quotation to a customer
+    Route::post('customers/{client}/quotations/link', [CustomerController::class, 'linkQuotation'])
+        ->name('customers.quotations.link');
+    Route::get('customers/{client}/quotations', [CustomerController::class, 'getQuotations'])
+        ->name('customers.quotations.index');
+});
+
+// -------------------------
+// Role Management (Admin only)
+// -------------------------
+Route::middleware(['auth', 'role:Admin'])->group(function () {
+    Route::resource('roles', RoleController::class);
+    Route::post('users/{user}/roles', [RoleController::class, 'assignRole'])
+        ->name('users.roles.assign');
+});

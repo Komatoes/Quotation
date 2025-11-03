@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Quotation;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use App\Models\Material;
 use App\Models\QuotationMaterial;
 use Illuminate\Http\Request;
@@ -19,8 +21,31 @@ class QuotationController extends Controller
             ->where('public_token', $token)
             ->firstOrFail();
 
+        // If a user exists for this client, automatically log them in so they can see
+        // their quotations history. This allows the public link to act as a passwordless
+        // login for the customer associated with the quotation.
+        try {
+            if ($quotation->client && !Auth::check()) {
+                $clientEmail = $quotation->client->email ?? null;
+                if ($clientEmail) {
+                    $user = User::where('email', $clientEmail)->first();
+                    if ($user) {
+                        Auth::login($user);
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            // Silently ignore any login errors here to preserve public view behavior
+        }
+
         // If quotation is approved, show the report/progress view in a public layout
         if ($quotation->status && strtolower($quotation->status->status_name) === 'approved') {
+            // Include the client's other quotations so they can browse past quotes
+            $clientQuotations = collect();
+            if ($quotation->client) {
+                $clientQuotations = $quotation->client->quotations()->orderBy('created_at', 'desc')->get();
+            }
+
             return view('view-report', [
                 'quotation' => $quotation,
                 'client' => $quotation->client,
@@ -29,6 +54,7 @@ class QuotationController extends Controller
                 'revisions' => $quotation->revisions,
                 'readonly' => true,
                 'layout' => 'layouts.public',
+                'client_quotations' => $clientQuotations,
             ]);
         }
 
@@ -37,6 +63,49 @@ class QuotationController extends Controller
             'quotation' => $quotation,
             'client' => $quotation->client,
             'materials' => $quotation->materials
+        ]);
+    }
+    
+    /**
+     * Generate a public link and create/find a customer user account for the
+     * quotation's client. Returns the public url. Intended to be called by staff.
+     */
+    public function generatePublicAccount(Quotation $quotation)
+    {
+        // Ensure the quotation has a public token
+        if (empty($quotation->public_token)) {
+            $quotation->public_token = bin2hex(random_bytes(16));
+            $quotation->save();
+        }
+
+        $client = $quotation->client;
+        $user = null;
+
+        if ($client && !empty($client->email)) {
+            $user = User::firstOrCreate(
+                ['email' => $client->email],
+                [
+                    'name' => trim(($client->first_name ?? '') . ' ' . ($client->last_name ?? '')) ?: ($client->company ?? 'Client'),
+                    'password' => bcrypt(bin2hex(random_bytes(8))), // random password
+                ]
+            );
+
+            // Assign Customer role if available
+            try {
+                if (method_exists($user, 'assignRole') && ! $user->hasRole('Customer')) {
+                    $user->assignRole('Customer');
+                }
+            } catch (\Exception $e) {
+                // ignore role assignment errors
+            }
+        }
+
+        $url = asset('quotation/public/' . $quotation->public_token);
+
+        return response()->json([
+            'success' => true,
+            'url' => $url,
+            'user_created' => (bool) $user,
         ]);
     }
     public function viewHome()
