@@ -22,6 +22,8 @@ return new class extends Migration
             $table->foreignId('status_id')->constrained('quotation_status'); // Quotation status
             $table->decimal('labor_fee', 10, 2)->default(0); // Labor cost
             $table->decimal('delivery_fee', 10, 2)->default(0); // Delivery cost
+            $table->boolean('customer_approved')->default(false); // Customer approved
+            $table->boolean('provider_approved')->default(false); // Provider approved
             $table->timestamps(); // created_at and updated_at
         });
     }

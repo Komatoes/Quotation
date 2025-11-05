@@ -8,6 +8,7 @@ use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\QuotationMaterialController;
 use App\Http\Controllers\QuotationExportController;
+use App\Http\Controllers\QuotationCommentController;
 use App\Models\Project;
 use Illuminate\Support\Facades\Route;
 
@@ -17,21 +18,53 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-// -------------------------
-// Home / Dashboard
-// -------------------------
-Route::get('/', [QuotationController::class, 'viewHome'])->name('dashboard');
+// Redirect root to login if not authenticated
+Route::get('/', function () {
+    return redirect()->route('login');
+})->middleware('guest');
 
-// web.php
-Route::get('/view-report/{id}', [QuotationController::class, 'viewReport'])->name('report');
+// Dashboard (requires authentication and proper role)
+Route::get('/dashboard', [QuotationController::class, 'viewHome'])
+    ->name('dashboard')
+    ->middleware(['auth', 'role:admin|staff']);
+
+// Reports (requires authentication and proper role)
+Route::get('/view-report/{id}', [QuotationController::class, 'viewReport'])
+    ->name('report')
+    ->middleware(['auth', 'role:admin|staff']);
 
 
 
 // -------------------------
 // Quotations
 // -------------------------
-// Public route for guest/client to view quotation or report
-Route::get('/quotation/public/{token}', [QuotationController::class, 'publicView'])->name('quotation.public');
+
+// Public routes (no auth required)
+Route::prefix('quotation/public')->group(function () {
+    Route::get('/{token}', [QuotationController::class, 'showPublicAccessForm'])->name('quotation.public.form');
+    Route::post('/{token}/validate', [QuotationController::class, 'validatePublicAccess'])->name('quotation.public.validate');
+    Route::get('/{token}/view', [QuotationController::class, 'showPublicQuotation'])->name('quotation.public.view');
+    Route::post('/{token}/comment', [QuotationController::class, 'submitComment'])->name('quotation.public.comment');
+    Route::post('/{token}/approve', [QuotationController::class, 'approveQuotation'])->name('quotation.public.approve');
+    // Public comments fetch (no auth)
+    Route::get('/{token}/comments', [QuotationController::class, 'getPublicComments'])->name('quotation.public.comments');
+});
+
+// Protected routes (require authentication and proper role)
+Route::middleware(['auth', 'role:admin|staff'])->group(function () {
+    // Routes that require authentication and proper role
+// Secure public quotation access
+Route::get('/quotation/public/{token}', [QuotationController::class, 'showPublicAccessForm'])->name('quotation.public.form');
+Route::post('/quotation/public/{token}/validate', [QuotationController::class, 'validatePublicAccess'])->name('quotation.public.validate');
+Route::get('/quotation/public/{token}/view', [QuotationController::class, 'showPublicQuotation'])->name('quotation.public.view');
+
+// Quotation Comments & Approval
+Route::post('/quotation/public/{token}/comment', [QuotationController::class, 'submitComment'])->name('quotation.public.comment');
+Route::post('/quotation/public/{token}/approve', [QuotationController::class, 'approveQuotation'])->name('quotation.public.approve');
+Route::post('/quotations/{quotation}/reply', [QuotationController::class, 'providerReply'])->name('quotation.provider.reply');
+Route::post('/quotations/{quotation}/provider-approve', [QuotationController::class, 'providerApprove'])->name('quotation.provider.approve');
+Route::get('/quotations/{quotation}/comments', [QuotationController::class, 'getComments'])->name('quotation.comments');
+
 Route::post('/add-quotation', [QuotationController::class, 'store'])->name('quotations.store');
 
 Route::get('/quotations/{id}', [QuotationController::class, 'show'])
@@ -72,27 +105,33 @@ Route::post('/quotations/{quotationId}/update-progress', [ProjectReportControlle
 Route::get('/quotations/{id}/view-draft', [QuotationController::class, 'viewDraft'])
     ->name('quotations.view-draft');
 
-
 // Route to display the progress tracking page and all past reports for a specific quotation.
 Route::get('/view-report/{id}', [ProjectReportController::class, 'showReports'])->name('quotations.showReports');
+
+// Return quotation revisions as JSON (used by the front-end modal)
+Route::get('/quotations/{id}/revisions-json', [QuotationController::class, 'getRevisionsJson'])
+    ->name('quotations.revisions.json');
 
 
 Route::post('/quotations/{id}/mark-completed', [QuotationController::class, 'markCompleted']);
 Route::post('/quotations/{id}/create-revision', [QuotationController::class, 'createRevision']);
 
 
-Route::get('/quotations/completed', [QuotationController::class, 'getCompleted']);
+    Route::get('/quotations/completed', [QuotationController::class, 'getCompleted']);
+}); // End auth middleware group
 
 
 
 // -------------------------
-// Materials
+// Materials - Requires auth
 // -------------------------
-Route::get('/materials', [MaterialController::class, 'index'])->name('materials.index');
-Route::get('/materials/list', [MaterialController::class, 'list'])->name('materials.list');
-Route::post('/materials/store', [MaterialController::class, 'store'])->name('materials.store');
-Route::post('/materials/update/{id}', [MaterialController::class, 'update'])->name('materials.update');
-Route::delete('/materials/{material}', [MaterialController::class, 'destroy'])->name('materials.destroy');
+Route::middleware(['auth', 'permission:manage materials'])->group(function () {
+    Route::get('/materials', [MaterialController::class, 'index'])->name('materials.index');
+    Route::get('/materials/list', [MaterialController::class, 'list'])->name('materials.list');
+    Route::post('/materials/store', [MaterialController::class, 'store'])->name('materials.store');
+    Route::post('/materials/update/{id}', [MaterialController::class, 'update'])->name('materials.update');
+    Route::delete('/materials/{material}', [MaterialController::class, 'destroy'])->name('materials.destroy');
+});
 
 // -------------------------
 // Quotation Materials (pivot between quotations <-> materials)
@@ -107,10 +146,71 @@ Route::delete('/quotation-materials/{pivotId}', [QuotationMaterialController::cl
     ->name('quotation.materials.destroy');
 
 // -------------------------
-// Authentication (commented for now, but left for future use)
+// Authentication Routes
 // -------------------------
-// Route::get('/login', [AuthenticationController::class, 'viewLogin'])->name('auth.login');
-// Route::post('/login-user', [AuthenticationController::class, 'loginUser'])->name('auth.loginUser');
-// Route::get('/logout-user', [AuthenticationController::class, 'logoutUser'])->name('auth.logout');
-// Route::get('/register', [AuthenticationController::class, 'viewRegister'])->name('auth.register');
-// Route::post('/create-user', [AuthenticationController::class, 'createUser'])->name('auth.createUser');
+Route::get('/login', [App\Http\Controllers\Auth\LoginController::class, 'showLoginForm'])
+    ->name('login')
+    ->middleware('guest');
+
+Route::post('/login', [App\Http\Controllers\Auth\LoginController::class, 'login'])
+    ->name('login.submit')
+    ->middleware('guest');
+
+Route::post('/logout', [App\Http\Controllers\Auth\LoginController::class, 'logout'])
+    ->name('logout')
+    ->middleware('auth');
+
+// Password Reset Routes
+Route::get('/forgot-password', [App\Http\Controllers\Auth\ForgotPasswordController::class, 'showLinkRequestForm'])
+    ->name('password.request')
+    ->middleware('guest');
+
+Route::post('/forgot-password', [App\Http\Controllers\Auth\ForgotPasswordController::class, 'sendResetLinkEmail'])
+    ->name('password.email')
+    ->middleware('guest');
+
+Route::get('/reset-password/{token}', [App\Http\Controllers\Auth\ResetPasswordController::class, 'showResetForm'])
+    ->name('password.reset')
+    ->middleware('guest');
+
+Route::post('/reset-password', [App\Http\Controllers\Auth\ResetPasswordController::class, 'reset'])
+    ->name('password.update')
+    ->middleware('guest');
+
+// Admin only routes
+Route::middleware(['auth', 'role:admin'])->group(function () {
+    Route::get('/register', [AuthenticationController::class, 'viewRegister'])->name('auth.register');
+    Route::post('/create-user', [AuthenticationController::class, 'createUser'])->name('auth.createUser');
+    Route::post('/quotations/{quotation}/provider-approve', [QuotationController::class, 'providerApprove'])
+        ->name('quotation.provider.approve');
+    Route::post('/quotations/{id}/mark-completed', [QuotationController::class, 'markCompleted']);
+    Route::get('/quotations/{id}/revisions-json', [QuotationController::class, 'getRevisionsJson'])
+        ->name('quotations.revisions.json');
+    Route::post('/quotations/{id}/create-revision', [QuotationController::class, 'createRevision']);
+    Route::put('/quotations/{id}/status', [QuotationController::class, 'updateStatus'])
+        ->name('quotations.updateStatus');
+});
+
+// Comments routes
+Route::post('/comments', [QuotationCommentController::class, 'store'])->name('comments.store');
+Route::get('/comments/{quotationId}', [QuotationCommentController::class, 'index'])->name('comments.index');
+
+// Public Quotation Routes
+Route::post('/quotation/public/{token}/comment', [QuotationCommentController::class, 'submitComment'])->name('quotation.public.comment');
+Route::get('/quotation/public/{token}/comments', [QuotationCommentController::class, 'getComments'])->name('quotation.public.comments');
+
+// Admin Quotation Routes
+Route::post('/quotation/{id}/admin/comment', [QuotationCommentController::class, 'adminReplyComment'])->name('quotation.admin.comment');
+Route::post('/quotation/{id}/approve', [QuotationCommentController::class, 'approveQuotation'])->name('quotation.approve');
+
+
+// PUBLIC SIDE
+Route::get('/quotation/public/{token}/comments', [QuotationCommentController::class, 'getComments']);
+Route::post('/quotation/public/{token}/comment', [QuotationCommentController::class, 'storePublicComment']);
+Route::post('/quotation/public/{token}/approve', [QuotationCommentController::class, 'approveQuotation']);
+
+// ADMIN SIDE
+Route::post('/quotation/{id}/admin/approve', [QuotationCommentController::class, 'adminApprove']);
+Route::post('/quotation/{id}/admin/reply', [QuotationCommentController::class, 'adminReply']);
+
+

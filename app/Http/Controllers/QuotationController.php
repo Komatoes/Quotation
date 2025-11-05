@@ -7,9 +7,264 @@ use App\Models\Material;
 use App\Models\QuotationMaterial;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class QuotationController extends Controller
 {
+    public function submitComment(Request $request, $token)
+    {
+        Log::info('Comment submission started', [
+            'token' => $token,
+            'request_data' => $request->all()
+        ]);
+
+        try {
+            $quotation = Quotation::where('public_token', $token)->firstOrFail();
+
+            // Validate client access
+            $client = $quotation->client;
+            $match = (
+                strtolower(trim($request->first_name)) === strtolower(trim($client->first_name)) &&
+                strtolower(trim($request->last_name)) === strtolower(trim($client->last_name)) &&
+                trim($request->phone_number) === trim($client->contact_no)
+            );
+
+            if (!$match) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Invalid client information'
+                ], 403);
+            }
+            
+            $comment = $quotation->comments()->create([
+                'client_id' => $quotation->client_id,
+                'comment' => $request->comment
+            ]);
+
+            // Update quotation status to feedback when customer comments
+            $quotation->update(['feedback_status' => 'feedback']);
+
+            Log::info('Comment created successfully', [
+                'comment_id' => $comment->id,
+                'comment_data' => $comment->toArray()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Comment submitted successfully',
+                'comment' => $comment
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error submitting comment', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to submit comment: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getComments($quotation)
+    {
+        try {
+            $quotation = Quotation::findOrFail($quotation);
+            $comments = $quotation->comments()
+                ->with(['client:id,first_name,last_name', 'employee:id,name'])
+                ->orderBy('created_at', 'asc')
+                ->get();
+            
+            Log::info('Retrieved comments', [
+                'quotation_id' => $quotation->id,
+                'comment_count' => $comments->count()
+            ]);
+
+            return response()->json($comments);
+        } catch (\Exception $e) {
+            Log::error('Error getting comments', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to get comments: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Public comments fetch by public token (no auth required)
+     */
+    public function getPublicComments($token)
+    {
+        try {
+            $quotation = Quotation::where('public_token', $token)->firstOrFail();
+            $comments = $quotation->comments()
+                ->with(['client:id,first_name,last_name', 'employee:id,name'])
+                ->orderBy('created_at', 'asc')
+                ->get();
+
+            Log::info('Retrieved public comments', [
+                'public_token' => $token,
+                'quotation_id' => $quotation->id,
+                'comment_count' => $comments->count()
+            ]);
+
+            return response()->json($comments);
+        } catch (\Exception $e) {
+            Log::error('Error getting public comments', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to get comments: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function providerReply(Request $request, $quotation)
+    {
+        try {
+            $quotation = Quotation::findOrFail($quotation);
+            
+            $comment = $quotation->comments()->create([
+                'employee_id' => auth()->id(), // Add employee ID
+                'comment' => $request->comment
+            ]);
+
+            Log::info('Provider reply created', [
+                'comment_id' => $comment->id,
+                'quotation_id' => $quotation->id
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Reply sent successfully',
+                'comment' => $comment
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error creating provider reply', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => 'Failed to send reply: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function approveQuotation($token)
+    {
+        try {
+            $quotation = Quotation::where('public_token', $token)->firstOrFail();
+            $quotation->update([
+                'customer_approved' => true,
+                'feedback_status' => $quotation->provider_approved ? 'approved' : 'pending'
+            ]);
+
+            // If both have approved, update the quotation status to Approved
+            if ($quotation->isFullyApproved()) {
+                $approvedStatus = QuotationStatus::where('status_name', 'Approved')->first();
+                if ($approvedStatus) {
+                    $quotation->update(['status_id' => $approvedStatus->id]);
+                }
+            }
+
+            Log::info('Quotation approved by customer', [
+                'quotation_id' => $quotation->id,
+                'fully_approved' => $quotation->isFullyApproved()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Quotation approved successfully',
+                'fully_approved' => $quotation->isFullyApproved()
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error approving quotation', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => 'Failed to approve quotation: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    /**
+     * Show the public access form for a quotation.
+     */
+    public function showPublicAccessForm($token)
+    {
+        $quotation = Quotation::where('public_token', $token)->first();
+        if (!$quotation) {
+            abort(404);
+        }
+        return view('public-quotation-access', compact('quotation', 'token'));
+    }
+
+    /**
+     * Validate client info and grant access to the quotation.
+     */
+    public function validatePublicAccess($token, Request $request)
+    {
+        $quotation = Quotation::where('public_token', $token)->first();
+        if (!$quotation) {
+            abort(404);
+        }
+        $request->validate([
+            'first_name' => 'required|string',
+            'last_name' => 'required|string',
+            'phone_number' => 'required|string',
+        ]);
+        $client = $quotation->client;
+        $match = (
+            strtolower(trim($request->first_name)) === strtolower(trim($client->first_name)) &&
+            strtolower(trim($request->last_name)) === strtolower(trim($client->last_name)) &&
+            trim($request->phone_number) === trim($client->contact_no)
+        );
+        if ($match) {
+            // Save session for this token and clear any previous denial
+            session(["quotation_public_access_$token" => true]);
+            session()->forget("quotation_public_access_denied_$token");
+            return redirect()->route('quotation.public.view', ['token' => $token]);
+        } else {
+            // Deny access, set a flag to block further attempts until correct
+            session(["quotation_public_access_denied_$token" => true]);
+            return back()->withErrors(['details' => 'Details do not match our records.']);
+        }
+    }
+
+    /**
+     * Show the public quotation if authenticated.
+     */
+    public function showPublicQuotation($token)
+    {
+        $quotation = Quotation::where('public_token', $token)->first();
+        if (!$quotation) {
+            abort(404);
+        }
+        // Check if permanently denied
+        if (session("quotation_public_access_denied_$token")) {
+            abort(403, 'Access denied.');
+        }
+        // Check if authenticated for this token
+        if (!session("quotation_public_access_$token")) {
+            return redirect()->route('quotation.public.form', ['token' => $token]);
+        }
+        return view('public-quotation', [
+            'quotation' => $quotation,
+            'client' => $quotation->client,
+            'materials' => $quotation->materials,
+        ]);
+    }
+// ...existing code...
     /**
      * Public view for guest/client by token
      */
@@ -331,6 +586,49 @@ class QuotationController extends Controller
             ->get();
 
         return response()->json($completed);
+    }
+
+    /**
+     * Allow the service provider to approve a quotation
+     */
+    public function providerApprove(Request $request, $quotation)
+    {
+        try {
+            $quotation = Quotation::findOrFail($quotation);
+            $quotation->update([
+                'provider_approved' => true,
+                'feedback_status' => $quotation->customer_approved ? 'approved' : 'pending'
+            ]);
+
+            // If both have approved, update the quotation status to Approved
+            if ($quotation->isFullyApproved()) {
+                $approvedStatus = QuotationStatus::where('status_name', 'Approved')->first();
+                if ($approvedStatus) {
+                    $quotation->update(['status_id' => $approvedStatus->id]);
+                }
+            }
+
+            Log::info('Quotation approved by provider', [
+                'quotation_id' => $quotation->id,
+                'employee_id' => auth()->id(),
+                'fully_approved' => $quotation->isFullyApproved()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Quotation approved by provider successfully',
+                'fully_approved' => $quotation->isFullyApproved()
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error in provider approval', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => 'Failed to approve quotation: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function getRevisionsJson($id)

@@ -163,15 +163,136 @@
             </div>
             <div class="row mt-4 g-2">
                 <div class="col-12 col-md-auto text-end">
-                <button class="btn btn-warning w-100 mb-2" id="createRevisionBtn" data-id="{{ $quotation->id }}">
-                    <i class="bi bi-pencil-square"></i> Create Revision
-                </button>
-                <button class="btn btn-secondary w-100" id="viewRevisionsBtn" data-id="{{ $quotation->id }}">
-                    <i class="bi bi-clock-history"></i> View Revisions
-                </button>
+                    <button class="btn btn-warning w-100 mb-2" id="createRevisionBtn" data-id="{{ $quotation->id }}">
+                        <i class="bi bi-pencil-square"></i> Create Revision
+                    </button>
+                    <button class="btn btn-secondary w-100" id="viewRevisionsBtn" data-id="{{ $quotation->id }}">
+                        <i class="bi bi-clock-history"></i> View Revisions
+                    </button>
                 </div>
             </div>
             @endif
+
+            <!-- Comments Section -->
+            <div class="card mt-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Admin Feedback & Comments</h4>
+                    @if(!$quotation->provider_approved)
+                        <button class="btn btn-success" onclick="approveQuotation()">
+                            <i class="ti ti-check"></i> Approve Quotation
+                        </button>
+                    @else
+                        <div class="text-success">
+                            <i class="ti ti-check-circle"></i> You have approved this quotation
+                        </div>
+                    @endif
+                </div>
+                <div class="card-body">
+                    <!-- Admin Reply Form -->
+                    <form id="replyForm" class="mb-4">
+                        @csrf
+                        <div class="form-group">
+                            <textarea class="form-control mb-3" id="adminComment" rows="3" 
+                                placeholder="Write your response to the customer..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ti ti-send"></i> Send Reply
+                        </button>
+                    </form>
+
+                    <!-- Comments Thread -->
+                    <div id="commentsThread" class="mt-4">
+                        <!-- Comments will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Include comment handling scripts -->
+@section('scripts')
+@parent
+<script>
+    const loadComments = () => {
+        fetch(`/quotation/${quotation.id}/comments`)
+            .then(res => res.json())
+            .then(comments => {
+                const thread = document.getElementById('commentsThread');
+                thread.innerHTML = comments.map(comment => `
+                    <div class="mb-3 ${comment.sender_type === 'customer' ? 'text-start' : 'text-end'}">
+                        <!-- MAIN COMMENT -->
+                        <div class="card ${comment.sender_type === 'customer' ? 'bg-light' : 'bg-primary text-white'}"
+                             style="max-width: 70%; ${comment.sender_type === 'customer' ? 'margin-right: auto;' : 'margin-left: auto;'}">
+                            <div class="card-body py-2">
+                                <p class="mb-1">${comment.comment}</p>
+                                <small class="text-${comment.sender_type === 'customer' ? 'muted' : 'light'}">
+                                    ${new Date(comment.created_at).toLocaleString()}
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- REPLIES -->
+                        <div class="ms-4 mt-2">
+                            ${comment.replies?.map(reply => `
+                                <div class="card bg-secondary text-white mb-2" style="max-width: 60%;">
+                                    <div class="card-body py-2">
+                                        <p class="mb-1">${reply.reply}</p>
+                                        <small>${new Date(reply.created_at).toLocaleString()}</small>
+                                    </div>
+                                </div>
+                            `).join('') || ''}
+
+                            <!-- REPLY INPUT UNDER EACH COMMENT -->
+                            <form class="replyForm mt-2" data-id="${comment.id}">
+                                <input type="text" class="form-control reply-input" placeholder="Write a reply...">
+                            </form>
+                        </div>
+                    </div>
+                `).join('');
+            });
+    };
+
+    // ✅ Handle main admin comment submission
+    document.getElementById('replyForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData();
+        formData.append('comment', document.getElementById('adminComment').value);
+
+        const response = await fetch(`/quotation/${quotation.id}/admin/comment`, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (response.ok) {
+            document.getElementById('adminComment').value = '';
+            loadComments();
+        }
+    });
+
+    // ✅ Handle REPLY to specific comment (threaded reply)
+    document.addEventListener('submit', async (e) => {
+        if (e.target.classList.contains('replyForm')) {
+            e.preventDefault();
+            const commentId = e.target.dataset.id;
+            const replyText = e.target.querySelector('.reply-input').value;
+
+            const response = await fetch(`/quotation/comment/${commentId}/reply`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ reply: replyText })
+            });
+
+            if (response.ok) {
+                loadComments();
+            }
+        }
+    });
+
+    loadComments();
+</script>
+@endsection
+
 
 
 
@@ -734,5 +855,27 @@
                 })
                 .catch(err => console.error(err));
         });
+    </script>
+
+    <!-- Listen for real-time comment updates -->
+    <script>
+        Echo.channel(`quotation.${quotation.id}`)
+    .listen('CommentAdded', (e) => {
+        loadComments();
+    });
+
+    // Listen for real-time quotation approval updates
+    Echo.channel(`quotation.${quotation.id}`)
+    .listen('QuotationApproved', (e) => {
+        Swal.fire({
+            icon: 'success',
+            title: 'Quotation Approved',
+            text: 'The quotation has been approved by both parties.',
+            timer: 1500,
+            showConfirmButton: false
+        }).then(() => {
+            window.location.reload();
+        });
+    });
     </script>
 @endsection

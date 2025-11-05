@@ -1,64 +1,98 @@
-@extends('layouts.public')
+@extends('layouts.app')
 
 @section('content')
-    <div class="card mb-4">
-        <div class="card-body text-center bg-light rounded shadow-sm">
-            <h1 class="h3 mb-0 text-dark">Quotation Details</h1>
-        </div>
+<div class="container">
+    <h2>{{ $quotation->subject }}</h2>
+    <p>{{ $quotation->description }}</p>
+
+    <hr>
+
+    {{-- ✅ Comments Section --}}
+    <h4>Comments</h4>
+    <div id="comments-list">
+        @foreach($quotation->comments as $comment)
+            <div class="mb-2">
+                <strong>{{ $comment->user_type == 'client' ? 'You' : 'Admin' }}:</strong>
+                <span>{{ $comment->message }}</span>
+                <small class="text-muted d-block">{{ $comment->created_at->diffForHumans() }}</small>
+            </div>
+        @endforeach
     </div>
 
-    <!-- Quotation Info -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <h3 class="mb-3">{{ $quotation->subject }}</h3>
-            <p><strong>Customer:</strong> {{ $client->first_name }} {{ $client->last_name }}</p>
-            <p><strong>Contact:</strong> {{ $client->contact_no }}</p>
-            <p><strong>Address:</strong> {{ $client->address }}</p>
-        </div>
+    {{-- ✅ Add Comment Form --}}
+    <div class="mt-3">
+        <textarea id="comment-input" class="form-control" rows="3" placeholder="Write a comment..."></textarea>
+        <button id="submit-comment" class="btn btn-primary mt-2">Send</button>
     </div>
 
-    <!-- Materials Table -->
-    <div class="card">
-        <div class="table-responsive">
-            <table class="table table-bordered table-striped align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th>Material</th>
-                        <th>Estimated Quantity</th>
-                        <th>Price/Unit</th>
-                        <th>Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($materials as $mat)
-                        <tr>
-                            <td>{{ $mat->name }}</td>
-                            <td>
-                                {{ $mat->pivot->quantity }}
-                                <span>{{ $mat->unit }}</span>
-                            </td>
-                            <td>₱{{ number_format($mat->unit_price, 2) }}</td>
-                            <td>₱{{ number_format($mat->unit_price * $mat->pivot->quantity, 2) }}</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-                <tfoot>
-                    <tr>
-                        <td colspan="3" class="text-end fw-bold">Labor Fee:</td>
-                        <td>₱{{ number_format($quotation->labor_fee, 2) }}</td>
-                    </tr>
-                    <tr>
-                        <td colspan="3" class="text-end fw-bold">Delivery/Hauling Fee:</td>
-                        <td>₱{{ number_format($quotation->delivery_fee, 2) }}</td>
-                    </tr>
-                    <tr>
-                        <td colspan="3" class="text-end fw-bold">Grand Total:</td>
-                        <td class="fw-bold text-danger">
-                            ₱{{ number_format($materials->sum(fn($m) => $m->unit_price * $m->pivot->quantity) + $quotation->labor_fee + $quotation->delivery_fee, 2) }}
-                        </td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-    </div>
+    <hr>
+
+    {{-- ✅ Approve Quotation --}}
+    @if(!$quotation->customer_approved)
+        <button id="approve-btn" class="btn btn-success">Approve Quotation</button>
+    @else
+        <span class="badge bg-success">You approved this quotation ✅</span>
+    @endif
+</div>
+
+{{-- ✅ JS Section --}}
+<script>
+    const publicToken = "{{ $quotation->public_token }}";
+    const commentUrl = "{{ route('quotation.comment.submit', $quotation->public_token) }}";
+    const approveUrl = "{{ route('quotation.customer.approve', $quotation->public_token) }}";
+
+    // ✅ Submit Comment via AJAX
+    document.getElementById('submit-comment').addEventListener('click', function () {
+        const message = document.getElementById('comment-input').value.trim();
+
+        if (message === "") {
+            Swal.fire('Error', 'Comment cannot be empty', 'error');
+            return;
+        }
+
+        fetch(commentUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': "{{ csrf_token() }}"
+            },
+            body: JSON.stringify({ message: message })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('comments-list').innerHTML += `
+                    <div class="mb-2">
+                        <strong>You:</strong> ${data.comment.message}
+                        <small class="text-muted d-block">Just now</small>
+                    </div>`;
+                document.getElementById('comment-input').value = "";
+            }
+        })
+        .catch(() => {
+            Swal.fire('Error', 'Something went wrong!', 'error');
+        });
+    });
+
+    // ✅ Approve Quotation
+    document.getElementById('approve-btn')?.addEventListener('click', function () {
+        fetch(approveUrl, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': "{{ csrf_token() }}"
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire('Approved!', 'You have approved this quotation.', 'success')
+                .then(() => location.reload());
+            }
+        })
+        .catch(() => {
+            Swal.fire('Error', 'Could not approve quotation', 'error');
+        });
+    });
+
+</script>
 @endsection

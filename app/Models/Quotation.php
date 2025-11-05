@@ -19,7 +19,20 @@ class Quotation extends Model
         'delivery_fee',
         'latest_progress',
         'public_token',
+        'customer_approved',
+        'provider_approved',
+        'feedback_status'
     ];
+
+    /**
+     * Check if both customer and provider have approved the quotation.
+     *
+     * @return bool
+     */
+    public function isFullyApproved(): bool
+    {
+        return $this->customer_approved && $this->provider_approved;
+    }
 
     // Relation to client
     public function client()
@@ -54,5 +67,10 @@ class Quotation extends Model
     public function revisions()
     {
         return $this->hasMany(QuotationRevision::class);
+    }
+
+    public function comments()
+    {
+        return $this->hasMany(QuotationComment::class);
     }
 }
