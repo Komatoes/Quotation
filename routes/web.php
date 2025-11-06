@@ -192,25 +192,11 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 });
 
 // Comments routes
-Route::post('/comments', [QuotationCommentController::class, 'store'])->name('comments.store');
-Route::get('/comments/{quotationId}', [QuotationCommentController::class, 'index'])->name('comments.index');
-
-// Public Quotation Routes
-Route::post('/quotation/public/{token}/comment', [QuotationCommentController::class, 'submitComment'])->name('quotation.public.comment');
+Route::post('/quotation/public/{token}/comment', [QuotationCommentController::class, 'storePublicComment'])->name('quotation.comment.submit');
 Route::get('/quotation/public/{token}/comments', [QuotationCommentController::class, 'getComments'])->name('quotation.public.comments');
-
-// Admin Quotation Routes
-Route::post('/quotation/{id}/admin/comment', [QuotationCommentController::class, 'adminReplyComment'])->name('quotation.admin.comment');
+Route::post('/quotation/{id}/admin/comment', [QuotationCommentController::class, 'storeAdminComment'])->name('quotation.admin.comment');
+Route::post('/quotation/comment/{id}/reply', [QuotationCommentController::class, 'adminReply'])->name('quotation.admin.reply');
 Route::post('/quotation/{id}/approve', [QuotationCommentController::class, 'approveQuotation'])->name('quotation.approve');
-
-
-// PUBLIC SIDE
-Route::get('/quotation/public/{token}/comments', [QuotationCommentController::class, 'getComments']);
-Route::post('/quotation/public/{token}/comment', [QuotationCommentController::class, 'storePublicComment']);
-Route::post('/quotation/public/{token}/approve', [QuotationCommentController::class, 'approveQuotation']);
-
-// ADMIN SIDE
-Route::post('/quotation/{id}/admin/approve', [QuotationCommentController::class, 'adminApprove']);
-Route::post('/quotation/{id}/admin/reply', [QuotationCommentController::class, 'adminReply']);
+Route::post('/quotation/public/{token}/customer-approve', [QuotationCommentController::class, 'customerApprove'])->name('quotation.customer.approve');
 
 

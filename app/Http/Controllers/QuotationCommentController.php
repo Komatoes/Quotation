@@ -48,6 +48,32 @@ class QuotationCommentController extends Controller
     }
 
     /**
+     * ✅ Admin submits a new comment
+     */
+    public function storeAdminComment(Request $request, $id)
+    {
+        $request->validate([
+            'comment' => 'required|string|max:1000'
+        ]);
+
+        $quotation = Quotation::findOrFail($id);
+
+        $comment = QuotationComment::create([
+            'quotation_id' => $quotation->id,
+            'client_id'    => null,
+            'employee_id'  => Auth::id(),
+            'comment'      => $request->comment,
+            'sender_type'  => 'admin',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Comment added successfully',
+            'comment' => $comment
+        ]);
+    }
+
+    /**
      * ✅ Admin replies to a specific comment
      */
     public function adminReply(Request $request, $id)
@@ -71,12 +97,12 @@ class QuotationCommentController extends Controller
     /**
      * ✅ Customer approves quotation
      */
-    public function approveQuotation($publicToken)
+    public function customerApprove($publicToken)
     {
         $quotation = Quotation::where('public_token', $publicToken)->firstOrFail();
         $quotation->update(['customer_approved' => true]);
 
-        return response()->json(['success' => true]);
+        return response()->json(['success' => true, 'message' => 'Quotation approved by customer']);
     }
 
     /**

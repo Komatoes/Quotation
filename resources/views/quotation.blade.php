@@ -212,7 +212,10 @@
 @parent
 <script>
     const loadComments = () => {
-        fetch(`/quotation/${quotation.id}/comments`)
+        // Get the quotation ID from the page
+        const quotationId = '{{ $quotation->id }}';
+        
+        fetch(`/quotations/${quotationId}/comments`)
             .then(res => res.json())
             .then(comments => {
                 const thread = document.getElementById('commentsThread');
@@ -250,20 +253,53 @@
             });
     };
 
+    // Load comments when the page loads
+    document.addEventListener('DOMContentLoaded', () => {
+        loadComments();
+    });
+
     // ✅ Handle main admin comment submission
     document.getElementById('replyForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const formData = new FormData();
         formData.append('comment', document.getElementById('adminComment').value);
+        formData.append('sender_type', 'admin');
 
-        const response = await fetch(`/quotation/${quotation.id}/admin/comment`, {
-            method: 'POST',
-            body: formData
-        });
+        try {
+            const response = await fetch(`/quotation/${quotation.id}/admin/comment`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: formData
+            });
 
-        if (response.ok) {
-            document.getElementById('adminComment').value = '';
-            loadComments();
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                document.getElementById('adminComment').value = '';
+                loadComments();
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Comment Added',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 1500
+                });
+            } else {
+                throw new Error(data.message || 'Failed to add comment');
+            }
+        } catch (error) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: error.message || 'Failed to add comment',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000
+            });
         }
     });
 
@@ -857,25 +893,9 @@
         });
     </script>
 
-    <!-- Listen for real-time comment updates -->
+    <!-- We'll add real-time updates back once Echo is properly set up -->
     <script>
-        Echo.channel(`quotation.${quotation.id}`)
-    .listen('CommentAdded', (e) => {
-        loadComments();
-    });
-
-    // Listen for real-time quotation approval updates
-    Echo.channel(`quotation.${quotation.id}`)
-    .listen('QuotationApproved', (e) => {
-        Swal.fire({
-            icon: 'success',
-            title: 'Quotation Approved',
-            text: 'The quotation has been approved by both parties.',
-            timer: 1500,
-            showConfirmButton: false
-        }).then(() => {
-            window.location.reload();
-        });
-    });
+        // Periodically refresh comments every 10 seconds for now
+        setInterval(loadComments, 10000);
     </script>
 @endsection
