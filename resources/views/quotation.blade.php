@@ -23,8 +23,14 @@
                     <p><strong>Contact:</strong> {{ $client->contact_no }}</p>
                     <p><strong>Address:</strong> {{ $client->address }}</p>
 
+                    @if ($quotation->customer_approved)
+                        <span class="badge bg-success mb-2"><i class="ti ti-check-circle me-1"></i> Approved by Client</span>
+                    @else
+                        <span class="badge bg-warning text-dark mb-2"><i class="ti ti-clock me-1"></i> Awaiting Client Approval</span>
+                    @endif
+
                     <!-- Add Material Button (hidden for guests/clients) -->
-                    @if(empty($readonly))
+                    @if (empty($readonly))
                     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addMatModal">
                         Add Material
                     </button>
