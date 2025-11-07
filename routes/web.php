@@ -125,9 +125,3 @@ Route::post('/reset-password', [App\Http\Controllers\Auth\ResetPasswordControlle
 // ---------------------------------------------------------------------------
 // ADMIN ONLY ROUTES
 // ---------------------------------------------------------------------------
-
-Route::middleware(['auth', 'role:admin'])->group(function () {
-    Route::get('/register', [AuthenticationController::class, 'viewRegister'])->name('auth.register');
-    Route::post('/create-user', [AuthenticationController::class, 'createUser'])->name('auth.createUser');
-});
-
