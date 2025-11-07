@@ -10,7 +10,7 @@
                     <h4 class="mb-2">{{ $quotation->subject }}</h4>
                     <p class="mb-1">{{ $quotation->description }}</p>
                 </div>
-                @if(!$quotation->customer_approved)
+                @if (!$quotation->customer_approved)
                     <button id="approve-btn" class="btn btn-success">
                         <i class="ti ti-check me-1"></i> Approve Quotation
                     </button>
@@ -20,7 +20,7 @@
                     </div>
                 @endif
             </div>
-            
+
             <div class="row">
                 <div class="col-xl-4 col-md-6 col-sm-12">
                     <div class="mb-3">
@@ -50,7 +50,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($materials as $material)
+                    @foreach ($materials as $material)
                         <tr>
                             <td>{{ $material->name }}</td>
                             <td>{{ $material->pivot->quantity }} {{ $material->unit }}</td>
@@ -86,16 +86,12 @@
         </div>
         <div class="card-body">
             <div id="comments-list" class="mb-4">
-                @foreach($quotation->comments as $comment)
+                @foreach ($quotation->comments as $comment)
                     <div class="d-flex mb-4">
                         <div class="flex-shrink-0">
-                            <div class="avatar @if($comment->sender_type === 'customer') avatar-primary @else avatar-success @endif">
+                            <div class="avatar {{ $comment->sender_type === 'customer' ? 'avatar-primary' : 'avatar-success' }}">
                                 <span class="avatar-initial rounded-circle">
-                                    @if($comment->sender_type === 'customer')
-                                        C
-                                    @else
-                                        A
-                                    @endif
+                                    {{ $comment->sender_type === 'customer' ? 'C' : 'A' }}
                                 </span>
                             </div>
                         </div>
@@ -112,85 +108,111 @@
 
             <!-- Add Comment Form -->
             <div class="mt-3">
-                <textarea id="comment-input" class="form-control mb-3" rows="3" placeholder="Write your comment or feedback..."></textarea>
-                <button id="submit-comment" class="btn btn-primary">
+                <textarea id="client-comment-input" class="form-control mb-3" rows="3" placeholder="Write a comment..."></textarea>
+                <button id="client-submit-comment" class="btn btn-primary">
                     <i class="ti ti-send me-1"></i> Send Comment
                 </button>
             </div>
         </div>
     </div>
 </div>
-</div>
 
 {{-- ✅ JS Section --}}
 <script>
-    const publicToken = "{{ $quotation->public_token }}";
-    const commentUrl = "{{ route('quotation.comment.submit', $quotation->public_token) }}";
-    const approveUrl = "{{ route('quotation.customer.approve', $quotation->public_token) }}";
+document.addEventListener('DOMContentLoaded', () => {
+    const approveBtn = document.getElementById('approve-btn');
+    const commentBtn = document.getElementById('client-submit-comment');
 
-    // ✅ Submit Comment via AJAX
-    document.getElementById('submit-comment').addEventListener('click', function () {
-        const message = document.getElementById('comment-input').value.trim();
+    // 🟢 Handle Approval
+    if (approveBtn) {
+        approveBtn.addEventListener('click', () => {
+            approveBtn.disabled = true;
+            approveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Approving...';
 
-        if (message === "") {
-            Swal.fire('Error', 'Comment cannot be empty', 'error');
-            return;
-        }
+            fetch("{{ route('quotation.customer.approve', $quotation->public_token) }}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': "{{ csrf_token() }}"
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire('Approved!', data.message, 'success');
+                    approveBtn.style.display = 'none';
+                    const badge = document.createElement('div');
+                    badge.className = 'badge bg-success p-2 mt-2';
+                    badge.innerHTML = '<i class="ti ti-check-circle me-1"></i> You approved this quotation';
+                    approveBtn.parentNode.appendChild(badge);
+                } else {
+                    Swal.fire('Error', data.error || 'Something went wrong', 'error');
+                    approveBtn.disabled = false;
+                    approveBtn.innerHTML = '<i class="ti ti-check me-1"></i> Approve Quotation';
+                }
+            })
+            .catch(() => {
+                Swal.fire('Error', 'Could not approve quotation', 'error');
+                approveBtn.disabled = false;
+                approveBtn.innerHTML = '<i class="ti ti-check me-1"></i> Approve Quotation';
+            });
+        });
+    }
 
-        fetch(commentUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            },
-            body: JSON.stringify({ comment: message })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                document.getElementById('comments-list').innerHTML += `
-                    <div class="d-flex mb-4">
-                        <div class="flex-shrink-0">
-                            <div class="avatar avatar-primary">
-                                <span class="avatar-initial rounded-circle">C</span>
+    // 🟢 Handle Comment
+    if (commentBtn) {
+        commentBtn.addEventListener('click', e => {
+            e.preventDefault();
+            const message = document.getElementById('client-comment-input').value.trim();
+            if (message === "") {
+                Swal.fire('Error', 'Comment cannot be empty', 'error');
+                return;
+            }
+
+            fetch("{{ route('quotation.comment.submit', $quotation->public_token) }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': "{{ csrf_token() }}"
+                },
+                body: JSON.stringify({
+                    comment: message,
+                    sender_type: 'customer',
+                    client_name: "{{ $quotation->client->name }}"
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('comments-list').insertAdjacentHTML('beforeend', `
+                        <div class="d-flex mb-4">
+                            <div class="flex-shrink-0">
+                                <div class="avatar avatar-primary">
+                                    <span class="avatar-initial rounded-circle">C</span>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <div class="mb-1">
+                                    <span class="fw-semibold">You</span>
+                                    <small class="text-muted"> • Just now</small>
+                                </div>
+                                <p class="mb-1">${message}</p>
                             </div>
                         </div>
-                        <div class="flex-grow-1 ms-3">
-                            <div class="mb-1">
-                                <span class="fw-semibold">You</span>
-                                <small class="text-muted"> • Just now</small>
-                            </div>
-                            <p class="mb-1">${message}</p>
-                        </div>
-                    </div>`;
-                document.getElementById('comment-input').value = "";
-            }
-        })
-        .catch(() => {
-            Swal.fire('Error', 'Something went wrong!', 'error');
+                    `);
+                    document.getElementById('client-comment-input').value = "";
+                } else {
+                    Swal.fire('Error', data.message || 'Could not submit comment', 'error');
+                }
+            })
+            .catch(() => {
+                Swal.fire('Error', 'Something went wrong!', 'error');
+            });
         });
-    });
-
-    // ✅ Approve Quotation
-    document.getElementById('approve-btn')?.addEventListener('click', function () {
-        fetch(approveUrl, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': "{{ csrf_token() }}"
-            }
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                Swal.fire('Approved!', 'You have approved this quotation.', 'success')
-                .then(() => location.reload());
-            }
-        })
-        .catch(() => {
-            Swal.fire('Error', 'Could not approve quotation', 'error');
-        });
-    });
-
+    }
+});
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 @endsection

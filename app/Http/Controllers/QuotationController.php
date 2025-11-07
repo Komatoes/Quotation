@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Quotation;
 use App\Models\Material;
 use App\Models\QuotationMaterial;
+use App\Models\Quotationstatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -170,7 +171,7 @@ class QuotationController extends Controller
 
             // If both have approved, update the quotation status to Approved
             if ($quotation->isFullyApproved()) {
-                $approvedStatus = QuotationStatus::where('status_name', 'Approved')->first();
+                $approvedStatus = Quotationstatus::where('status_name', 'Approved')->first();
                 if ($approvedStatus) {
                     $quotation->update(['status_id' => $approvedStatus->id]);
                 }

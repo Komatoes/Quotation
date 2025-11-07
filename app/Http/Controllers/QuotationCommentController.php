@@ -11,6 +11,17 @@ use Illuminate\Support\Facades\Auth;
 class QuotationCommentController extends Controller
 {
     /**
+     * Fetch all comments for a quotation by ID (admin/internal).
+     */
+    public function getAdminComments($id)
+    {
+        $quotation = Quotation::findOrFail($id);
+        $comments = QuotationComment::where('quotation_id', $quotation->id)
+            ->orderBy('created_at', 'asc')
+            ->get();
+        return response()->json($comments);
+    }
+    /**
      * ✅ Load all comments (with replies)
      */
     public function getComments($publicToken)

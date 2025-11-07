@@ -23,19 +23,42 @@ class RolesAndPermissionsSeeder extends Seeder
             'delete quotations',
             'view quotations',
             'approve quotations',
+            'reject quotations',
+            'view all quotations',
             
             // Project Reports
             'create reports',
             'edit reports',
             'view reports',
             'complete reports',
+            'delete reports',
             
             // Materials
             'manage materials',
+            'create materials',
+            'edit materials',
+            'delete materials',
+            'view materials',
+            
+            // Projects
+            'manage projects',
+            'create projects',
+            'edit projects',
+            'delete projects',
+            'view projects',
+            
+            // Comments
+            'create comments',
+            'edit comments',
+            'delete comments',
+            'view comments',
+            'create internal comments',
+            'view internal comments',
             
             // Users
             'manage users',
             'manage roles',
+            'view users',
         ];
 
         foreach ($permissions as $permission) {
@@ -46,6 +69,27 @@ class RolesAndPermissionsSeeder extends Seeder
         $role = Role::create(['name' => 'admin'])
             ->givePermissionTo(Permission::all());
 
+        // Manager Role
+        $role = Role::create(['name' => 'manager'])
+            ->givePermissionTo([
+                'create quotations',
+                'edit quotations',
+                'view quotations',
+                'approve quotations',
+                'reject quotations',
+                'view all quotations',
+                'create reports',
+                'edit reports',
+                'view reports',
+                'complete reports',
+                'manage materials',
+                'manage projects',
+                'create internal comments',
+                'view internal comments',
+                'view users'
+            ]);
+
+        // Staff Role
         $role = Role::create(['name' => 'staff'])
             ->givePermissionTo([
                 'create quotations',
@@ -54,7 +98,22 @@ class RolesAndPermissionsSeeder extends Seeder
                 'create reports',
                 'edit reports',
                 'view reports',
-                'manage materials'
+                'view materials',
+                'create materials',
+                'view projects',
+                'create comments',
+                'view comments',
+                'view internal comments'
+            ]);
+
+        // Client Role
+        $role = Role::create(['name' => 'client'])
+            ->givePermissionTo([
+                'view quotations',
+                'view materials',
+                'view projects',
+                'create comments',
+                'view comments'
             ]);
 
         // Create admin user
