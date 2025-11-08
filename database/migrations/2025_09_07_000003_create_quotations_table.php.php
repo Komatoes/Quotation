@@ -35,6 +35,9 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('quotations');
+    Schema::dropIfExists('quotation_materials');
+    Schema::dropIfExists('quotation_comments');
+    Schema::dropIfExists('quotation_revisions');
+    Schema::dropIfExists('quotations');
     }
 };
