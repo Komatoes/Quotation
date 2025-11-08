@@ -67,13 +67,12 @@
                         <div class="app-brand justify-content-center mb-6">
                                 <a href="/" class="app-brand-link">
                                 <span class="app-brand-logo demo">
-                                        <img src="{{ asset('assets/img/logo/favicon.png') }}" height="50" alt="Logo">
+                                        <img src="{{ asset('Image/LOGO.png') }}"  height="100" alt="Logo">
                                 </span>
-                                    <span class="app-brand-text demo text-heading fw-bold">Quotation System</span>
                             </a>
                         </div>
                         <!-- /Logo -->
-                            <h4 class="mb-1">Welcome Back! 👋</h4>
+                            <h4 class="mb-1">Welcome Back!</h4>
                             <p class="mb-6">Please sign in to your account</p>
 
                         <form id="loginform" class="mb-4" method="POST" action="{{ route('login.submit') }}">

@@ -10,6 +10,7 @@ class QuotationRevision extends Model
         'quotation_id',
         'old_data',
         'reason',
+        'version',
     ];
 
     protected $casts = [

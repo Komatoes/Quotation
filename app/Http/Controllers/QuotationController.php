@@ -9,6 +9,7 @@ use App\Models\Quotationstatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Spatie\Permission\Traits\HasRoles;
 
 class QuotationController extends Controller
 {
@@ -263,6 +264,7 @@ class QuotationController extends Controller
             'quotation' => $quotation,
             'client' => $quotation->client,
             'materials' => $quotation->materials,
+            'reports' => $quotation->progressReports ?? collect(),
         ]);
     }
 // ...existing code...
@@ -292,7 +294,8 @@ class QuotationController extends Controller
         return view('public-quotation', [
             'quotation' => $quotation,
             'client' => $quotation->client,
-            'materials' => $quotation->materials
+            'materials' => $quotation->materials,
+            'reports' => $quotation->progressReports ?? collect(),
         ]);
     }
     public function viewHome()
@@ -356,7 +359,34 @@ class QuotationController extends Controller
             'status_id' => 'required|in:1,2,3', // only allow Draft, Approved, Rejected
         ]);
 
+        $user = auth()->user();
         $quotation = Quotation::findOrFail($id);
+
+        // Helper to check role safely
+        function userHasRole($user, $role) {
+            return method_exists($user, 'hasRole') ? $user->hasRole($role) : (
+                isset($user->roles) && $user->roles->contains('name', $role)
+            );
+        }
+
+        // Only admin (or manager) can approve (status_id == 2)
+        if ($validated['status_id'] == 2) { // Approved
+            if (!($user && (userHasRole($user, 'admin') || userHasRole($user, 'manager')))) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Only admin or manager can approve quotations.'
+                ], 403);
+            }
+        }
+
+        // Staff can only set Draft (1) or Rejected (3)
+        if ($user && userHasRole($user, 'staff') && $validated['status_id'] == 2) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Staff cannot approve quotations.'
+            ], 403);
+        }
+
         $quotation->status_id = $validated['status_id'];
         $quotation->save();
 
@@ -528,6 +558,16 @@ class QuotationController extends Controller
     public function markCompleted($id)
     {
         $quotation = Quotation::findOrFail($id);
+        $user = auth()->user();
+        // Use the same helper as above
+        $userHasRole = function($user, $role) {
+            return method_exists($user, 'hasRole') ? $user->hasRole($role) : (
+                isset($user->roles) && $user->roles->contains('name', $role)
+            );
+        };
+        if ($user && $userHasRole($user, 'staff')) {
+            return response()->json(['error' => 'Staff cannot mark a quotation as completed.'], 403);
+        }
         $completedStatus = DB::table('quotation_status')->where('status_name', 'Completed')->first();
 
         if ($completedStatus) {
@@ -564,10 +604,15 @@ class QuotationController extends Controller
             }),
         ];
 
+        // Get latest version number for this quotation
+        $latestVersion = $quotation->revisions()->max('version') ?? 0;
+        $nextVersion = $latestVersion + 1;
+
         // Create revision record using the model
         $quotation->revisions()->create([
             'old_data' => $revisionData,  // Model will handle JSON encoding
-            'reason'   => $reason
+            'reason'   => $reason,
+            'version'  => $nextVersion
         ]);
 
         // Optional: reset quotation to Draft for editing

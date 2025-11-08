@@ -196,17 +196,112 @@ function copyPublicLink() {
                         </div>
                     @endforelse
                 </div>
-
             </div>
         </div>
     </div>
+
+    <!-- Comments & Feedback Section -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Comments & Feedback</h5>
+        </div>
+        <div class="card-body">
+            <!-- Existing Comments -->
+            <div id="comments-list" class="mb-4">
+                @forelse($quotation->comments as $comment)
+                    <div class="d-flex mb-4">
+                        <div class="flex-shrink-0">
+                            <div class="avatar {{ $comment->sender_type === 'customer' ? 'avatar-primary' : 'avatar-success' }}">
+                                <span class="avatar-initial rounded-circle">
+                                    {{ $comment->sender_type === 'customer' ? 'C' : 'A' }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="mb-1">
+                                <span class="fw-semibold">{{ $comment->sender_type === 'customer' ? 'You' : 'Admin' }}</span>
+                                <small class="text-muted"> • {{ $comment->created_at->diffForHumans() }}</small>
+                            </div>
+                            <p class="mb-1">{{ $comment->comment }}</p>
+                        </div>
+                    </div>
+                @empty
+                    <p class="text-muted">No comments yet.</p>
+                @endforelse
+            </div>
+            <!-- Add Comment Form -->
+            <div class="mt-3">
+                <textarea id="client-comment-input" class="form-control mb-3" rows="3" placeholder="Write a comment..."></textarea>
+                <button id="client-submit-comment" class="btn btn-primary">
+                    <i class="ti ti-send me-1"></i> Send Comment
+                </button>
+            </div>
+        </div>
+    </div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const commentBtn = document.getElementById('client-submit-comment');
+    if (commentBtn) {
+        commentBtn.addEventListener('click', e => {
+            e.preventDefault();
+            const message = document.getElementById('client-comment-input').value.trim();
+            if (message === "") {
+                Swal.fire('Error', 'Comment cannot be empty', 'error');
+                return;
+            }
+            fetch("{{ route('quotation.comment.submit', $quotation->public_token ?? $quotation->id) }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': "{{ csrf_token() }}"
+                },
+                body: JSON.stringify({
+                    comment: message,
+                    sender_type: 'customer',
+                    client_name: "{{ $quotation->client->name ?? ($quotation->client->first_name . ' ' . $quotation->client->last_name) }}"
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('comments-list').insertAdjacentHTML('beforeend', `
+                        <div class="d-flex mb-4">
+                            <div class="flex-shrink-0">
+                                <div class="avatar avatar-primary">
+                                    <span class="avatar-initial rounded-circle">C</span>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <div class="mb-1">
+                                    <span class="fw-semibold">You</span>
+                                    <small class="text-muted"> • Just now</small>
+                                </div>
+                                <p class="mb-1">${message}</p>
+                            </div>
+                        </div>
+                    `);
+                    document.getElementById('client-comment-input').value = "";
+                } else {
+                    Swal.fire('Error', data.message || 'Could not submit comment', 'error');
+                }
+            })
+            .catch(() => {
+                Swal.fire('Error', 'Something went wrong!', 'error');
+            });
+        });
+    }
+});
+</script>
 @endsection
 
 
 
 
 <script>
+
     let latestSavedProgress = {{ $quotation->latest_progress ?? 0 }}; // current highest progress
+    const isStaff = @json(auth()->user() && auth()->user()->hasRole('staff'));
 
     function updateProgress(value) {
         const progressBar = document.getElementById('progress-bar');
@@ -330,7 +425,7 @@ function copyPublicLink() {
                 });
 
                 // ✅ If progress reaches 100%, confirm project completion
-                if (progressValue === 100) {
+                if (progressValue === 100 && !isStaff) {
                     setTimeout(() => {
                         Swal.fire({
                             icon: 'question',
