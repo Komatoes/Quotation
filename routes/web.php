@@ -96,7 +96,7 @@ Route::middleware(['auth', 'role:admin|staff'])->group(function () {
 // MATERIALS (Requires Material Management Permission)
 // ---------------------------------------------------------------------------
 
-Route::middleware(['auth', 'permission:view materials|manage materials'])->group(function () {
+Route::middleware(['auth', 'permission:view_materials|manage_materials'])->group(function () {
     Route::get('/materials', [MaterialController::class, 'index'])->name('materials.index');
     Route::get('/materials/list', [MaterialController::class, 'list'])->name('materials.list');
     Route::post('/materials/store', [MaterialController::class, 'store'])->name('materials.store');
