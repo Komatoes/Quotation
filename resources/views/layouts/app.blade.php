@@ -99,18 +99,13 @@
         <div class="layout-container">
 
             <!-- Sidebar for desktop -->
-            <aside id="layout-menu"
-                class="layout-menu menu-vertical d-none d-xl-block"
-                style="background-color: #42955c;">
+            <aside id="layout-menu" class="layout-menu menu-vertical d-none d-xl-block" style="background-color: #42955c;">
                 @include('layouts.sidebar')
             </aside>
 
             <!-- Offcanvas Sidebar for mobile (Bootstrap) -->
-            <div class="offcanvas offcanvas-start d-xl-none"
-                tabindex="-1"
-                id="mobileSidebar"
-                aria-labelledby="mobileSidebarLabel"
-                style="background-color: #42955c;">
+            <div class="offcanvas offcanvas-start d-xl-none" tabindex="-1" id="mobileSidebar"
+                aria-labelledby="mobileSidebarLabel" style="background-color: #42955c;">
                 <div class="offcanvas-header border-bottom">
                     <h5 class="offcanvas-title text-white" id="mobileSidebarLabel">Menu</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"
@@ -128,10 +123,11 @@
                 <nav class="layout-navbar navbar navbar-expand-xl align-items-center">
                     <div class="container-fluid">
                         <!-- Mobile sidebar toggle -->
-                        <button class="btn btn-outline-primary d-xl-none ms-2" type="button"
-                            data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-controls="mobileSidebar">
-                            <i class="ti ti-menu-2 text-white"></i>
+                        <button class="btn btn-success d-xl-none ms-2" type="button" data-bs-toggle="offcanvas"
+                            data-bs-target="#mobileSidebar" aria-controls="mobileSidebar">
+                            <i class="fa-solid fa-bars me-1"></i>
                         </button>
+
                     </div>
                 </nav>
 
@@ -154,8 +150,7 @@
     <div class="offcanvas offcanvas-end" id="add-new-quotation">
         <div class="offcanvas-header border-bottom">
             <h5 class="offcanvas-title">Add Quotation</h5>
-            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas"
-                aria-label="Close"></button>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
         </div>
         <div class="offcanvas-body flex-grow-1">
             <form class="row g-2" id="form-add-quotation" onsubmit="return false">
@@ -183,7 +178,8 @@
 
                 <div class="col-sm-6">
                     <label class="form-label">Contact No</label>
-                    <input type="text" name="client_contact_no" class="form-control" placeholder="09123456789" required>
+                    <input type="text" name="client_contact_no" class="form-control" placeholder="09123456789"
+                        required>
                 </div>
 
                 <div class="col-sm-12">
@@ -216,9 +212,15 @@
                     })
                     .then(async res => {
                         const data = await res.json();
-                        return { ok: res.ok, data };
+                        return {
+                            ok: res.ok,
+                            data
+                        };
                     })
-                    .then(({ ok, data }) => {
+                    .then(({
+                        ok,
+                        data
+                    }) => {
                         if (!ok) {
                             if (data.errors) {
                                 const messages = Object.values(data.errors)
@@ -231,16 +233,29 @@
                                     icon: "warning"
                                 });
                             } else {
-                                Swal.fire({ title: "Error", text: data.message || "Failed to create quotation.", icon: "error" });
+                                Swal.fire({
+                                    title: "Error",
+                                    text: data.message || "Failed to create quotation.",
+                                    icon: "error"
+                                });
                             }
                             return;
                         }
-                        Swal.fire({ title: data.message || "Quotation created successfully!", icon: "success" })
-                            .then(() => { window.location.href = "/quotations/" + data.quotation_id; });
+                        Swal.fire({
+                                title: data.message || "Quotation created successfully!",
+                                icon: "success"
+                            })
+                            .then(() => {
+                                window.location.href = "/quotations/" + data.quotation_id;
+                            });
                     })
                     .catch(error => {
                         console.error("Error:", error);
-                        Swal.fire({ title: "Something went wrong!", text: "Please try again later.", icon: "error" });
+                        Swal.fire({
+                            title: "Something went wrong!",
+                            text: "Please try again later.",
+                            icon: "error"
+                        });
                     });
             }
         }
@@ -320,4 +335,5 @@
         document.head.appendChild(style);
     </script>
 </body>
+
 </html>

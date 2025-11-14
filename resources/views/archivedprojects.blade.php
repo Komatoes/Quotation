@@ -114,7 +114,7 @@
             const prevDisabled = this.currentPage === 1 ? "disabled" : "";
             pagination.insertAdjacentHTML("beforeend", `
                 <li class="page-item ${prevDisabled}">
-                    <a class="page-link" href="javascript:void(0);"><i class="ti ti-chevron-left"></i></a>
+                    <a class="page-link" href="javascript:void(0);"><i class="fa-solid fa-chevron-left"></i></a>
                 </li>
             `);
 
@@ -130,7 +130,7 @@
             const nextDisabled = this.currentPage === totalPages ? "disabled" : "";
             pagination.insertAdjacentHTML("beforeend", `
                 <li class="page-item ${nextDisabled}">
-                    <a class="page-link" href="javascript:void(0);"><i class="ti ti-chevron-right"></i></a>
+                    <a class="page-link" href="javascript:void(0);"><i class="fa-solid fa-chevron-right"></i></a>
                 </li>
             `);
 

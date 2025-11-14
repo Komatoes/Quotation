@@ -11,7 +11,23 @@
             <!-- Header -->
             <div class="card mb-4">
                 <div class="card-body text-center bg-light rounded shadow-sm">
-                    <h1 class="h3 mb-0 text-dark">Creating Quotation...</h1>
+                    @php
+                        $qStatus = strtolower($quotation->status->status_name ?? '');
+                        if ($qStatus === 'completed') {
+                            $headerText = 'Project Completed';
+                            $headerClass = 'text-success';
+                        } elseif ($qStatus === 'rejected') {
+                            $headerText = 'Quotation Rejected';
+                            $headerClass = 'text-danger';
+                        } elseif ($quotation->customer_approved) {
+                            $headerText = 'Ongoing Project';
+                            $headerClass = 'text-primary';
+                        } else {
+                            $headerText = 'Creating Quotation';
+                            $headerClass = 'text-dark';
+                        }
+                    @endphp
+                    <h1 class="h3 mb-0 {{ $headerClass }}">{{ $headerText }}</h1>
                 </div>
             </div>
 
@@ -19,54 +35,64 @@
             <div class="card mb-4">
                 <div class="card-body">
                     <h3 class="mb-3">{{ $quotation->subject }}</h3>
-                    <p><strong>Customer:</strong> {{ $client->first_name }} {{ $client->last_name }}</p>
-                    <p><strong>Contact:</strong> {{ $client->contact_no }}</p>
-                    <p><strong>Address:</strong> {{ $client->address }}</p>
+                    <p><strong>Customer:</strong> <span id="clientName">{{ $client->first_name }} {{ $client->last_name }}</span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="editClientBtn">Edit Client</button>
+                    </p>
+                    <p><strong>Contact:</strong> <span id="clientContact">{{ $client->contact_no }}</span></p>
+                    <p><strong>Address:</strong> <span id="clientAddress">{{ $client->address }}</span></p>
 
-                    @if ($quotation->customer_approved)
-                        <span class="badge bg-success mb-3 d-inline-flex align-items-center">
-                            <i class="ti ti-check-circle me-1"></i> Approved by Client
+                    @php
+                        $qStatus = strtolower($quotation->status->status_name ?? '');
+                        if ($qStatus === 'completed') {
+                            $badgeText = 'Project has been completed';
+                            $badgeClass = 'bg-success';
+                        } elseif ($qStatus === 'rejected') {
+                            $badgeText = 'Quotation is rejected';
+                            $badgeClass = 'bg-danger';
+                        } elseif ($quotation->customer_approved) {
+                            $badgeText = 'Approved by Client';
+                            $badgeClass = 'bg-success';
+                        } else {
+                            $badgeText = 'Awaiting Client Approval';
+                            $badgeClass = 'bg-warning text-dark';
+                        }
+                    @endphp
+
+                    <div class="mt-3">
+                        <span class="badge {{ $badgeClass }} mb-3 d-inline-flex align-items-center" id="quotation-status-badge">
+                            {{ $badgeText }}
                         </span>
-                    @else
-                        <span class="badge bg-warning text-dark mb-3 d-inline-flex align-items-center">
-                            <i class="ti ti-clock me-1"></i> Awaiting Client Approval
-                        </span>
-                    @endif
-
-                    <!-- Buttons Row: Left and Right -->
-                    @if (empty($readonly))
-                        <div class="d-flex justify-content-between flex-wrap gap-2 align-items-center">
-                            <!-- Left buttons -->
-                            <div class="d-flex flex-wrap gap-2">
-                                <button type="button" class="btn btn-primary" data-bs-toggle="modal"
-                                    data-bs-target="#addMatModal">
-                                    Add Material
-                                </button>
-                                <button type="button" class="btn btn-outline-secondary" id="generateLinkBtn"
-                                    title="Generate & Copy Public Link">
-                                    <i class="bi bi-link-45deg me-1"></i> Generate Link
-                                </button>
-                            </div>
-
-                            <!-- Right buttons -->
-                            <div class="d-flex flex-wrap gap-2">
-                                <button class="btn btn-outline-warning" id="createRevisionBtn"
-                                    data-id="{{ $quotation->id }}" style="min-width: 160px;">
-                                    <i class="bi bi-pencil-square me-1"></i> Create Revision
-                                </button>
-                                <button class="btn btn-outline-secondary" id="viewRevisionsBtn"
-                                    data-id="{{ $quotation->id }}" style="min-width: 160px;">
-                                    <i class="bi bi-clock-history me-1"></i> View Revisions
-                                </button>
-                            </div>
-                        </div>
-                    @endif
+                    </div>
                 </div>
             </div>
 
 
-            <!-- Materials Table -->
+            <!-- Materials Table (Admin only) -->
+            @if (Auth::user()->can('view_materials'))
             <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Materials</h5>
+                    <div class="d-flex gap-2">
+                        @if (empty($readonly) && !in_array(strtolower($quotation->status->status_name ?? ''), ['completed','rejected']))
+                            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addMatModal">
+                                <i class="fa-solid fa-plus me-1"></i> Add Material
+                            </button>
+                        @endif
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="generateLinkBtn" title="Generate & Copy Public Link">
+                            <i class="fa-solid fa-link me-1"></i> Generate Link
+                        </button>
+                        @if (Auth::user()->can('view_revision_history'))
+                            <button type="button" class="btn btn-sm btn-outline-info" id="viewRevisionsBtn" data-id="{{ $quotation->id }}" title="View Revision History">
+                                <i class="fa-solid fa-clock-rotate-left me-1"></i> View Revisions
+                            </button>
+                        @endif
+                        @if (Auth::user()->can('create_revision'))
+                            <button type="button" class="btn btn-sm btn-outline-warning" id="createRevisionBtn" data-id="{{ $quotation->id }}" title="Create Revision">
+                                <i class="fa-solid fa-copy me-1"></i> Create Revision
+                            </button>
+                        @endif
+                    </div>
+                </div>
                 <div class="table-responsive">
                     <table id="quotationMaterials" class="table table-bordered table-striped align-middle">
                         <thead class="table-light">
@@ -93,14 +119,35 @@
                                         @endif
                                         <span>{{ $mat->unit }}</span>
                                     </td>
-                                    <td>₱{{ number_format($mat->unit_price, 2) }}</td>
+                                    <td>
+                                        @if (Auth::user()->can('view_prices'))
+                                            @if ($qStatus === 'draft' && empty($readonly))
+                                                <input type="number" class="form-control update-price"
+                                                    data-pivot="{{ $mat->pivot->id }}" data-material="{{ $mat->id }}"
+                                                    value="{{ number_format($mat->unit_price, 2, '.', '') }}" min="0" step="0.01"
+                                                    style="width: 100px; display:inline-block;">
+                                            @else
+                                                ₱{{ number_format($mat->pivot->unit_cost, 2) }}
+                                            @endif
+                                        @else
+                                            <span class="badge bg-secondary">Hidden</span>
+                                        @endif
+                                    </td>
                                     <td class="line-total">
-                                        ₱{{ number_format($mat->unit_price * $mat->pivot->quantity, 2) }}</td>
+                                        @if (Auth::user()->can('view_prices'))
+                                            @if ($qStatus === 'draft' && empty($readonly))
+                                                ₱{{ number_format($mat->unit_price * $mat->pivot->quantity, 2) }}
+                                            @else
+                                                ₱{{ number_format($mat->pivot->unit_cost * $mat->pivot->quantity, 2) }}
+                                            @endif
+                                        @else
+                                            <span class="badge bg-secondary">Hidden</span>
+                                        @endif
                                     <td class="text-center">
                                         @if (empty($readonly))
                                             <a href="#" class="text-danger delete-material"
                                                 data-id="{{ $mat->pivot->id }}" data-quot="{{ $quotation->id }}">
-                                                <i class="ti ti-trash"></i>
+                                                <i class="fa-solid fa-trash"></i>
                                             </a>
                                         @endif
                                     </td>
@@ -108,6 +155,7 @@
                             @endforeach
                         </tbody>
                         <tfoot>
+                            @if (Auth::user()->can('manage_fees'))
                             <tr>
                                 <td colspan="3" class="text-end fw-bold">Labor Fee:</td>
                                 <td colspan="2">
@@ -132,34 +180,139 @@
                                     @endif
                                 </td>
                             </tr>
+                            @endif
                             <tr>
                                 <td colspan="3" class="text-end fw-bold">Grand Total:</td>
                                 <td colspan="2" class="fw-bold text-danger" id="grandTotal">
-                                    ₱{{ number_format($materials->sum(fn($m) => $m->unit_price * $m->pivot->quantity) + $quotation->labor_fee + $quotation->delivery_fee, 2) }}
+                                    @if (Auth::user()->can('view_prices'))
+                                        ₱{{ number_format($materials->sum(fn($m) => $m->pivot->unit_cost * $m->pivot->quantity) + $quotation->labor_fee + $quotation->delivery_fee, 2) }}
+                                    @else
+                                        <span class="badge bg-secondary">Hidden</span>
+                                    @endif
+            <script>
+            // Editable price logic for draft quotations
+            document.addEventListener('DOMContentLoaded', function() {
+                document.querySelectorAll('.update-price').forEach(function(input) {
+                    input.addEventListener('change', async function() {
+                        const newPrice = parseFloat(this.value);
+                        const pivotId = this.dataset.pivot;
+                        const materialId = this.dataset.material;
+                        if (isNaN(newPrice) || newPrice < 0) {
+                            Swal.fire('Invalid Price', 'Please enter a valid price.', 'warning');
+                            return;
+                        }
+                        this.disabled = true;
+                        this.classList.add('is-loading');
+                        try {
+                            // Update material price
+                            const matRes = await fetch(`/materials/${materialId}/update-price`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                    'Accept': 'application/json'
+                                },
+                                body: JSON.stringify({ price: newPrice })
+                            });
+                            // Update quotation_materials pivot price
+                            const pivotRes = await fetch(`/quotation-materials/${pivotId}/update-unit-cost`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                    'Accept': 'application/json'
+                                },
+                                body: JSON.stringify({ unit_cost: newPrice })
+                            });
+
+                            let matData, pivotData;
+                            try {
+                                if (matRes.headers.get('content-type')?.includes('application/json')) {
+                                    matData = await matRes.json();
+                                } else {
+                                    throw new Error('Material response not JSON');
+                                }
+                            } catch (e) {
+                                console.error('Material price response error:', e);
+                                Swal.fire('Error', 'Material price response not JSON.', 'error');
+                                this.disabled = false;
+                                this.classList.remove('is-loading');
+                                return;
+                            }
+                            try {
+                                if (pivotRes.headers.get('content-type')?.includes('application/json')) {
+                                    pivotData = await pivotRes.json();
+                                } else {
+                                    throw new Error('Pivot response not JSON');
+                                }
+                            } catch (e) {
+                                console.error('Pivot price response error:', e);
+                                Swal.fire('Error', 'Pivot price response not JSON.', 'error');
+                                this.disabled = false;
+                                this.classList.remove('is-loading');
+                                return;
+                            }
+
+                            if (matRes.ok && matData.success && pivotRes.ok && pivotData.success) {
+                                // Update the line total for this row
+                                const row = this.closest('tr');
+                                const quantity = parseFloat(row.querySelector('.update-quantity').value);
+                                const lineTotal = newPrice * quantity;
+                                row.querySelector('.line-total').textContent = `₱${lineTotal.toFixed(2)}`;
+                                
+                                // Update grand total
+                                if (pivotData.grand_total !== undefined) {
+                                    document.getElementById('grandTotal').textContent =
+                                        `₱${parseFloat(pivotData.grand_total).toFixed(2)}`;
+                                }
+                                
+                                Toast('Price updated!');
+                            } else {
+                                console.error('Update failed:', {matRes, matData, pivotRes, pivotData});
+                                Swal.fire('Error', 'Failed to update price.', 'error');
+                            }
+                        } catch (err) {
+                            console.error('Unexpected error:', err);
+                            Swal.fire('Error', 'Something went wrong (JS).', 'error');
+                        }
+                        this.disabled = false;
+                        this.classList.remove('is-loading');
+                    });
+                });
+            });
+            </script>
                                 </td>
                             </tr>
                         </tfoot>
                     </table>
                 </div>
             </div>
+            @else
+                <!-- Staff users see this message if they try to access draft quotations -->
+                <div class="card border-warning">
+                    <div class="card-body text-center">
+                        <p class="text-muted mb-0"><i class="fa-solid fa-lock me-2"></i>Materials and pricing information is restricted to administrators.</p>
+                    </div>
+                </div>
+            @endif
 
-            @if (empty($readonly))
+            @if (empty($readonly) && !in_array(strtolower($quotation->status->status_name ?? ''), ['completed','rejected']))
                 <!-- Primary Actions: Approve, Save Draft, Reject, Export -->
                 <div class="row mt-3">
                     <div class="col-12 d-flex flex-wrap gap-2 justify-content-end">
                         <button type="button" class="btn btn-success" id="approveBtn" data-quot="{{ $quotation->id }}"
                             @if (!$quotation->customer_approved) disabled @endif>
-                            <i class="bi bi-check-circle me-1"></i> Approve
+                            <i class="fa-solid fa-check-circle me-1"></i> Approve
                         </button>
                         <button type="button" class="btn btn-primary" id="saveDraftBtn" data-quot="{{ $quotation->id }}">
-                            <i class="bi bi-save me-1"></i> Save Draft
+                            <i class="fa-solid fa-floppy-disk me-1"></i> Save Draft
                         </button>
                         <button type="button" class="btn btn-danger" id="rejectBtn" data-quot="{{ $quotation->id }}">
-                            <i class="bi bi-x-circle me-1"></i> Reject
+                            <i class="fa-solid fa-ban me-1"></i> Reject
                         </button>
                         <a href="{{ route('quotations.export', ['id' => $quotation->id]) }}"
                             class="btn btn-info d-flex align-items-center">
-                            <i class="ti ti-file-export me-1"></i> Export to DOC
+                            <i class="fa-solid fa-file-word me-1"></i> Export to DOC
                         </a>
                     </div>
                 </div>
@@ -168,149 +321,48 @@
 
 
 
-            {{-- 💬 Comments Section --}}
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">Comments & Feedback</h5>
-                </div>
-                <div class="card-body">
-
-                    {{-- Existing Comments --}}
-                    <div id="comments-list" class="mb-4">
-                        @forelse($quotation->comments as $comment)
-                            <div class="d-flex mb-4">
-                                <div class="flex-shrink-0">
-                                    <div
-                                        class="avatar @if ($comment->sender_type === 'customer') avatar-primary @else avatar-success @endif">
-                                        <span class="avatar-initial rounded-circle">
-                                            {{ $comment->sender_type === 'customer' ? 'C' : 'A' }}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div class="flex-grow-1 ms-3">
-                                    <div class="mb-1">
-                                        <span class="fw-semibold">
-                                            {{ $comment->sender_type === 'customer' ? 'Customer' : 'Admin' }}
-                                        </span>
-                                        <small class="text-muted"> • {{ $comment->created_at->diffForHumans() }}</small>
-                                    </div>
-                                    <p class="mb-1">{{ $comment->comment }}</p>
-                                </div>
-                            </div>
-                        @empty
-                            <p class="text-muted">No comments yet.</p>
-                        @endforelse
-                    </div>
-                    <!-- Add Comment Form (Admin Side) -->
-                    <div class="mt-3">
-                        <textarea id="admin-comment-input" class="form-control mb-3" rows="3" placeholder="Write a comment..."></textarea>
-                        <button id="admin-submit-comment" class="btn btn-primary">
-                            <i class="ti ti-send me-1"></i> Send Comment
-                        </button>
-                    </div>
-                    <script>
-                        document.addEventListener('DOMContentLoaded', function() {
-                            const submitBtn = document.getElementById('admin-submit-comment');
-                            const commentInput = document.getElementById('admin-comment-input');
-                            if (submitBtn && commentInput) {
-                                submitBtn.addEventListener('click', async function() {
-                                    const comment = commentInput.value.trim();
-                                    if (!comment) {
-                                        Swal.fire('Empty Comment', 'Please write a comment before submitting.',
-                                            'warning');
-                                        return;
-                                    }
-                                    submitBtn.disabled = true;
-                                    submitBtn.innerHTML =
-                                        '<span class="spinner-border spinner-border-sm me-2"></span>Sending...';
-                                    try {
-                                        const quotationId = '{{ $quotation->id }}';
-                                        const res = await fetch(`/quotation/${quotationId}/comments`, {
-                                            method: 'POST',
-                                            headers: {
-                                                'Content-Type': 'application/json',
-                                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                                'Accept': 'application/json'
-                                            },
-                                            body: JSON.stringify({
-                                                comment: comment,
-                                                sender_type: 'admin'
-                                            })
-                                        });
-                                        const data = await res.json();
-                                        if (res.ok && data.success) {
-                                            commentInput.value = '';
-                                            Swal.fire({
-                                                toast: true,
-                                                position: 'top-end',
-                                                icon: 'success',
-                                                title: 'Comment Sent!',
-                                                showConfirmButton: false,
-                                                timer: 1200
-                                            });
-                                            loadComments();
-                                        } else {
-                                            Swal.fire('Error', data.message || 'Failed to send comment.', 'error');
-                                        }
-                                    } catch (error) {
-                                        console.error('Comment submit error:', error);
-                                        Swal.fire('Error', 'Something went wrong!', 'error');
-                                    }
-                                    submitBtn.disabled = false;
-                                    submitBtn.innerHTML = '<i class="ti ti-send me-1"></i> Send Comment';
-                                });
-                            }
-                        });
-                    </script>
-
-                    <!-- Move Generate & Copy Public Link script OUTSIDE Blade control structure -->
-                    <script>
-                        // Generate & Copy Public Link functionality (uses public_token)
-                        document.addEventListener('DOMContentLoaded', function() {
-                            const generateLinkBtn = document.getElementById('generateLinkBtn');
-                            if (generateLinkBtn) {
-                                generateLinkBtn.addEventListener('click', async function() {
-                                    generateLinkBtn.disabled = true;
-                                    generateLinkBtn.innerHTML =
-                                        '<span class="spinner-border spinner-border-sm me-2"></span>Copying...';
-                                    try {
-                                        const token = "{{ $quotation->public_token ?? '' }}";
-                                        if (!token) {
-                                            Swal.fire({
-                                                title: 'No Link Available',
-                                                text: 'This quotation does not have a public link yet.',
-                                                icon: 'warning',
-                                                timer: 1500,
-                                                showConfirmButton: false
-                                            });
-                                        } else {
-                                            const link = `${window.location.origin}/quotation/public/${token}`;
-                                            await navigator.clipboard.writeText(link);
-                                            Swal.fire({
-                                                title: 'Link Copied!',
-                                                text: link,
-                                                icon: 'success',
-                                                timer: 1200,
-                                                showConfirmButton: false
-                                            });
-                                        }
-                                    } catch (err) {
-                                        Swal.fire('Error', 'Could not copy the link.', 'error');
-                                    }
-                                    generateLinkBtn.disabled = false;
-                                    generateLinkBtn.innerHTML =
-                                        '<i class="bi bi-link-45deg"></i> Generate & Copy Public Link';
-                                });
-                            }
-                        });
-                    </script>
-
-
-
+            {{-- 💬 Threaded Comments Section --}}
+            @include('components.threaded-comments', ['comments' => $quotation->comments, 'quotationId' => $quotation->id])
 
 <!-- Include Modals -->
 @include('include.modals.add_material')
 @include('include.modals.new_material')
+
+<!-- Edit Client Modal -->
+<div class="modal fade" id="editClientModal" tabindex="-1" aria-labelledby="editClientLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editClientLabel">Edit Client</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editClientForm">
+                    <div class="mb-3">
+                        <label for="clientFirstName" class="form-label">First name</label>
+                        <input type="text" class="form-control" id="clientFirstName" name="first_name" value="{{ $client->first_name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="clientLastName" class="form-label">Last name</label>
+                        <input type="text" class="form-control" id="clientLastName" name="last_name" value="{{ $client->last_name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="clientContactInput" class="form-label">Contact</label>
+                        <input type="text" class="form-control" id="clientContactInput" name="contact_no" value="{{ $client->contact_no }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="clientAddressInput" class="form-label">Address</label>
+                        <textarea class="form-control" id="clientAddressInput" name="address" rows="3">{{ $client->address }}</textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveClientBtn">Save changes</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Revision History Modal -->
 <div class="modal fade" id="revisionHistoryModal" tabindex="-1"
@@ -432,6 +484,12 @@
         init() {
             document.querySelectorAll(this.selector).forEach(input => {
                 input.addEventListener("input", (e) => this.debounceUpdate(e));
+                // Prevent form submission on Enter
+                input.addEventListener("keypress", (e) => {
+                    if (e.key === "Enter") {
+                        e.preventDefault();
+                    }
+                });
             });
         }
 
@@ -470,22 +528,35 @@
 
                 const data = await res.json();
 
-                if (data.success) {
+                if (res.ok && data.success) {
                     // Update line total for this row
-                    input.closest("tr").querySelector(".line-total").textContent =
-                        `₱${parseFloat(data.line_total).toFixed(2)}`;
+                    const row = input.closest("tr");
+                    if (row) {
+                        const lineTotal = row.querySelector(".line-total");
+                        if (lineTotal) {
+                            lineTotal.textContent = `₱${parseFloat(data.line_total).toFixed(2)}`;
+                        }
+                    }
 
                     // Update grand total
                     if (data.grand_total !== undefined) {
-                        document.getElementById("grandTotal").textContent =
-                            `₱${parseFloat(data.grand_total).toFixed(2)}`;
+                        const grandTotalEl = document.getElementById("grandTotal");
+                        if (grandTotalEl) {
+                            grandTotalEl.textContent = `₱${parseFloat(data.grand_total).toFixed(2)}`;
+                        }
+                    }
+                    
+                    // Show success toast
+                    if (window.Toast && typeof window.Toast === 'function') {
+                        Toast('Quantity updated!');
                     }
                 } else {
-                    Swal.fire("Update failed", data.message || "", "error");
+                    console.error("Update failed response:", data);
+                    Swal.fire("Update failed", data.message || "Failed to update quantity", "error");
                 }
             } catch (error) {
                 console.error("Quantity update error:", error);
-                Swal.fire("Something went wrong!", "", "error");
+                Swal.fire("Something went wrong!", error.message || "", "error");
             }
         }
     }
@@ -664,16 +735,49 @@
                         // SUCCESS -> toast
                         Toast(data.message || 'Success');
 
+                        // Update header and badge based on new status
+                        const statusName = data.quotation?.status?.status_name?.toLowerCase() ?? '';
+                        const customerApproved = data.quotation?.customer_approved ?? false;
+                        let headerText = 'Creating Quotation';
+                        let headerClass = 'text-dark';
+                        let badgeText = 'Awaiting Client Approval';
+                        let badgeClass = 'bg-warning text-dark';
+
+                        if (statusName === 'completed') {
+                            headerText = 'Project Completed';
+                            headerClass = 'text-success';
+                            badgeText = 'Project has been completed';
+                            badgeClass = 'bg-success';
+                        } else if (statusName === 'rejected') {
+                            headerText = 'Quotation Rejected';
+                            headerClass = 'text-danger';
+                            badgeText = 'Quotation is rejected';
+                            badgeClass = 'bg-danger';
+                        } else if (customerApproved) {
+                            headerText = 'Ongoing Project';
+                            headerClass = 'text-primary';
+                            badgeText = 'Approved by Client';
+                            badgeClass = 'bg-success';
+                        }
+
+                        // Update header
+                        const headerEl = document.querySelector('.card-body .h3');
+                        if (headerEl) {
+                            headerEl.textContent = headerText;
+                            headerEl.className = `h3 mb-0 ${headerClass}`;
+                        }
+
+                        // Update badge
+                        const badgeEl = document.getElementById('quotation-status-badge');
+                        if (badgeEl) {
+                            badgeEl.textContent = badgeText;
+                            badgeEl.className = `badge ${badgeClass} mb-3 d-inline-flex align-items-center`;
+                        }
+
                         // Redirect after short delay so toast can show
                         setTimeout(() => {
                             window.location.href = "{{ route('dashboard') }}";
                         }, 900);
-
-                        // ✅ Instantly update the status on the page (if you stay on page)
-                        const statusLabel = document.getElementById("quotationStatus");
-                        if (statusLabel && data.quotation?.status?.name) {
-                            statusLabel.textContent = data.quotation.status.name;
-                        }
 
                     } else {
                         Swal.fire("Error", data.message || "Failed to update status.", "error");
@@ -692,62 +796,200 @@
     window.quotationMaterialHandler = {
         loadMaterials: async function() {
             const quotationId = "{{ $quotation->id }}";
+            const qStatus = "{{ strtolower($quotation->status->status_name ?? '') }}";
+            const readonly = {{ empty($readonly) ? 'false' : 'true' }};
 
             try {
                 const res = await fetch(`/quotation/${quotationId}/materials`);
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
                 const data = await res.json();
+                
+                if (!data.success) {
+                    console.error("Failed to load materials:", data.message);
+                    Swal.fire('Error', 'Failed to load materials: ' + (data.message || 'Unknown error'), 'error');
+                    return;
+                }
+
                 // Store scroll position
                 const scrollPosition = window.scrollY;
 
-                if (data.success) {
-                    const tableBody = document.querySelector("#quotationMaterials tbody");
-                    tableBody.innerHTML = "";
+                const tableBody = document.querySelector("#quotationMaterials tbody");
+                if (!tableBody) {
+                    console.error("Materials table body not found");
+                    return;
+                }
+                tableBody.innerHTML = "";
 
-                    data.materials.forEach(mat => {
-                        const row = `
-                            <tr>
-                                <td>${mat.name}</td>
-                                <td>
-                                    <input type="number" class="form-control update-quantity" 
-                                        data-pivot="${mat.pivot_id}" data-quot="${quotationId}"
-                                        value="${mat.quantity}" min="1"
-                                        style="width: 80px; display:inline-block;">
-                                    <span>${mat.unit}</span>
-                                </td>
-                                <td>₱${parseFloat(mat.unit_price).toFixed(2)}</td>
-                                <td class="line-total">₱${parseFloat(mat.line_total).toFixed(2)}</td>
-                                <td class="text-center">
+                data.materials.forEach(mat => {
+                    let priceField = '';
+                    
+                    // Render price field based on quotation status
+                    if (qStatus === 'draft' && !readonly) {
+                        // Editable price field for draft
+                        priceField = `<input type="number" class="form-control update-price" 
+                            data-pivot="${mat.pivot_id}" data-material="${mat.id}"
+                            value="${parseFloat(mat.unit_price).toFixed(2)}" min="0" step="0.01"
+                            style="width: 100px; display:inline-block;">`;
+                    } else {
+                        // Display-only price field
+                        priceField = `₱${parseFloat(mat.unit_price).toFixed(2)}`;
+                    }
+
+                    const row = `
+                        <tr>
+                            <td>${escapeHtml(mat.name)}</td>
+                            <td>
+                                <input type="number" class="form-control update-quantity" 
+                                    data-pivot="${mat.pivot_id}" data-quot="${quotationId}"
+                                    value="${mat.quantity}" min="1"
+                                    style="width: 80px; display:inline-block;">
+                                <span>${escapeHtml(mat.unit)}</span>
+                            </td>
+                            <td>${priceField}</td>
+                            <td class="line-total">₱${parseFloat(mat.line_total).toFixed(2)}</td>
+                            <td class="text-center">
+                                ${!readonly ? `
                                     <a href="#" class="text-danger delete-material" 
                                         data-id="${mat.pivot_id}" data-quot="${quotationId}">
                                         <i class="fa-solid fa-trash"></i>
-
                                     </a>
-                                </td>
-                            </tr>
-                        `;
-                        tableBody.insertAdjacentHTML("beforeend", row);
-                    });
+                                ` : ''}
+                            </td>
+                        </tr>
+                    `;
+                    tableBody.insertAdjacentHTML("beforeend", row);
+                });
 
-                    // ✅ Update total
-                    document.getElementById("grandTotal").textContent =
-                        "₱" + parseFloat(data.grand_total).toFixed(2);
+                // ✅ Update grand total
+                const grandTotalEl = document.getElementById("grandTotal");
+                if (grandTotalEl) {
+                    grandTotalEl.textContent = "₱" + parseFloat(data.grand_total).toFixed(2);
+                }
 
-                    // ✅ Rebind handlers
+                // ✅ Rebind handlers
+                try {
                     new QuantityUpdater(".update-quantity");
                     new DeleteMaterialFromQuotation(".delete-material");
+                    
+                    // Re-bind price update handlers if in draft mode
+                    if (qStatus === 'draft' && !readonly) {
+                        document.querySelectorAll('.update-price').forEach(function(input) {
+                            input.addEventListener('change', async function() {
+                                const newPrice = parseFloat(this.value);
+                                const pivotId = this.dataset.pivot;
+                                const materialId = this.dataset.material;
+                                if (isNaN(newPrice) || newPrice < 0) {
+                                    Swal.fire('Invalid Price', 'Please enter a valid price.', 'warning');
+                                    return;
+                                }
+                                this.disabled = true;
+                                this.classList.add('is-loading');
+                                try {
+                                    // Update material price
+                                    const matRes = await fetch(`/materials/${materialId}/update-price`, {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                            'Accept': 'application/json'
+                                        },
+                                        body: JSON.stringify({ price: newPrice })
+                                    });
+                                    // Update quotation_materials pivot price
+                                    const pivotRes = await fetch(`/quotation-materials/${pivotId}/update-unit-cost`, {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                            'Accept': 'application/json'
+                                        },
+                                        body: JSON.stringify({ unit_cost: newPrice })
+                                    });
 
-                    // Restore scroll position after content update
-                    window.scrollTo(0, scrollPosition);
+                                    let matData, pivotData;
+                                    try {
+                                        if (matRes.headers.get('content-type')?.includes('application/json')) {
+                                            matData = await matRes.json();
+                                        } else {
+                                            throw new Error('Material response not JSON');
+                                        }
+                                    } catch (e) {
+                                        console.error('Material price response error:', e);
+                                        Swal.fire('Error', 'Material price response not JSON.', 'error');
+                                        this.disabled = false;
+                                        this.classList.remove('is-loading');
+                                        return;
+                                    }
+                                    try {
+                                        if (pivotRes.headers.get('content-type')?.includes('application/json')) {
+                                            pivotData = await pivotRes.json();
+                                        } else {
+                                            throw new Error('Pivot response not JSON');
+                                        }
+                                    } catch (e) {
+                                        console.error('Pivot price response error:', e);
+                                        Swal.fire('Error', 'Pivot price response not JSON.', 'error');
+                                        this.disabled = false;
+                                        this.classList.remove('is-loading');
+                                        return;
+                                    }
 
-                    // Ensure the page is scrollable to the new content
-                    document.body.style.height = 'auto';
-                    document.body.style.overflow = 'visible';
+                                    if (matRes.ok && matData.success && pivotRes.ok && pivotData.success) {
+                                        // Update the line total for this row
+                                        const row = this.closest('tr');
+                                        const quantity = parseFloat(row.querySelector('.update-quantity').value);
+                                        const lineTotal = newPrice * quantity;
+                                        row.querySelector('.line-total').textContent = `₱${lineTotal.toFixed(2)}`;
+                                        
+                                        // Update grand total
+                                        if (pivotData.grand_total !== undefined) {
+                                            document.getElementById('grandTotal').textContent =
+                                                `₱${parseFloat(pivotData.grand_total).toFixed(2)}`;
+                                        }
+                                        
+                                        Toast('Price updated!');
+                                    } else {
+                                        console.error('Update failed:', {matRes, matData, pivotRes, pivotData});
+                                        Swal.fire('Error', 'Failed to update price.', 'error');
+                                    }
+                                } catch (err) {
+                                    console.error('Unexpected error:', err);
+                                    Swal.fire('Error', 'Something went wrong: ' + err.message, 'error');
+                                }
+                                this.disabled = false;
+                                this.classList.remove('is-loading');
+                            });
+                        });
+                    }
+                } catch (handlerErr) {
+                    console.error("Error binding handlers:", handlerErr);
                 }
+
+                // Restore scroll position after content update
+                window.scrollTo(0, scrollPosition);
+
+                // Ensure the page is scrollable to the new content
+                document.body.style.height = 'auto';
+                document.body.style.overflow = 'visible';
+                
             } catch (err) {
                 console.error("Failed to reload materials:", err);
+                Swal.fire('Error', 'Failed to load materials: ' + err.message, 'error');
             }
         }
     };
+    
+    // Helper function to escape HTML
+    function escapeHtml(unsafe) {
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
 </script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
@@ -936,12 +1178,61 @@
 </script>
 
 <script>
-    // Minimal modal cleanup: dispose modal instances when hidden to free memory.
-    // This avoids manual backdrop/body manipulation which can break Bootstrap's backdrop handling.
-    document.querySelectorAll('.modal').forEach(modalEl => {
-        modalEl.addEventListener('hidden.bs.modal', () => {
-            const instance = bootstrap.Modal.getInstance(modalEl);
-            if (instance) instance.dispose();
+    // Edit Client: open modal, submit update via fetch, and update UI
+    document.addEventListener('DOMContentLoaded', function () {
+        const editBtn = document.getElementById('editClientBtn');
+        const saveBtn = document.getElementById('saveClientBtn');
+        const modalEl = document.getElementById('editClientModal');
+        if (!editBtn || !saveBtn || !modalEl) return;
+
+        const bsModal = new bootstrap.Modal(modalEl);
+
+        editBtn.addEventListener('click', () => {
+            bsModal.show();
+        });
+
+        saveBtn.addEventListener('click', async () => {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+
+            const payload = {
+                first_name: document.getElementById('clientFirstName').value.trim(),
+                last_name: document.getElementById('clientLastName').value.trim(),
+                contact_no: document.getElementById('clientContactInput').value.trim(),
+                address: document.getElementById('clientAddressInput').value.trim(),
+            };
+
+            try {
+                const clientId = '{{ $client->id }}';
+                const res = await fetch(`/clients/${clientId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    // Update UI
+                    document.getElementById('clientName').textContent = data.client.first_name + ' ' + data.client.last_name;
+                    document.getElementById('clientContact').textContent = data.client.contact_no || '';
+                    document.getElementById('clientAddress').textContent = data.client.address || '';
+
+                    bsModal.hide();
+                    Swal.fire({toast:true, position:'top-end', icon:'success', title:'Client updated', showConfirmButton:false, timer:1200});
+                } else {
+                    Swal.fire('Error', data.message || 'Failed to update client', 'error');
+                }
+            } catch (err) {
+                console.error('Client update error:', err);
+                Swal.fire('Error', 'Something went wrong', 'error');
+            }
+
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = 'Save changes';
         });
     });
 </script>

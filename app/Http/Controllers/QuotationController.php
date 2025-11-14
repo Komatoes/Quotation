@@ -300,7 +300,15 @@ class QuotationController extends Controller
     }
     public function viewHome()
     {
-        return view('dashboard');
+        // Get status IDs for Approved and Completed
+        $approvedId = \App\Models\QuotationStatus::where('status_name', 'Approved')->value('id');
+        $completedId = \App\Models\QuotationStatus::where('status_name', 'Completed')->value('id');
+
+        $totalProjects = \App\Models\Quotation::whereIn('status_id', [$approvedId, $completedId])->count();
+        $currentProjects = \App\Models\Quotation::where('status_id', $approvedId)->count();
+        $finishedProjects = \App\Models\Quotation::where('status_id', $completedId)->count();
+
+        return view('dashboard', compact('totalProjects', 'currentProjects', 'finishedProjects'));
     }
     public function viewReport($id)
     {
@@ -538,6 +546,7 @@ class QuotationController extends Controller
 
         $materials = $quotation->materials->map(function ($m) {
             return [
+                'id'         => $m->id,
                 'pivot_id'   => $m->pivot->id,
                 'name'       => $m->name,
                 'unit'       => $m->unit,

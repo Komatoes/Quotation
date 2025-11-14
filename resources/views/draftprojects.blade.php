@@ -1,5 +1,7 @@
 {{-- resources/views/drafts.blade.php --}}
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
+@if (Auth::user()->can('view_drafts'))
 <div class="col-12">
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -119,7 +121,7 @@
             const prevDisabled = this.currentPage === 1 ? "disabled" : "";
             pagination.insertAdjacentHTML("beforeend", `
             <li class="page-item ${prevDisabled}">
-                <a class="page-link" href="javascript:void(0);"><i class="ti ti-chevron-left"></i></a>
+                <a class="page-link" href="javascript:void(0);"><i class="fa-solid fa-chevron-left"></i></a>
             </li>
         `);
 
@@ -137,7 +139,7 @@
             const nextDisabled = this.currentPage === totalPages ? "disabled" : "";
             pagination.insertAdjacentHTML("beforeend", `
             <li class="page-item ${nextDisabled}">
-                <a class="page-link" href="javascript:void(0);"><i class="ti ti-chevron-right"></i></a>
+                <a class="page-link" href="javascript:void(0);"><i class="fa-solid fa-chevron-right"></i></a>
             </li>
         `);
 
@@ -159,6 +161,17 @@
 
     new DraftHandler();
 </script>
+@else
+    {{-- Staff users cannot view draft quotations --}}
+    <div class="col-12">
+        <div class="card border-danger">
+            <div class="card-body text-center">
+                <h5 class="text-danger mb-2"><i class="fa-solid fa-lock me-2"></i>Access Restricted</h5>
+                <p class="text-muted mb-0">You don't have permission to view draft quotations. Contact an administrator if you need access.</p>
+            </div>
+        </div>
+    </div>
+@endif
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

@@ -4,33 +4,63 @@
     <div class="container-fluid">
         <!-- Header -->
         <div class="card mb-4">
+            <div class="card-body text-center bg-light rounded shadow-sm">
+                @php
+                    $qStatus = strtolower($quotation->status->status_name ?? '');
+                    if ($qStatus === 'completed') {
+                        $headerText = 'Project Completed';
+                        $headerClass = 'text-success';
+                    } elseif ($qStatus === 'rejected') {
+                        $headerText = 'Quotation Rejected';
+                        $headerClass = 'text-danger';
+                    } elseif ($quotation->customer_approved) {
+                        $headerText = 'Ongoing Project';
+                        $headerClass = 'text-primary';
+                    } else {
+                        $headerText = 'Creating Quotation';
+                        $headerClass = 'text-dark';
+                    }
+                @endphp
+                <h1 class="h3 mb-0 {{ $headerClass }}">{{ $headerText }}</h1>
+            </div>
+        </div>
+
+        <!-- Quotation Info -->
+        <div class="card mb-4">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <div>
-                        <h4 class="mb-2">{{ $quotation->subject }}</h4>
-                        <p class="mb-1">{{ $quotation->description }}</p>
-                    </div>
-                    @if (!$quotation->customer_approved)
-                        <button id="approve-btn" class="btn btn-success">
-                            <i class="ti ti-check me-1"></i> Approve Quotation
-                        </button>
-                    @else
-                        <div class="badge bg-success p-2 mb-2">
-                            <i class="ti ti-check-circle me-1"></i> You approved this quotation
-                        </div>
-                    @endif
+                <h3 class="mb-3">{{ $quotation->subject }}</h3>
+                <p><strong>Customer:</strong> <span id="clientName">{{ $quotation->client->first_name }} {{ $quotation->client->last_name }}</span></p>
+                <p><strong>Contact:</strong> <span id="clientContact">{{ $quotation->client->contact_no }}</span></p>
+                <p><strong>Address:</strong> <span id="clientAddress">{{ $quotation->client->address }}</span></p>
+
+                @php
+                    $qStatus = strtolower($quotation->status->status_name ?? '');
+                    if ($qStatus === 'completed') {
+                        $badgeText = 'Project has been completed';
+                        $badgeClass = 'bg-success';
+                    } elseif ($qStatus === 'rejected') {
+                        $badgeText = 'Quotation is rejected';
+                        $badgeClass = 'bg-danger';
+                    } elseif ($quotation->customer_approved) {
+                        $badgeText = 'Approved by Client';
+                        $badgeClass = 'bg-success';
+                    } else {
+                        $badgeText = 'Awaiting Client Approval';
+                        $badgeClass = 'bg-warning text-dark';
+                    }
+                @endphp
+
+                <div class="mt-3">
+                    <span class="badge {{ $badgeClass }} mb-3 d-inline-flex align-items-center" id="quotation-status-badge">
+                        {{ $badgeText }}
+                    </span>
                 </div>
 
-                <div class="row">
-                    <div class="col-xl-4 col-md-6 col-sm-12">
-                        <div class="mb-3">
-                            <label class="form-label">Contact Information</label>
-                            <p class="mb-1"><strong>Name:</strong> {{ $quotation->client->name }}</p>
-                            <p class="mb-1"><strong>Phone:</strong> {{ $quotation->client->contact_no }}</p>
-                            <p class="mb-1"><strong>Address:</strong> {{ $quotation->client->address }}</p>
-                        </div>
-                    </div>
-                </div>
+                @if (!$quotation->customer_approved)
+                    <button id="approve-btn" class="btn btn-success mt-3">
+                        <i class="fa-solid fa-check-circle me-1"></i> Approve Quotation
+                    </button>
+                @endif
             </div>
         </div>
 
@@ -141,45 +171,9 @@
             </div>
         @endif
 
+        <!-- Threaded Comments Section (Always Visible) -->
+        @include('components.threaded-comments', ['comments' => $quotation->comments, 'quotationId' => $quotation->id, 'publicToken' => $quotation->public_token])
 
-
-        <!-- Comments Section (Always Visible) -->
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">Comments & Feedback</h5>
-            </div>
-            <div class="card-body">
-                <div id="comments-list" class="mb-4">
-                    @foreach ($quotation->comments as $comment)
-                        <div class="d-flex mb-4">
-                            <div class="flex-shrink-0">
-                                <div
-                                    class="avatar {{ $comment->sender_type === 'customer' ? 'avatar-primary' : 'avatar-success' }}">
-                                    <span class="avatar-initial rounded-circle">
-                                        {{ $comment->sender_type === 'customer' ? 'C' : 'A' }}
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="flex-grow-1 ms-3">
-                                <div class="mb-1">
-                                    <span
-                                        class="fw-semibold">{{ $comment->sender_type === 'customer' ? 'You' : 'Admin' }}</span>
-                                    <small class="text-muted"> • {{ $comment->created_at->diffForHumans() }}</small>
-                                </div>
-                                <p class="mb-1">{{ $comment->comment }}</p>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-                <!-- Add Comment Form -->
-                <div class="mt-3">
-                    <textarea id="client-comment-input" class="form-control mb-3" rows="3" placeholder="Write a comment..."></textarea>
-                    <button id="client-submit-comment" class="btn btn-primary">
-                        <i class="ti ti-send me-1"></i> Send Comment
-                    </button>
-                </div>
-            </div>
-        </div>
             <!-- Revision History Button and Modal -->
             <div class="mt-3 mb-4 text-end">
                 <button type="button" class="btn btn-outline-secondary" id="viewRevisionsBtn" data-id="{{ $quotation->id }}">
@@ -208,7 +202,6 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const approveBtn = document.getElementById('approve-btn');
-            const commentBtn = document.getElementById('client-submit-comment');
 
             // 🟢 Handle Approval
             if (approveBtn) {
@@ -238,75 +231,23 @@
                                 const badge = document.createElement('div');
                                 badge.className = 'badge bg-success p-2 mt-2';
                                 badge.innerHTML =
-                                    '<i class="ti ti-check-circle me-1"></i> You approved this quotation';
+                                    '<i class="fa-solid fa-check-circle me-1"></i> You approved this quotation';
                                 approveBtn.parentNode.appendChild(badge);
                             } else {
                                 Swal.fire('Error', data.error || 'Something went wrong', 'error');
                                 approveBtn.disabled = false;
                                 approveBtn.innerHTML =
-                                    '<i class="ti ti-check me-1"></i> Approve Quotation';
+                                    '<i class="fa-solid fa-check-circle me-1"></i> Approve Quotation';
                             }
                         })
                         .catch(() => {
                             Swal.fire('Error', 'Could not approve quotation', 'error');
                             approveBtn.disabled = false;
-                            approveBtn.innerHTML = '<i class="ti ti-check me-1"></i> Approve Quotation';
+                            approveBtn.innerHTML = '<i class="fa-solid fa-check-circle me-1"></i> Approve Quotation';
                         });
                 });
             }
 
-            // 🟢 Handle Comment
-            if (commentBtn) {
-                commentBtn.addEventListener('click', e => {
-                    e.preventDefault();
-                    const message = document.getElementById('client-comment-input').value.trim();
-                    if (message === "") {
-                        Swal.fire('Error', 'Comment cannot be empty', 'error');
-                        return;
-                    }
-
-                    fetch("{{ route('quotation.comment.submit', $quotation->public_token) }}", {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Accept': 'application/json',
-                                'X-CSRF-TOKEN': "{{ csrf_token() }}"
-                            },
-                            body: JSON.stringify({
-                                comment: message,
-                                sender_type: 'customer',
-                                client_name: "{{ $quotation->client->name }}"
-                            })
-                        })
-                        .then(res => res.json())
-                        .then(data => {
-                            if (data.success) {
-                                document.getElementById('comments-list').insertAdjacentHTML('beforeend', `
-                        <div class="d-flex mb-4">
-                            <div class="flex-shrink-0">
-                                <div class="avatar avatar-primary">
-                                    <span class="avatar-initial rounded-circle">C</span>
-                                </div>
-                            </div>
-                            <div class="flex-grow-1 ms-3">
-                                <div class="mb-1">
-                                    <span class="fw-semibold">You</span>
-                                    <small class="text-muted"> • Just now</small>
-                                </div>
-                                <p class="mb-1">${message}</p>
-                            </div>
-                        </div>
-                    `);
-                                document.getElementById('client-comment-input').value = "";
-                            } else {
-                                Swal.fire('Error', data.message || 'Could not submit comment', 'error');
-                            }
-                        })
-                        .catch(() => {
-                            Swal.fire('Error', 'Something went wrong!', 'error');
-                        });
-                });
-            }
                 // Revision History Button
                 const viewRevisionsBtn = document.getElementById('viewRevisionsBtn');
                 if (viewRevisionsBtn) {

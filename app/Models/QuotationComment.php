@@ -8,10 +8,10 @@ class QuotationComment extends Model
 {
     protected $fillable = [
         'quotation_id',
-        'client_id',
-        'employee_id',
+        'user_id',
+        'user_name',
         'comment',
-        'sender_type' // we add this to differentiate between customer/admin
+        'sender_type' // differentiate between customer/admin
     ];
 
     public $timestamps = true;
@@ -21,19 +21,19 @@ class QuotationComment extends Model
         return $this->belongsTo(Quotation::class);
     }
 
-    public function employee()
+    public function user()
     {
-        return $this->belongsTo(User::class, 'employee_id');
+        return $this->belongsTo(User::class);
     }
 
-    public function client()
-    {
-        return $this->belongsTo(Client::class);
-    }
-
-    // ✅ A comment can have many replies
+    /**
+     * A comment can have many replies
+     */
     public function replies()
     {
-        return $this->hasMany(QuotationCommentReply::class, 'comment_id');
+        return $this->hasMany(QuotationCommentReply::class, 'quotation_comment_id')
+            ->whereNull('parent_reply_id') // Only get top-level replies
+            ->with('nestedReplies') // Eager load nested replies
+            ->orderBy('created_at', 'asc');
     }
 }

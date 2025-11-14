@@ -17,121 +17,74 @@ class RolesAndPermissionsSeeder extends Seeder
 
         // Create permissions
         $permissions = [
-            // Quotations
-            'create quotations',
-            'edit quotations',
-            'delete quotations',
-            'view quotations',
-            'approve quotations',
-            'reject quotations',
-            'view all quotations',
+            // Quotation Management (Admin only)
+            'view_drafts',
+            'create_quotation',
+            'edit_quotation',
+            'delete_quotation',
+            'view_materials',
+            'manage_materials',
+            'view_prices',
+            'edit_prices',
+            'manage_fees',
+            'view_all_quotations',
             
-            // Project Reports
-            'create reports',
-            'edit reports',
-            'view reports',
-            'complete reports',
-            'delete reports',
+            // Project Management (Both can view approved/rejected/completed)
+            'view_approved_projects',
+            'view_rejected_projects',
+            'view_completed_projects',
             
-            // Materials
-            'manage materials',
-            'create materials',
-            'edit materials',
-            'delete materials',
-            'view materials',
+            // Progress Reports (Staff can create/edit, both can view)
+            'create_progress_report',
+            'edit_progress_report',
+            'view_progress_reports',
+            'delete_progress_report',
             
-            // Projects
-            'manage projects',
-            'create projects',
-            'edit projects',
-            'delete projects',
-            'view projects',
+            // Comments (Both can comment)
+            'create_comment',
+            'edit_own_comment',
+            'delete_own_comment',
             
-            // Comments
-            'create comments',
-            'edit comments',
-            'delete comments',
-            'view comments',
-            'create internal comments',
-            'view internal comments',
+            // Revisions (Admin manages, staff can view)
+            'create_revision',
+            'view_revision_history',
+            'delete_revision',
             
-            // Users
-            'manage users',
-            'manage roles',
-            'view users',
+            // User Management (Admin only)
+            'manage_users',
+            'manage_roles',
         ];
 
         foreach ($permissions as $permission) {
-            Permission::create(['name' => $permission]);
+            Permission::firstOrCreate(['name' => $permission]);
         }
 
-        // Create roles and assign permissions
-        $role = Role::create(['name' => 'admin'])
-            ->givePermissionTo(Permission::all());
+        // Delete existing roles (except if they're being updated)
+        Role::where('name', 'manager')->delete();
+        Role::where('name', 'client')->delete();
 
-        // Manager Role
-        $role = Role::create(['name' => 'manager'])
-            ->givePermissionTo([
-                'create quotations',
-                'edit quotations',
-                'view quotations',
-                'approve quotations',
-                'reject quotations',
-                'view all quotations',
-                'create reports',
-                'edit reports',
-                'view reports',
-                'complete reports',
-                'manage materials',
-                'manage projects',
-                'create internal comments',
-                'view internal comments',
-                'view users'
-            ]);
+        // Create Admin role with full permissions
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
+        $adminRole->syncPermissions(Permission::all());
 
-        // Staff Role
-        $role = Role::create(['name' => 'staff'])
-            ->givePermissionTo([
-                'create quotations',
-                'edit quotations',
-                'view quotations',
-                'create reports',
-                'edit reports',
-                'view reports',
-                'view materials',
-                'create materials',
-                'view projects',
-                'create comments',
-                'view comments',
-                'view internal comments'
-            ]);
-
-        // Client Role
-        $role = Role::create(['name' => 'client'])
-            ->givePermissionTo([
-                'view quotations',
-                'view materials',
-                'view projects',
-                'create comments',
-                'view comments'
-            ]);
-
-        // Create admin user
-        $admin = User::create([
-            'name' => 'Admin User',
-            'username' => 'admin',
-            'email' => 'admin@example.com',
-            'password' => Hash::make('password'),
+        // Create Staff role with limited permissions
+        $staffRole = Role::firstOrCreate(['name' => 'staff']);
+        $staffRole->syncPermissions([
+            'view_approved_projects',
+            'view_rejected_projects',
+            'view_completed_projects',
+            'create_progress_report',
+            'edit_progress_report',
+            'view_progress_reports',
+            'create_comment',
+            'edit_own_comment',
+            'delete_own_comment',
+            'view_revision_history',
         ]);
-        $admin->assignRole('admin');
 
-        // Create staff user
-        $staff = User::create([
-            'name' => 'Staff User',
-            'username' => 'staff',
-            'email' => 'staff@example.com',
-            'password' => Hash::make('password'),
-        ]);
-        $staff->assignRole('staff');
+        $this->command->info('✅ Roles and permissions setup completed!');
+        $this->command->line('<info>Admin Role:</info> Full access to all features');
+        $this->command->line('<info>Staff Role:</info> Can view approved/rejected/completed projects, create progress reports, comment, and view revision history');
+        $this->command->line('<info>Future roles:</info> Add new roles by extending this seeder');
     }
 }

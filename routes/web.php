@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthenticationController;
-use App\Http\Controllers\ClientsController;
+use App\Http\Controllers\ClientController;
 use App\Http\Controllers\QuotationController;
 use App\Http\Controllers\ProjectReportController;
 use App\Http\Controllers\MaterialController;
@@ -86,6 +86,10 @@ Route::middleware(['auth', 'role:admin|staff'])->group(function () {
     // 🪶 Revisions
     Route::get('/quotations/{id}/revisions-json', [QuotationController::class, 'getRevisionsJson'])->name('quotations.revisions.json');
     Route::post('/quotations/{id}/create-revision', [QuotationController::class, 'createRevision'])->name('quotations.createRevision');
+    
+    // Clients - update client information (used inline on quotation page)
+    Route::put('/clients/{client}', [ClientController::class, 'update'])->name('clients.update');
+
 });
 
 // ---------------------------------------------------------------------------
@@ -97,6 +101,7 @@ Route::middleware(['auth', 'permission:view materials|manage materials'])->group
     Route::get('/materials/list', [MaterialController::class, 'list'])->name('materials.list');
     Route::post('/materials/store', [MaterialController::class, 'store'])->name('materials.store');
     Route::post('/materials/update/{id}', [MaterialController::class, 'update'])->name('materials.update');
+    Route::post('/materials/{id}/update-price', [MaterialController::class, 'updatePrice']);
     Route::delete('/materials/{material}', [MaterialController::class, 'destroy'])->name('materials.destroy');
 });
 
@@ -107,6 +112,7 @@ Route::middleware(['auth', 'permission:view materials|manage materials'])->group
 Route::post('/quotation-materials/add-selected', [QuotationMaterialController::class, 'storeSelected'])->name('quotation.materials.storeSelected');
 Route::post('/quotation-materials/store', [QuotationMaterialController::class, 'store'])->name('quotation.materials.store');
 Route::post('/quotation-materials/update-quantity', [QuotationMaterialController::class, 'updateQuantity'])->name('quotation.materials.updateQuantity');
+Route::post('/quotation-materials/{pivotId}/update-unit-cost', [QuotationMaterialController::class, 'updateUnitCost']);
 Route::delete('/quotation-materials/{pivotId}', [QuotationMaterialController::class, 'destroy'])->name('quotation.materials.destroy');
 
 // ---------------------------------------------------------------------------
@@ -121,6 +127,22 @@ Route::get('/forgot-password', [App\Http\Controllers\Auth\ForgotPasswordControll
 Route::post('/forgot-password', [App\Http\Controllers\Auth\ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email')->middleware('guest');
 Route::get('/reset-password/{token}', [App\Http\Controllers\Auth\ResetPasswordController::class, 'showResetForm'])->name('password.reset')->middleware('guest');
 Route::post('/reset-password', [App\Http\Controllers\Auth\ResetPasswordController::class, 'reset'])->name('password.update')->middleware('guest');
+
+// ---------------------------------------------------------------------------
+// COMMENT MANAGEMENT (Public + Authenticated - auth checks inside controller)
+// ---------------------------------------------------------------------------
+
+// For authenticated users (admin/staff) - edit/delete their own comments
+Route::middleware('auth')->group(function () {
+    Route::put('/comments/{id}', [QuotationCommentController::class, 'update'])->name('comments.update');
+    Route::delete('/comments/{id}', [QuotationCommentController::class, 'destroy'])->name('comments.destroy');
+    Route::put('/replies/{id}', [QuotationCommentController::class, 'updateReply'])->name('replies.update');
+    Route::delete('/replies/{id}', [QuotationCommentController::class, 'destroyReply'])->name('replies.destroy');
+});
+
+// For public customers - reply to comments (no auth needed for public link)
+Route::post('/comments/{id}/replies', [QuotationCommentController::class, 'storeReply'])->name('comments.storeReply');
+Route::post('/replies/{replyId}/nested-replies', [QuotationCommentController::class, 'storeNestedReply'])->name('replies.storeNestedReply');
 
 // ---------------------------------------------------------------------------
 // ADMIN ONLY ROUTES

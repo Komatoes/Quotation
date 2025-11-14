@@ -12,7 +12,7 @@
 
                 <!-- ➕ Add Material Button -->
                 <button class="btn btn-primary flex-shrink-0" id="btn-add-material">
-                    <i class="ti ti-plus me-1"></i> Add Material
+                    <i class="fa-solid fa-plus me-1"></i> Add Material
                 </button>
             </div>
         </div>

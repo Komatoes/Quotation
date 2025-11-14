@@ -4,55 +4,68 @@
     <div class="container-fluid py-3">
 
         <!-- Header -->
-    <div class="card mb-4 shadow-sm">
-            <div class="card-body text-center bg-light">
-                <h1 class="h3 mb-0 text-dark">{{ $quotation->name }}</h1>
+        <div class="card mb-4">
+            <div class="card-body text-center bg-light rounded shadow-sm">
+                @php
+                    $qStatus = strtolower($quotation->status->status_name ?? '');
+                    if ($qStatus === 'completed') {
+                        $headerText = 'Project Completed';
+                        $headerClass = 'text-success';
+                    } elseif ($qStatus === 'rejected') {
+                        $headerText = 'Quotation Rejected';
+                        $headerClass = 'text-danger';
+                    } elseif ($quotation->customer_approved) {
+                        $headerText = 'Ongoing Project';
+                        $headerClass = 'text-primary';
+                    } else {
+                        $headerText = 'Creating Quotation';
+                        $headerClass = 'text-dark';
+                    }
+                @endphp
+                <h1 class="h3 mb-0 {{ $headerClass }}">{{ $headerText }}</h1>
             </div>
         </div>
 
-        <!-- Project Info -->
-    <div class="card mb-3">
+        <!-- Quotation Info -->
+        <div class="card mb-4">
             <div class="card-body">
+                <h3 class="mb-3">{{ $quotation->subject }}</h3>
+                <p><strong>Customer:</strong> <span id="clientName">{{ $quotation->client->first_name }} {{ $quotation->client->last_name }}</span>
+                    @if(empty($readonly))
+                        <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="editClientBtn">Edit Client</button>
+                    @endif
+                </p>
+                <p><strong>Contact:</strong> <span id="clientContact">{{ $quotation->client->contact_no }}</span></p>
+                <p><strong>Address:</strong> <span id="clientAddress">{{ $quotation->client->address }}</span></p>
+
+                @php
+                    $qStatus = strtolower($quotation->status->status_name ?? '');
+                    if ($qStatus === 'completed') {
+                        $badgeText = 'Project has been completed';
+                        $badgeClass = 'bg-success';
+                    } elseif ($qStatus === 'rejected') {
+                        $badgeText = 'Quotation is rejected';
+                        $badgeClass = 'bg-danger';
+                    } elseif ($quotation->customer_approved) {
+                        $badgeText = 'Approved by Client';
+                        $badgeClass = 'bg-success';
+                    } else {
+                        $badgeText = 'Awaiting Client Approval';
+                        $badgeClass = 'bg-warning text-dark';
+                    }
+                @endphp
+
+                <div class="mt-3">
+                    <span class="badge {{ $badgeClass }} mb-3 d-inline-flex align-items-center" id="quotation-status-badge">
+                        {{ $badgeText }}
+                    </span>
+                </div>
+
                 @if(empty($readonly))
-                <!-- Generate Link Button -->
-                <button type="button" class="btn btn-outline-secondary mb-2" id="generateLinkBtn" onclick="copyPublicLink()">
-                    <i class="bi bi-link-45deg"></i> Generate & Copy Public Link
+                <button type="button" class="btn btn-outline-secondary mt-3" id="generateLinkBtn" title="Generate & Copy Public Link">
+                    <i class="fa-solid fa-link me-1"></i> Generate Link
                 </button>
                 @endif
-@if(empty($readonly))
-<script>
-function copyPublicLink() {
-    const token = "{{ $quotation->public_token }}";
-    if (!token) {
-        Swal.fire({
-            icon: 'error',
-            title: 'No Link Available',
-            text: 'This quotation does not have a public link yet.'
-        });
-        return;
-    }
-    const link = "{{ asset('quotation/public/' . $quotation->public_token) }}";
-    navigator.clipboard.writeText(link).then(() => {
-        Swal.fire({
-            icon: 'success',
-            title: 'Link Copied!',
-            text: link,
-            timer: 1500,
-            showConfirmButton: false
-        });
-    }, () => {
-        Swal.fire({
-            icon: 'error',
-            title: 'Copy Failed',
-            text: 'Could not copy the link.'
-        });
-    });
-}
-</script>
-@endif
-                <h3 class="mb-3">{{ $quotation->subject }}</h3>
-                <p><b>Client Name:</b> {{ $quotation->client->first_name }} {{ $quotation->client->last_name }}</p>
-                <p><b>Date:</b> {{ $quotation->created_at->format('F d, Y') }}</p>
             </div>
         </div>
 
@@ -64,8 +77,10 @@ function copyPublicLink() {
                         <tr>
                             <th>Material</th>
                             <th>Estimated Quantity</th>
-                            <th>Price/Unit</th>
-                            <th>Total</th>
+                            @if (Auth::user()->can('view_prices'))
+                                <th>Price/Unit</th>
+                                <th>Total</th>
+                            @endif
                         </tr>
                     </thead>
                     <tbody>
@@ -73,8 +88,10 @@ function copyPublicLink() {
                             <tr>
                                 <td>{{ $material->name }}</td>
                                 <td>{{ $material->pivot->quantity ?? 0 }}</td>
-                                <td>₱{{ number_format($material->unit_price, 2) }}</td>
-                                <td>₱{{ number_format($material->unit_price * ($material->pivot->quantity ?? 0), 2) }}</td>
+                                @if (Auth::user()->can('view_prices'))
+                                    <td>₱{{ number_format($material->unit_price, 2) }}</td>
+                                    <td>₱{{ number_format($material->unit_price * ($material->pivot->quantity ?? 0), 2) }}</td>
+                                @endif
                             </tr>
                         @endforeach
                     </tbody>
@@ -88,11 +105,17 @@ function copyPublicLink() {
                 @endphp
 
                 <div class="text-end mt-3">
-                    <p class="mb-1"><b>Total Material Cost:</b> ₱{{ number_format($totalMaterial, 2) }}</p>
-                    <p class="mb-1"><b>Labor Fee:</b> ₱{{ number_format($laborfee, 2) }}</p>
-                    <p class="mb-1"><b>Delivery Fee:</b> ₱{{ number_format($deliveryFee, 2) }}</p>
-                    <hr class="mt-2 mb-2">
-                    <h4 class="mb-0"><b>Grand Total:</b> ₱{{ number_format($grandTotal, 2) }}</h4>
+                    @if (Auth::user()->can('view_prices'))
+                        <p class="mb-1"><b>Total Material Cost:</b> ₱{{ number_format($totalMaterial, 2) }}</p>
+                        <p class="mb-1"><b>Labor Fee:</b> ₱{{ number_format($laborfee, 2) }}</p>
+                        <p class="mb-1"><b>Delivery Fee:</b> ₱{{ number_format($deliveryFee, 2) }}</p>
+                        <hr class="mt-2 mb-2">
+                        <h4 class="mb-0"><b>Grand Total:</b> ₱{{ number_format($grandTotal, 2) }}</h4>
+                    @else
+                        <div class="alert alert-warning" role="alert">
+                            <i class="fa-solid fa-lock me-2"></i>Pricing information is restricted to administrators.
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -200,99 +223,10 @@ function copyPublicLink() {
         </div>
     </div>
 
-    <!-- Comments & Feedback Section -->
-    <div class="card mt-4">
-        <div class="card-header">
-            <h5 class="card-title mb-0">Comments & Feedback</h5>
-        </div>
-        <div class="card-body">
-            <!-- Existing Comments -->
-            <div id="comments-list" class="mb-4">
-                @forelse($quotation->comments as $comment)
-                    <div class="d-flex mb-4">
-                        <div class="flex-shrink-0">
-                            <div class="avatar {{ $comment->sender_type === 'customer' ? 'avatar-primary' : 'avatar-success' }}">
-                                <span class="avatar-initial rounded-circle">
-                                    {{ $comment->sender_type === 'customer' ? 'C' : 'A' }}
-                                </span>
-                            </div>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <div class="mb-1">
-                                <span class="fw-semibold">{{ $comment->sender_type === 'customer' ? 'You' : 'Admin' }}</span>
-                                <small class="text-muted"> • {{ $comment->created_at->diffForHumans() }}</small>
-                            </div>
-                            <p class="mb-1">{{ $comment->comment }}</p>
-                        </div>
-                    </div>
-                @empty
-                    <p class="text-muted">No comments yet.</p>
-                @endforelse
-            </div>
-            <!-- Add Comment Form -->
-            <div class="mt-3">
-                <textarea id="client-comment-input" class="form-control mb-3" rows="3" placeholder="Write a comment..."></textarea>
-                <button id="client-submit-comment" class="btn btn-primary">
-                    <i class="ti ti-send me-1"></i> Send Comment
-                </button>
-            </div>
-        </div>
-    </div>
+    <!-- Threaded Comments Section -->
+    @include('components.threaded-comments', ['comments' => $quotation->comments, 'quotationId' => $quotation->id])
+
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    const commentBtn = document.getElementById('client-submit-comment');
-    if (commentBtn) {
-        commentBtn.addEventListener('click', e => {
-            e.preventDefault();
-            const message = document.getElementById('client-comment-input').value.trim();
-            if (message === "") {
-                Swal.fire('Error', 'Comment cannot be empty', 'error');
-                return;
-            }
-            fetch("{{ route('quotation.comment.submit', $quotation->public_token ?? $quotation->id) }}", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': "{{ csrf_token() }}"
-                },
-                body: JSON.stringify({
-                    comment: message,
-                    sender_type: 'customer',
-                    client_name: "{{ $quotation->client->name ?? ($quotation->client->first_name . ' ' . $quotation->client->last_name) }}"
-                })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    document.getElementById('comments-list').insertAdjacentHTML('beforeend', `
-                        <div class="d-flex mb-4">
-                            <div class="flex-shrink-0">
-                                <div class="avatar avatar-primary">
-                                    <span class="avatar-initial rounded-circle">C</span>
-                                </div>
-                            </div>
-                            <div class="flex-grow-1 ms-3">
-                                <div class="mb-1">
-                                    <span class="fw-semibold">You</span>
-                                    <small class="text-muted"> • Just now</small>
-                                </div>
-                                <p class="mb-1">${message}</p>
-                            </div>
-                        </div>
-                    `);
-                    document.getElementById('client-comment-input').value = "";
-                } else {
-                    Swal.fire('Error', data.message || 'Could not submit comment', 'error');
-                }
-            })
-            .catch(() => {
-                Swal.fire('Error', 'Something went wrong!', 'error');
-            });
-        });
-    }
-});
-</script>
 @endsection
 
 
@@ -519,5 +453,137 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     }
+</script>
+
+<!-- Generate & Copy Public Link Script -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const generateLinkBtn = document.getElementById('generateLinkBtn');
+        if (generateLinkBtn) {
+            generateLinkBtn.addEventListener('click', async function() {
+                generateLinkBtn.disabled = true;
+                generateLinkBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Copying...';
+                try {
+                    const token = "{{ $quotation->public_token ?? '' }}";
+                    if (!token) {
+                        Swal.fire({
+                            title: 'No Link Available',
+                            text: 'This quotation does not have a public link yet.',
+                            icon: 'warning',
+                            timer: 1500,
+                            showConfirmButton: false
+                        });
+                    } else {
+                        const link = `${window.location.origin}/quotation/public/${token}`;
+                        await navigator.clipboard.writeText(link);
+                        Swal.fire({
+                            title: 'Link Copied!',
+                            text: link,
+                            icon: 'success',
+                            timer: 1200,
+                            showConfirmButton: false
+                        });
+                    }
+                } catch (err) {
+                    Swal.fire('Error', 'Could not copy the link.', 'error');
+                }
+                generateLinkBtn.disabled = false;
+                generateLinkBtn.innerHTML = '<i class="fa-solid fa-link me-1"></i> Generate Link';
+            });
+        }
+    });
+</script>
+
+<!-- Edit Client Modal -->
+<div class="modal fade" id="editClientModal" tabindex="-1" aria-labelledby="editClientLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editClientLabel">Edit Client</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editClientForm">
+                    <div class="mb-3">
+                        <label for="clientFirstName" class="form-label">First name</label>
+                        <input type="text" class="form-control" id="clientFirstName" name="first_name" value="{{ $quotation->client->first_name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="clientLastName" class="form-label">Last name</label>
+                        <input type="text" class="form-control" id="clientLastName" name="last_name" value="{{ $quotation->client->last_name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="clientContactInput" class="form-label">Contact</label>
+                        <input type="text" class="form-control" id="clientContactInput" name="contact_no" value="{{ $quotation->client->contact_no }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="clientAddressInput" class="form-label">Address</label>
+                        <textarea class="form-control" id="clientAddressInput" name="address" rows="3">{{ $quotation->client->address }}</textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveClientBtn">Save changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Client Handler Script -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const editBtn = document.getElementById('editClientBtn');
+        const saveBtn = document.getElementById('saveClientBtn');
+        const modalEl = document.getElementById('editClientModal');
+        if (!editBtn || !saveBtn || !modalEl) return;
+
+        const bsModal = new bootstrap.Modal(modalEl);
+
+        editBtn.addEventListener('click', () => {
+            bsModal.show();
+        });
+
+        saveBtn.addEventListener('click', async () => {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+
+            const payload = {
+                first_name: document.getElementById('clientFirstName').value,
+                last_name: document.getElementById('clientLastName').value,
+                contact_no: document.getElementById('clientContactInput').value,
+                address: document.getElementById('clientAddressInput').value
+            };
+
+            try {
+                const res = await fetch(`/clients/{{ $quotation->client->id }}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('clientName').textContent = `${payload.first_name} ${payload.last_name}`;
+                    document.getElementById('clientContact').textContent = payload.contact_no;
+                    document.getElementById('clientAddress').textContent = payload.address;
+
+                    Swal.fire('Success', 'Client updated!', 'success');
+                    bsModal.hide();
+                } else {
+                    Swal.fire('Error', data.message || 'Failed to update', 'error');
+                }
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Error', 'Something went wrong!', 'error');
+            }
+
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = 'Save changes';
+        });
+    });
 </script>
 
