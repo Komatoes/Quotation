@@ -1,203 +1,339 @@
 <!doctype html>
-
 <html lang="en" class="layout-wide customizer-hide" dir="ltr" data-skin="default" data-assets-path="../../assets/"
     data-template="vertical-menu-template-no-customizer" data-bs-theme="light">
-
 <head>
     <meta charset="utf-8" />
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0" />
-
-        <title>Login - Quotation System</title>
-
+    <title>Login - Quotation System</title>
     <meta name="description" content="" />
-
-    <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="../../assets/img/favicon/favicon.ico" />
-
-    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-        href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&ampdisplay=swap"
-        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&ampdisplay=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        $prism-height: 400px;
+        $prism-length: 300px;
+        $prism-depth: $prism-length;
+        $spacing: 20px;
+        $br: 3px;
+        $text-light: #fff;
+        $text-dark: #666;
+        $blue: #03a9f4;
+        $smoke: #f9f9fa;
+        $coral: #ff5751;
+        $navy-blue: #42509e;
+        $green: #07ad90;
 
-    <link rel="stylesheet" href="../../assets/vendor/fonts/iconify-icons.css" />
+        * {
+            box-sizing: border-box;
+        }
 
-    <!-- Core CSS -->
-    <!-- build:css assets/vendor/css/theme.css  -->
+        body {
+            font-family: Tahoma, Verdana, Segoe, sans-serif;
+            font-size: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 20px;
+        }
 
-    <link rel="stylesheet" href="{{ asset('assets/vendor/libs/node-waves/node-waves.css') }}" />
+        .login-container {
+            width: 100%;
+            max-width: 350px;
+            perspective: 600px;
+        }
 
-    <link rel="stylesheet" href="{{ asset('assets/vendor/css/core.css') }}" />
-    <link rel="stylesheet" href="{{ asset('assets/css/demo.css') }}" />
+        .rec-prism {
+            width: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transform: translateZ(-100px);
+            transition: transform 0.5s ease-in;
+            height: 450px;
+        }
 
-    <!-- Vendors CSS -->
+        .face {
+            position: absolute;
+            width: 300px;
+            height: 450px;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 8px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            backface-visibility: hidden;
+        }
 
-    <link rel="stylesheet" href="../../assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css" />
+        .face.face-front {
+            transform: rotateY(0deg) translateZ(150px);
+        }
 
-    <!-- endbuild -->
+        .face.face-back {
+            transform: rotateY(180deg) translateZ(150px);
+        }
 
-    <!-- Vendor -->
-    <link rel="stylesheet" href="{{ asset('assets/vendor/libs/@form-validation/form-validation.css') }}" />
+        .content {
+            color: #666;
+            text-align: left;
+        }
 
-    <!-- Page CSS -->
-    <!-- Page -->
-    <link rel="stylesheet" href="{{ asset('assets/vendor/css/pages/page-auth.css') }}" />
+        .content h2 {
+            font-size: 1.5em;
+            color: #07ad90;
+            margin-bottom: 10px;
+            text-align: center;
+        }
 
-    <!-- Helpers -->
-    <script src="../../assets/vendor/js/helpers.js"></script>
-    <!--! Template customizer & Theme config files MUST be included after core stylesheets and helpers.js in the <head> section -->
+        .content small {
+            font-size: 0.85em;
+            color: #999;
+            display: block;
+            text-align: center;
+            margin-bottom: 25px;
+        }
 
-    <!--? Config:  Mandatory theme config file contain global vars & default theme options, Set your preferred theme option in this file.  -->
+        .logo-section {
+            text-align: center;
+            margin-bottom: 20px;
+        }
 
-    <script src="../../assets/js/config.js"></script>
+        .logo-section img {
+            height: 60px;
+            margin-bottom: 10px;
+        }
+
+        .field-wrapper {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .field-wrapper label {
+            position: absolute;
+            pointer-events: none;
+            font-size: 0.85em;
+            top: 40%;
+            left: 0;
+            transform: translateY(-50%);
+            transition: all ease-in 0.25s;
+            color: #999;
+        }
+
+        .field-wrapper input[type="text"],
+        .field-wrapper input[type="password"],
+        .field-wrapper textarea {
+            width: 100%;
+            border: none;
+            background: transparent;
+            line-height: 2em;
+            border-bottom: 2px solid #07ad90;
+            color: #666;
+            font-size: 1em;
+            padding: 5px 0;
+            transition: border-color 0.3s ease;
+        }
+
+        .field-wrapper input[type="text"]:focus,
+        .field-wrapper input[type="password"]:focus,
+        .field-wrapper textarea:focus {
+            outline: none;
+            border-bottom-color: #42509e;
+        }
+
+        .field-wrapper input[type="text"]:focus + label,
+        .field-wrapper input[type="password"]:focus + label,
+        .field-wrapper textarea:focus + label,
+        .field-wrapper input:not(:placeholder-shown) + label {
+            top: -30%;
+            color: #42509e;
+            font-weight: 600;
+        }
+
+        .field-wrapper input[type="submit"] {
+            cursor: pointer;
+            width: 100%;
+            background: linear-gradient(135deg, #07ad90, #05a882);
+            line-height: 2.5em;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 10px;
+            font-weight: 600;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            margin-top: 15px;
+        }
+
+        .field-wrapper input[type="submit"]:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(7, 173, 144, 0.3);
+        }
+
+        .field-wrapper input[type="submit"]:active {
+            transform: scale(0.98);
+        }
+
+        .links {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .link-item {
+            display: inline-block;
+            margin: 0 5px;
+            font-size: 0.8em;
+            color: #42509e;
+            cursor: pointer;
+            text-decoration: none;
+            transition: color 0.3s ease;
+            padding: 5px 10px;
+            border-bottom: 1px solid transparent;
+        }
+
+        .link-item:hover {
+            color: #07ad90;
+            border-bottom-color: #07ad90;
+        }
+
+        .link-item a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .alert {
+            background-color: #ffebee;
+            color: #c62828;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+            border-left: 4px solid #c62828;
+        }
+
+        .alert ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .nav-links {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .nav-link-btn {
+            background: none;
+            border: none;
+            color: #42509e;
+            cursor: pointer;
+            font-size: 0.9em;
+            margin: 0 8px;
+            padding: 5px 10px;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .nav-link-btn:hover {
+            color: #07ad90;
+            font-weight: 600;
+        }
+
+        .nav-link-btn.active {
+            color: #07ad90;
+            font-weight: 700;
+            border-bottom: 2px solid #07ad90;
+        }
+    </style>
 </head>
 
 <body>
-    <!-- Content -->
+    <div class="login-container">
+        <div class="rec-prism">
+            <!-- Login Form -->
+            <div class="face face-front">
+                <div class="content">
+                    <div class="logo-section">
+                        <img src="{{ asset('Image/LOGO.png') }}" alt="Logo">
+                    </div>
+                    <h2>Welcome Back</h2>
+                    <small>Sign in to your account</small>
 
-    <div class="container-xxl">
-        <div class="authentication-wrapper authentication-basic container-p-y">
-            <div class="authentication-inner py-6">
-                <!-- Login -->
-                <div class="card">
-                    <div class="card-body">
-                        <!-- Logo -->
-                        <div class="app-brand justify-content-center mb-6">
-                                <a href="/" class="app-brand-link">
-                                <span class="app-brand-logo demo">
-                                        <img src="{{ asset('Image/LOGO.png') }}"  height="100" alt="Logo">
-                                </span>
-                            </a>
+                    @if ($errors->any())
+                        <div class="alert">
+                            <ul>
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
                         </div>
-                        <!-- /Logo -->
-                            <h4 class="mb-1">Welcome Back!</h4>
-                            <p class="mb-6">Please sign in to your account</p>
+                    @endif
 
-                        <form id="loginform" class="mb-4" method="POST" action="{{ route('login.submit') }}">
-                            @csrf
-                            <div class="mb-6 form-control-validation">
-                                <label for="username" class="form-label">Username</label>
-                                <input type="text" class="form-control" id="username" name="username"
-                                    placeholder="Enter your username" autofocus required />
-                            </div>
+                    <form method="POST" action="{{ route('login.submit') }}">
+                        @csrf
+                        <div class="field-wrapper">
+                            <input type="text" name="username" placeholder="username" required autofocus>
+                        </div>
+                        <div class="field-wrapper">
+                            <input type="password" name="password" placeholder="password" required>
+                        </div>
+                        <div class="field-wrapper">
+                            <input type="submit" value="Sign In">
+                        </div>
+                    </form>
 
-                            <div class="mb-6 form-password-toggle form-control-validation">
-                                <label class="form-label" for="password">Password</label>
-                                <div class="input-group input-group-merge">
-                                    <input type="password" id="password" class="form-control" name="password"
-                                        placeholder="&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;"
-                                        required />
-                                    <span class="input-group-text cursor-pointer"><i
-                                            class="icon-base ti tabler-eye-off"></i></span>
-                                </div>
-                            </div>
-
-                            <div class="my-8">
-                                <div class="d-flex justify-content-between">
-                                    <div class="form-check mb-0 ms-2">
-                                        <input class="form-check-input" type="checkbox" id="remember" name="remember" />
-                                        <label class="form-check-label" for="remember"> Remember Me </label>
-                                    </div>
-                                    <a href="{{ route('password.request') }}">
-                                        <p class="mb-0">Forgot Password?</p>
-                                    </a>
-                                </div>
-                            </div>
-                            <div class="mb-6">
-                                <button class="btn btn-primary d-grid w-100" type="submit">Login</button>
-                            </div>
-
-                            @if ($errors->any())
-                                <div class="alert alert-danger">
-                                    <ul class="mb-0">
-                                        @foreach ($errors->all() as $error)
-                                            <li>{{ $error }}</li>
-                                        @endforeach
-                                    </ul>
-                                </div>
-                            @endif
-                        </form>
-
-
-
-
+                    <div class="links">
+                        <div style="margin: 15px 0;">
+                            <a href="{{ route('password.request') }}" class="link-item">Forgot Password?</a>
+                        </div>
                     </div>
                 </div>
-                <!-- /Login -->
+            </div>
+
+            <!-- Forgot Password Form -->
+            <div class="face face-back">
+                <div class="content">
+                    <h2>Reset Password</h2>
+                    <small>Enter your email to reset your password</small>
+
+                    <form method="POST" action="{{ route('password.email') }}">
+                        @csrf
+                        <div class="field-wrapper">
+                            <input type="text" name="email" placeholder="email" required>
+                        </div>
+                        <div class="field-wrapper">
+                            <input type="submit" value="Send Reset Link">
+                        </div>
+                    </form>
+
+                    <div class="links" style="margin-top: 30px;">
+                        <button class="nav-link-btn" onclick="rotateForm(0)">← Back to Login</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-    <script>
-        class Login {
-            loginUser(id) {
-                const form = document.getElementById(id);
-                const formData = new FormData(form);
 
-                fetch("/login-user", {
-                        method: "POST",
-                        headers: {
-                            "X-CSRF-TOKEN": '{{ csrf_token() }}'
-                        },
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        Swal.fire({
-                            title: "Login successful!",
-                            icon: "success",
-                            timer: 1500,
-                            showConfirmButton: false
-                        }).then(() => {
-                            // Redirect after success
-                            window.location.href = "/";
-                        });
-                    })
-                    .catch(error => {
-                        console.error("Error:", error);
-                    });
-            }
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        const prism = document.querySelector('.rec-prism');
+
+        function rotateForm(angle) {
+            prism.style.transform = `translateZ(-100px) rotateY(${angle}deg)`;
         }
 
-        const login = new Login();
+        // Forgot password link
+        document.querySelectorAll('.link-item').forEach(link => {
+            if (link.textContent.includes('Forgot')) {
+                link.onclick = (e) => {
+                    e.preventDefault();
+                    rotateForm(180);
+                };
+            }
+        });
     </script>
-
-    <!-- / Content -->
-
-    <!-- Core JS -->
-    <!-- build:js assets/vendor/js/theme.js -->
-
-    <script src="{{ asset('assets/vendor/libs/jquery/jquery.js') }}"></script>
-
-    <script src="{{ asset('assets/vendor/libs/popper/popper.js') }}"></script>
-    <script src="{{ asset('assets/vendor/js/bootstrap.js') }}"></script>
-    <script src="{{ asset('assets/vendor/libs/node-waves/node-waves.js') }}"></script>
-
-    <script src="../../assets/vendor/libs/@algolia/autocomplete-js.js"></script>
-
-    <script src="../../assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.js"></script>
-
-    <script src="../../assets/vendor/libs/hammer/hammer.js"></script>
-
-    <script src="../../assets/vendor/libs/i18n/i18n.js"></script>
-
-    <script src="../../assets/vendor/js/menu.js"></script>
-
-    <!-- endbuild -->
-
-    <!-- Vendors JS -->
-    <script src="../../assets/vendor/libs/@form-validation/popular.js"></script>
-    <script src="../../assets/vendor/libs/@form-validation/bootstrap5.js"></script>
-    <script src="../../assets/vendor/libs/@form-validation/auto-focus.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-    <!-- Main JS -->
-
-    <script src="../../assets/js/main.js"></script>
-
-    <!-- Page JS -->
-    <script src="../../assets/js/pages-auth.js"></script>
 </body>
-
 </html>

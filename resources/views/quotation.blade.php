@@ -1274,5 +1274,44 @@ window.Toast = (message = 'Success', icon = 'success') => {
         timerProgressBar: true
     });
 };
+
+/**
+ * Generate Link button - Copy public quotation link to clipboard
+ */
+document.addEventListener('DOMContentLoaded', function() {
+    const generateLinkBtn = document.getElementById('generateLinkBtn');
+    if (generateLinkBtn) {
+        generateLinkBtn.addEventListener('click', async function() {
+            generateLinkBtn.disabled = true;
+            generateLinkBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Copying...';
+            try {
+                const token = "{{ $quotation->public_token ?? '' }}";
+                if (!token) {
+                    Swal.fire({
+                        title: 'No Link Available',
+                        text: 'This quotation does not have a public link yet.',
+                        icon: 'warning',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                } else {
+                    const link = `${window.location.origin}/quotation/public/${token}`;
+                    await navigator.clipboard.writeText(link);
+                    Swal.fire({
+                        title: 'Link Copied!',
+                        text: link,
+                        icon: 'success',
+                        timer: 1200,
+                        showConfirmButton: false
+                    });
+                }
+            } catch (err) {
+                Swal.fire('Error', 'Could not copy the link.', 'error');
+            }
+            generateLinkBtn.disabled = false;
+            generateLinkBtn.innerHTML = '<i class="fa-solid fa-link me-1"></i> Generate Link';
+        });
+    }
+});
 </script>
 @endsection
