@@ -145,5 +145,41 @@ Route::post('/comments/{id}/replies', [QuotationCommentController::class, 'store
 Route::post('/replies/{replyId}/nested-replies', [QuotationCommentController::class, 'storeNestedReply'])->name('replies.storeNestedReply');
 
 // ---------------------------------------------------------------------------
+// DIAGNOSTIC ROUTES (for testing permissions)
+// ---------------------------------------------------------------------------
+
+Route::middleware('auth')->get('/test-permissions', function () {
+    $user = \Auth::user();
+    $allPerms = \Spatie\Permission\Models\Permission::all();
+    $userPerms = $user->permissions->pluck('name');
+    $rolePerms = $user->roles->map(function($role) {
+        return $role->permissions->pluck('name');
+    })->flatten()->unique();
+    
+    $allUserPerms = $userPerms->merge($rolePerms)->unique();
+    
+    return response()->json([
+        'user' => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'username' => $user->username,
+        ],
+        'roles' => $user->roles->pluck('name'),
+        'direct_permissions' => $userPerms,
+        'role_permissions' => $rolePerms,
+        'all_permissions' => $allUserPerms,
+        'total_permissions' => $allUserPerms->count(),
+        'test_permissions' => [
+            'view_materials' => $user->hasPermissionTo('view_materials'),
+            'manage_fees' => $user->hasPermissionTo('manage_fees'),
+            'view_prices' => $user->hasPermissionTo('view_prices'),
+            'create_quotation' => $user->hasPermissionTo('create_quotation'),
+            'manage_users' => $user->hasPermissionTo('manage_users'),
+        ],
+    ], 200);
+});
+
+// ---------------------------------------------------------------------------
 // ADMIN ONLY ROUTES
 // ---------------------------------------------------------------------------
