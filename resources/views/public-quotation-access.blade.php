@@ -206,24 +206,18 @@
                 @csrf
                 <div class="field-wrapper">
                     <input type="text" name="first_name" placeholder="firstname" required autofocus>
-                    <label>First Name</label>
                 </div>
                 <div class="field-wrapper">
                     <input type="text" name="last_name" placeholder="lastname" required>
-                    <label>Last Name</label>
                 </div>
                 <div class="field-wrapper">
                     <input type="text" name="phone_number" placeholder="phone" required>
-                    <label>Phone Number</label>
                 </div>
                 <div class="field-wrapper">
                     <input type="submit" value="Access Quotation">
                 </div>
             </form>
 
-            <div class="info-text">
-                For questions or issues accessing your quotation, please contact our support team.
-            </div>
         </div>
     </div>
 </body>
