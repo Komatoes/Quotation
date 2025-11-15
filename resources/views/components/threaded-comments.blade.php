@@ -1,876 +1,383 @@
-{{-- Threaded Comments Section with Edit, Delete, and Reply Features --}}
-<!-- Comments & Feedback Section -->
+{{-- Threaded Comments Component — Plain, no modals — supports add, edit, delete, reply inline --}}
 <div class="card mt-4">
     <div class="card-header">
         <h5 class="card-title mb-0">Comments & Feedback</h5>
     </div>
     <div class="card-body">
-        <!-- Existing Comments (Threaded) -->
-        <div id="comments-list" class="mb-4">
+        {{-- Use Bootstrap list-group for comments --}}
+        <ul id="comments-list" class="list-group list-group-flush">
             @forelse($comments as $comment)
-                <div class="comment-thread mb-4 border-start border-2 border-primary ps-3" data-comment-id="{{ $comment->id }}">
-                    <!-- Main Comment -->
-                    <div class="d-flex mb-3">
-                        <div class="flex-shrink-0">
+                <li class="list-group-item" data-comment-id="{{ $comment->id }}">
+                    <div class="d-flex">
+                        <div class="flex-shrink-0 me-3">
                             <div class="avatar {{ $comment->sender_type === 'customer' ? 'avatar-primary' : 'avatar-success' }}">
-                                <span class="avatar-initial rounded-circle">
-                                    {{ isset($comment->user_name) ? strtoupper($comment->user_name[0]) : ($comment->sender_type === 'customer' ? 'C' : 'A') }}
-                                </span>
+                                <span class="avatar-initial rounded-circle">{{ isset($comment->user_name) ? strtoupper(substr($comment->user_name,0,1)) : 'U' }}</span>
                             </div>
                         </div>
-                        <div class="flex-grow-1 ms-3">
-                            <div class="d-flex justify-content-between align-items-start mb-1">
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <span class="fw-semibold">
-                                        {{ $comment->user_name ?? ($comment->sender_type === 'customer' ? 'Customer' : 'Admin') }}
-                                    </span>
+                                    <span class="fw-semibold">{{ $comment->user_name ?? ($comment->sender_type === 'customer' ? 'Customer' : 'Admin') }}</span>
                                     <small class="text-muted ms-2">{{ $comment->created_at->diffForHumans() }}</small>
                                 </div>
                                 <div class="comment-actions">
-                                    @if(Auth::check() && Auth::id() == $comment->user_id)
-                                        <!-- Authenticated user editing their own comment -->
-                                        <button class="btn btn-sm btn-link text-primary edit-comment" data-comment-id="{{ $comment->id }}" title="Edit">
-                                            <i class="fa-solid fa-pen-to-square"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-link text-danger delete-comment" data-comment-id="{{ $comment->id }}" title="Delete">
-                                            <i class="fa-solid fa-trash"></i>
-                                        </button>
-                                    @elseif(!Auth::check() && $comment->user_id === null && isset($publicToken))
-                                        <!-- Public customer editing their own comment (has no user_id, but publicToken matches) -->
-                                        <button class="btn btn-sm btn-link text-primary edit-comment" data-comment-id="{{ $comment->id }}" title="Edit">
-                                            <i class="fa-solid fa-pen-to-square"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-link text-danger delete-comment" data-comment-id="{{ $comment->id }}" title="Delete">
-                                            <i class="fa-solid fa-trash"></i>
-                                        </button>
+                                    {{-- Permission checks: --}}
+                                    {{-- PUBLIC view: show edit/delete ONLY for public comments (user_id === null) --}}
+                                    {{-- ADMIN view: show edit/delete if user owns it OR comment is public (user_id === null) --}}
+                                    @if(isset($publicToken))
+                                        {{-- Public view: ONLY public comments --}}
+                                        @if($comment->user_id === null)
+                                            <button class="btn btn-sm btn-link text-primary edit-comment" data-comment-id="{{ $comment->id }}">Edit</button>
+                                            <button class="btn btn-sm btn-link text-danger delete-comment" data-comment-id="{{ $comment->id }}">Delete</button>
+                                        @endif
+                                    @else
+                                        {{-- Admin view: owner OR public comment --}}
+                                        @if((Auth::check() && Auth::id() == $comment->user_id) || $comment->user_id === null)
+                                            <button class="btn btn-sm btn-link text-primary edit-comment" data-comment-id="{{ $comment->id }}">Edit</button>
+                                            <button class="btn btn-sm btn-link text-danger delete-comment" data-comment-id="{{ $comment->id }}">Delete</button>
+                                        @endif
                                     @endif
+                                    <button class="btn btn-sm btn-link text-secondary reply-toggle" data-comment-id="{{ $comment->id }}">Reply</button>
                                 </div>
                             </div>
                             <p class="mb-2 comment-text">{{ $comment->comment }}</p>
-                            <button class="btn btn-sm btn-link text-secondary reply-toggle" data-comment-id="{{ $comment->id }}">
-                                <i class="fa-solid fa-reply me-1"></i> Reply
-                            </button>
-                        </div>
-                    </div>
 
-                    <!-- Reply Form (Hidden by default) -->
-                    <div class="reply-form-container ms-5 mb-3" id="reply-form-{{ $comment->id }}" style="display: none;">
-                        <textarea class="form-control form-control-sm mb-2 reply-textarea" rows="2" placeholder="Write a reply..."></textarea>
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-sm btn-primary submit-reply" data-comment-id="{{ $comment->id }}">
-                                <i class="fa-solid fa-paper-plane me-1"></i> Reply
-                            </button>
-                            <button class="btn btn-sm btn-secondary cancel-reply" data-comment-id="{{ $comment->id }}">Cancel</button>
-                        </div>
-                    </div>
-
-                    <!-- Replies (Nested) -->
-                    @if($comment->replies && $comment->replies->count() > 0)
-                        <div class="replies-container ms-5">
-                            @foreach($comment->replies as $reply)
-                                <div class="reply-item mb-3 pb-3 border-bottom" data-reply-id="{{ $reply->id }}">
-                                    <div class="d-flex">
-                                        <div class="flex-shrink-0">
-                                            <div class="avatar avatar-sm {{ $reply->sender_type === 'customer' ? 'avatar-primary' : 'avatar-success' }}">
-                                                <span class="avatar-initial rounded-circle">
-                                                    {{ isset($reply->user_name) ? strtoupper($reply->user_name[0]) : ($reply->sender_type === 'customer' ? 'C' : 'A') }}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div class="flex-grow-1 ms-2">
-                                            <div class="d-flex justify-content-between align-items-start mb-1">
-                                                <div>
-                                                    <span class="fw-semibold" style="font-size: 0.9rem;">
-                                                        {{ $reply->user_name ?? ($reply->sender_type === 'customer' ? 'Customer' : 'Admin') }}
-                                                    </span>
-                                                    <small class="text-muted ms-2">{{ $reply->created_at->diffForHumans() }}</small>
-                                                </div>
-                                                <div class="reply-actions">
-                                                    @if(Auth::check() && Auth::id() == $reply->user_id)
-                                                        <!-- Authenticated user editing their own reply -->
-                                                        <button class="btn btn-sm btn-link text-primary edit-reply" data-reply-id="{{ $reply->id }}" title="Edit">
-                                                            <i class="fa-solid fa-pen-to-square"></i>
-                                                        </button>
-                                                        <button class="btn btn-sm btn-link text-danger delete-reply" data-reply-id="{{ $reply->id }}" title="Delete">
-                                                            <i class="fa-solid fa-trash"></i>
-                                                        </button>
-                                                    @elseif(!Auth::check() && $reply->user_id === null && isset($publicToken))
-                                                        <!-- Public customer editing their own reply (has no user_id, but publicToken matches) -->
-                                                        <button class="btn btn-sm btn-link text-primary edit-reply" data-reply-id="{{ $reply->id }}" title="Edit">
-                                                            <i class="fa-solid fa-pen-to-square"></i>
-                                                        </button>
-                                                        <button class="btn btn-sm btn-link text-danger delete-reply" data-reply-id="{{ $reply->id }}" title="Delete">
-                                                            <i class="fa-solid fa-trash"></i>
-                                                        </button>
-                                                    @endif
-                                                </div>
-                                            </div>
-                                            <p class="mb-2 reply-text" style="font-size: 0.95rem;">{{ $reply->comment }}</p>
-                                            
-                                            <!-- Reply to reply button -->
-                                            <button class="btn btn-sm btn-link text-secondary nested-reply-toggle" data-reply-id="{{ $reply->id }}" style="font-size: 0.85rem;">
-                                                <i class="fa-solid fa-reply me-1"></i> Reply
-                                            </button>
-                                            
-                                            <!-- Nested reply form (hidden by default) -->
-                                            <div class="nested-reply-form-container ms-3 mt-2" id="nested-reply-form-{{ $reply->id }}" style="display: none;">
-                                                <textarea class="form-control form-control-sm mb-2 nested-reply-textarea" rows="2" placeholder="Write a reply to this reply..."></textarea>
-                                                <div class="d-flex gap-2">
-                                                    <button class="btn btn-sm btn-primary submit-nested-reply" data-reply-id="{{ $reply->id }}">
-                                                        <i class="fa-solid fa-paper-plane me-1"></i> Reply
-                                                    </button>
-                                                    <button class="btn btn-sm btn-secondary cancel-nested-reply" data-reply-id="{{ $reply->id }}">Cancel</button>
-                                                </div>
-                                            </div>
-                                            
-                                            <!-- Nested replies (replies to this reply) -->
-                                            @if($reply->nestedReplies && $reply->nestedReplies->count() > 0)
-                                                <div class="nested-replies-container ms-4 mt-2">
-                                                    @foreach($reply->nestedReplies as $nestedReply)
-                                                        <div class="nested-reply-item mb-2 pb-2 border-start ps-2" data-nested-reply-id="{{ $nestedReply->id }}" style="border-color: #dee2e6;">
-                                                            <div class="d-flex">
-                                                                <div class="flex-shrink-0">
-                                                                    <div class="avatar avatar-xs {{ $nestedReply->sender_type === 'customer' ? 'avatar-primary' : 'avatar-success' }}" style="width: 28px; height: 28px;">
-                                                                        <span class="avatar-initial rounded-circle" style="font-size: 0.7rem;">
-                                                                            {{ isset($nestedReply->user_name) ? strtoupper($nestedReply->user_name[0]) : ($nestedReply->sender_type === 'customer' ? 'C' : 'A') }}
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="flex-grow-1 ms-2">
-                                                                    <div class="d-flex justify-content-between align-items-start mb-1">
-                                                                        <div>
-                                                                            <small class="fw-semibold">
-                                                                                {{ $nestedReply->user_name ?? ($nestedReply->sender_type === 'customer' ? 'Customer' : 'Admin') }}
-                                                                            </small>
-                                                                            <small class="text-muted ms-2">{{ $nestedReply->created_at->diffForHumans() }}</small>
-                                                                        </div>
-                                                                        <div class="nested-reply-actions" style="font-size: 0.85rem;">
-                                                                            @if(Auth::check() && Auth::id() == $nestedReply->user_id)
-                                                                                <button class="btn btn-sm btn-link text-primary edit-nested-reply" data-nested-reply-id="{{ $nestedReply->id }}" title="Edit">
-                                                                                    <i class="fa-solid fa-pen-to-square"></i>
-                                                                                </button>
-                                                                                <button class="btn btn-sm btn-link text-danger delete-nested-reply" data-nested-reply-id="{{ $nestedReply->id }}" title="Delete">
-                                                                                    <i class="fa-solid fa-trash"></i>
-                                                                                </button>
-                                                                            @elseif(!Auth::check() && $nestedReply->user_id === null && isset($publicToken))
-                                                                                <button class="btn btn-sm btn-link text-primary edit-nested-reply" data-nested-reply-id="{{ $nestedReply->id }}" title="Edit">
-                                                                                    <i class="fa-solid fa-pen-to-square"></i>
-                                                                                </button>
-                                                                                <button class="btn btn-sm btn-link text-danger delete-nested-reply" data-nested-reply-id="{{ $nestedReply->id }}" title="Delete">
-                                                                                    <i class="fa-solid fa-trash"></i>
-                                                                                </button>
-                                                                            @endif
-                                                                        </div>
-                                                                    </div>
-                                                                    <p class="mb-0" style="font-size: 0.85rem;">{{ $nestedReply->comment }}</p>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    @endforeach
-                                                </div>
-                                            @endif
-                                        </div>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                    @endif
-                </div>
-            @empty
-                <p class="text-muted">No comments yet. Be the first to comment!</p>
-            @endforelse
-        </div>
-
-        <!-- Add Comment Form -->
-        <div class="mt-4 pt-3 border-top">
-            <div class="d-flex gap-3">
-                <div class="flex-shrink-0">
-                    <div class="avatar avatar-primary">
-                        <span class="avatar-initial rounded-circle">
-                            {{ Auth::check() && Auth::user()->name ? strtoupper(Auth::user()->name[0]) : 'U' }}
-                        </span>
-                    </div>
-                </div>
-                <div class="flex-grow-1">
-                    <textarea id="main-comment-input" class="form-control mb-2" rows="3" placeholder="Share your thoughts..."></textarea>
-                    <button id="submit-main-comment" class="btn btn-primary">
-                        <i class="fa-solid fa-paper-plane me-1"></i> Post Comment
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Edit Comment Modal -->
-<div class="modal fade" id="editCommentModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Edit Comment</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <textarea id="edit-comment-textarea" class="form-control" rows="4"></textarea>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="save-comment-edit">Save Changes</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Edit Reply Modal -->
-<div class="modal fade" id="editReplyModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Edit Reply</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <textarea id="edit-reply-textarea" class="form-control" rows="4"></textarea>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="save-reply-edit">Save Changes</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Threaded Comments Script -->
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const quotationId = "{{ $quotationId ?? '' }}";
-        const publicToken = "{{ $publicToken ?? '' }}";
-        const currentUserId = "{{ Auth::id() ?? '' }}";
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-        let editingCommentId = null;
-        let editingReplyId = null;
-
-        // Toggle reply form
-        document.addEventListener('click', function(e) {
-            if (e.target.closest('.reply-toggle')) {
-                const commentId = e.target.closest('.reply-toggle').dataset.commentId;
-                const replyForm = document.getElementById(`reply-form-${commentId}`);
-                if (replyForm) {
-                    replyForm.style.display = replyForm.style.display === 'none' ? 'block' : 'none';
-                }
-            }
-        });
-
-        // Cancel reply
-        document.addEventListener('click', function(e) {
-            if (e.target.closest('.cancel-reply')) {
-                const commentId = e.target.closest('.cancel-reply').dataset.commentId;
-                const replyForm = document.getElementById(`reply-form-${commentId}`);
-                if (replyForm) {
-                    replyForm.style.display = 'none';
-                    replyForm.querySelector('.reply-textarea').value = '';
-                }
-            }
-        });
-
-        // Submit main comment
-        document.getElementById('submit-main-comment')?.addEventListener('click', async function() {
-            const commentText = document.getElementById('main-comment-input').value.trim();
-            if (!commentText) {
-                Swal.fire('Error', 'Please write a comment', 'warning');
-                return;
-            }
-
-            this.disabled = true;
-            this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Posting...';
-
-            try {
-                const res = await fetch(`/quotation/${quotationId}/comments`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        comment: commentText,
-                        sender_type: '{{ Auth::check() ? (Auth::user()->hasRole('customer') ? 'customer' : 'admin') : 'customer' }}'
-                    })
-                });
-
-                const data = await res.json();
-                if (data.success) {
-                    // Add new comment to DOM without reloading
-                    const newComment = data.comment;
-                    const commentsList = document.getElementById('comments-list');
-                    
-                    // Create new comment HTML - use response data for user_name
-                    const userInitial = (newComment.user_name && newComment.user_name.length > 0) 
-                        ? newComment.user_name[0].toUpperCase() 
-                        : 'U';
-                    const newCommentHtml = `
-                        <div class="comment-thread mb-4 border-start border-2 border-primary ps-3" data-comment-id="${newComment.id}">
-                            <div class="d-flex mb-3">
-                                <div class="flex-shrink-0">
-                                    <div class="avatar ${newComment.sender_type === 'customer' ? 'avatar-primary' : 'avatar-success'}">
-                                        <span class="avatar-initial rounded-circle">${userInitial}</span>
-                                    </div>
-                                </div>
-                                <div class="flex-grow-1 ms-3">
-                                    <div class="d-flex justify-content-between align-items-start mb-1">
-                                        <div>
-                                            <span class="fw-semibold">${newComment.user_name}</span>
-                                            <small class="text-muted ms-2">just now</small>
-                                        </div>
-                                        <div class="comment-actions">
-                                            <button class="btn btn-sm btn-link text-primary edit-comment" data-comment-id="${newComment.id}" title="Edit">
-                                                <i class="fa-solid fa-pen-to-square"></i>
-                                            </button>
-                                            <button class="btn btn-sm btn-link text-danger delete-comment" data-comment-id="${newComment.id}" title="Delete">
-                                                <i class="fa-solid fa-trash"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <p class="mb-2 comment-text">${newComment.comment}</p>
-                                    <button class="btn btn-sm btn-link text-secondary reply-toggle" data-comment-id="${newComment.id}">
-                                        <i class="fa-solid fa-reply me-1"></i> Reply
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="reply-form-container ms-5 mb-3" id="reply-form-${newComment.id}" style="display: none;">
-                                <textarea class="form-control form-control-sm mb-2 reply-textarea" rows="2" placeholder="Write a reply..."></textarea>
+                            {{-- Inline edit form (hidden) --}}
+                            <div class="edit-comment-form mt-2" id="edit-comment-form-{{ $comment->id }}" style="display:none;">
+                                <textarea class="form-control mb-2 edit-comment-text" data-comment-id="{{ $comment->id }}">{{ $comment->comment }}</textarea>
                                 <div class="d-flex gap-2">
-                                    <button class="btn btn-sm btn-primary submit-reply" data-comment-id="${newComment.id}">
-                                        <i class="fa-solid fa-paper-plane me-1"></i> Reply
-                                    </button>
-                                    <button class="btn btn-sm btn-secondary cancel-reply" data-comment-id="${newComment.id}">Cancel</button>
+                                    <button class="btn btn-sm btn-primary save-edit-comment" data-comment-id="{{ $comment->id }}">Save</button>
+                                    <button class="btn btn-sm btn-secondary cancel-edit-comment" data-comment-id="{{ $comment->id }}">Cancel</button>
                                 </div>
                             </div>
-                            <div class="replies-container ms-5"></div>
+
+                            {{-- Reply form (hidden) --}}
+                            <div class="reply-form-container mt-2" id="reply-form-{{ $comment->id }}" style="display:none;">
+                                <textarea class="form-control mb-2 reply-textarea" rows="2" placeholder="Write a reply..."></textarea>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-primary submit-reply" data-comment-id="{{ $comment->id }}">Reply</button>
+                                    <button class="btn btn-sm btn-secondary cancel-reply" data-comment-id="{{ $comment->id }}">Cancel</button>
+                                </div>
+                            </div>
+
+                            {{-- Replies (nested list-group) --}}
+                            @if($comment->replies && $comment->replies->count())
+                                <ul class="list-group mt-3 ms-4">
+                                    @foreach($comment->replies as $reply)
+                                        <li class="list-group-item border-0 p-0 mb-3" data-reply-id="{{ $reply->id }}">
+                                            <div class="d-flex">
+                                                <div class="flex-shrink-0 me-2">
+                                                    <div class="avatar avatar-sm {{ $reply->sender_type === 'customer' ? 'avatar-primary' : 'avatar-success' }}">
+                                                        <span class="avatar-initial rounded-circle">{{ isset($reply->user_name) ? strtoupper(substr($reply->user_name,0,1)) : 'U' }}</span>
+                                                    </div>
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <div class="d-flex justify-content-between align-items-start">
+                                                        <div>
+                                                            <span class="fw-semibold">{{ $reply->user_name ?? ($reply->sender_type === 'customer' ? 'Customer' : 'Admin') }}</span>
+                                                            <small class="text-muted ms-2">{{ $reply->created_at->diffForHumans() }}</small>
+                                                        </div>
+                                                        <div class="reply-actions">
+                                                            @if(isset($publicToken))
+                                                                {{-- Public view: ONLY public replies (user_id === null) --}}
+                                                                @if($reply->user_id === null)
+                                                                    <button class="btn btn-sm btn-link text-primary edit-reply" data-reply-id="{{ $reply->id }}">Edit</button>
+                                                                    <button class="btn btn-sm btn-link text-danger delete-reply" data-reply-id="{{ $reply->id }}">Delete</button>
+                                                                @endif
+                                                            @else
+                                                                {{-- Admin view: owner OR public reply --}}
+                                                                @if((Auth::check() && Auth::id() == $reply->user_id) || $reply->user_id === null)
+                                                                    <button class="btn btn-sm btn-link text-primary edit-reply" data-reply-id="{{ $reply->id }}">Edit</button>
+                                                                    <button class="btn btn-sm btn-link text-danger delete-reply" data-reply-id="{{ $reply->id }}">Delete</button>
+                                                                @endif
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                    <p class="mb-1 reply-text">{{ $reply->comment }}</p>
+
+                                                    {{-- Inline edit reply form --}}
+                                                    <div class="edit-reply-form mt-2" id="edit-reply-form-{{ $reply->id }}" style="display:none;">
+                                                        <textarea class="form-control mb-2 edit-reply-text" data-reply-id="{{ $reply->id }}">{{ $reply->comment }}</textarea>
+                                                        <div class="d-flex gap-2">
+                                                            <button class="btn btn-sm btn-primary save-edit-reply" data-reply-id="{{ $reply->id }}">Save</button>
+                                                            <button class="btn btn-sm btn-secondary cancel-edit-reply" data-reply-id="{{ $reply->id }}">Cancel</button>
+                                                        </div>
+                                                    </div>
+
+                                                    {{-- Nested replies (if any) --}}
+                                                    @if($reply->nestedReplies && $reply->nestedReplies->count())
+                                                        <ul class="list-group mt-2 ms-3">
+                                                            @foreach($reply->nestedReplies as $nreply)
+                                                                <li class="list-group-item border-0 p-0 mb-2" data-nested-reply-id="{{ $nreply->id }}">
+                                                                    <div class="d-flex">
+                                                                        <div class="flex-shrink-0 me-2">
+                                                                            <div class="avatar avatar-xs {{ $nreply->sender_type === 'customer' ? 'avatar-primary' : 'avatar-success' }}">
+                                                                                <span class="avatar-initial rounded-circle">{{ isset($nreply->user_name) ? strtoupper(substr($nreply->user_name,0,1)) : 'U' }}</span>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div class="flex-grow-1">
+                                                                            <div class="d-flex justify-content-between align-items-start">
+                                                                                <div>
+                                                                                    <span class="fw-semibold">{{ $nreply->user_name ?? ($nreply->sender_type === 'customer' ? 'Customer' : 'Admin') }}</span>
+                                                                                    <small class="text-muted ms-2">{{ $nreply->created_at->diffForHumans() }}</small>
+                                                                                </div>
+                                                                                <div class="nested-reply-actions">
+                                                                                    @if(isset($publicToken))
+                                                                                        {{-- Public view: ONLY public replies (user_id === null) --}}
+                                                                                        @if($nreply->user_id === null)
+                                                                                            <button class="btn btn-sm btn-link text-primary edit-nested-reply" data-nested-reply-id="{{ $nreply->id }}">Edit</button>
+                                                                                            <button class="btn btn-sm btn-link text-danger delete-nested-reply" data-nested-reply-id="{{ $nreply->id }}">Delete</button>
+                                                                                        @endif
+                                                                                    @else
+                                                                                        {{-- Admin view: owner OR public reply --}}
+                                                                                        @if((Auth::check() && Auth::id() == $nreply->user_id) || $nreply->user_id === null)
+                                                                                            <button class="btn btn-sm btn-link text-primary edit-nested-reply" data-nested-reply-id="{{ $nreply->id }}">Edit</button>
+                                                                                            <button class="btn btn-sm btn-link text-danger delete-nested-reply" data-nested-reply-id="{{ $nreply->id }}">Delete</button>
+                                                                                        @endif
+                                                                                    @endif
+                                                                                </div>
+                                                                            </div>
+                                                                            <p class="mb-0">{{ $nreply->comment }}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                </li>
+                                                            @endforeach
+                                                        </ul>
+                                                    @endif
+
+                                                </div>
+                                            </div>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @endif
+
                         </div>
-                    `;
-                    
-                    commentsList.insertAdjacentHTML('beforeend', newCommentHtml);
-                    document.getElementById('main-comment-input').value = '';
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'success',
-                        title: 'Comment posted!',
-                        showConfirmButton: false,
-                        timer: 1200
-                    });
-                } else {
-                    Swal.fire('Error', data.message || 'Failed to post comment', 'error');
-                }
-            } catch (error) {
-                console.error(error);
-                Swal.fire('Error', 'Something went wrong', 'error');
-            }
+                    </div>
+                </li>
+            @empty
+            @endforelse
+        </ul>
 
-            this.disabled = false;
-            this.innerHTML = '<i class="fa-solid fa-paper-plane me-1"></i> Post Comment';
-        });
-
-        // Edit comment
-        document.addEventListener('click', function(e) {
-            if (e.target.closest('.edit-comment')) {
-                const commentId = e.target.closest('.edit-comment').dataset.commentId;
-                const commentText = document.querySelector(`[data-comment-id="${commentId}"] .comment-text`).textContent;
-                
-                editingCommentId = commentId;
-                document.getElementById('edit-comment-textarea').value = commentText;
-                
-                const modal = new bootstrap.Modal(document.getElementById('editCommentModal'));
-                modal.show();
-            }
-        });
-
-        // Save comment edit
-        document.getElementById('save-comment-edit')?.addEventListener('click', async function() {
-            const newText = document.getElementById('edit-comment-textarea').value.trim();
-            if (!newText) {
-                Swal.fire('Error', 'Comment cannot be empty', 'warning');
-                return;
-            }
-
-            this.disabled = true;
-            this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
-
-            try {
-                const res = await fetch(`/comments/${editingCommentId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({ comment: newText })
-                });
-
-                const data = await res.json();
-                if (data.success) {
-                    document.querySelector(`[data-comment-id="${editingCommentId}"] .comment-text`).textContent = newText;
-                    bootstrap.Modal.getInstance(document.getElementById('editCommentModal')).hide();
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'success',
-                        title: 'Comment updated!',
-                        showConfirmButton: false,
-                        timer: 1200
-                    });
-                } else {
-                    Swal.fire('Error', data.message || 'Failed to update', 'error');
-                }
-            } catch (error) {
-                console.error(error);
-                Swal.fire('Error', 'Something went wrong', 'error');
-            }
-
-            this.disabled = false;
-            this.innerHTML = 'Save Changes';
-        });
-
-        // Delete comment
-        document.addEventListener('click', function(e) {
-            if (e.target.closest('.delete-comment')) {
-                const commentId = e.target.closest('.delete-comment').dataset.commentId;
-                
-                Swal.fire({
-                    title: 'Delete comment?',
-                    text: 'This action cannot be undone.',
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#d33',
-                    cancelButtonColor: '#6c757d',
-                    confirmButtonText: 'Yes, delete it'
-                }).then(async (result) => {
-                    if (result.isConfirmed) {
-                        try {
-                            const res = await fetch(`/comments/${commentId}`, {
-                                method: 'DELETE',
-                                headers: {
-                                    'X-CSRF-TOKEN': csrfToken,
-                                    'Accept': 'application/json'
-                                }
-                            });
-
-                            const data = await res.json();
-                            if (data.success) {
-                                document.querySelector(`[data-comment-id="${commentId}"]`).remove();
-                                Swal.fire({
-                                    toast: true,
-                                    position: 'top-end',
-                                    icon: 'success',
-                                    title: 'Comment deleted!',
-                                    showConfirmButton: false,
-                                    timer: 1200
-                                });
-                            } else {
-                                Swal.fire('Error', data.message || 'Failed to delete', 'error');
-                            }
-                        } catch (error) {
-                            console.error(error);
-                            Swal.fire('Error', 'Something went wrong', 'error');
-                        }
+        {{-- Add main comment form --}}
+        <div class="mt-4 pt-3 border-top d-flex gap-3">
+            <div class="flex-shrink-0">
+                @php
+                    $mainInitial = 'U';
+                    // In public view, ALWAYS use client name, never use Auth
+                    if (isset($publicToken) && ($comments ?? collect())->first()) {
+                        $first = ($comments->first()->user_name ?? null) ?: 'C';
+                        $mainInitial = strtoupper(substr($first, 0, 1));
+                    } elseif (Auth::check()) {
+                        $mainInitial = strtoupper(substr(Auth::user()->name, 0, 1));
                     }
-                });
+                @endphp
+                <div class="avatar avatar-primary"><span class="avatar-initial rounded-circle">{{ $mainInitial }}</span></div>
+            </div>
+            <div class="flex-grow-1">
+                <textarea id="main-comment-input" class="form-control mb-2" rows="3" placeholder="Share your thoughts..."></textarea>
+                <button id="submit-main-comment" class="btn btn-primary"><i class="fa-solid fa-paper-plane me-1"></i> Post Comment</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+
+(function(){
+    const quotationId = "{{ $quotationId ?? '' }}";
+    const publicToken = "{{ $publicToken ?? '' }}";
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    // endpoints
+    // Use passed-in endpoint if available, else fallback to dynamic
+    const commentEndpoint = "{{ $commentEndpoint ?? '' }}" || (publicToken ? `/quotation/public/${publicToken}/comment` : `/quotation/${quotationId}/comments`);
+
+    // Helpers
+    function qs(selector, ctx=document){ return ctx.querySelector(selector); }
+    function qsa(selector, ctx=document){ return Array.from((ctx||document).querySelectorAll(selector)); }
+
+    // Toggle reply form
+    document.addEventListener('click', function(e){
+        const t = e.target.closest('.reply-toggle');
+        if(!t) return;
+        const id = t.dataset.commentId;
+        const form = document.getElementById(`reply-form-${id}`);
+        if(form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    });
+
+    // Cancel reply
+    document.addEventListener('click', function(e){
+        const t = e.target.closest('.cancel-reply');
+        if(!t) return;
+        const id = t.dataset.commentId;
+        const form = document.getElementById(`reply-form-${id}`);
+        if(form){ form.style.display='none'; form.querySelector('.reply-textarea').value=''; }
+    });
+
+    // Submit main comment
+    document.getElementById('submit-main-comment')?.addEventListener('click', async function(){
+        const btn = this;
+        const text = (qs('#main-comment-input').value||'').trim();
+        if(!text) return Swal.fire('Error','Please write a comment','warning');
+        btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Posting...';
+        try{
+            const res = await fetch(commentEndpoint, {
+                method: 'POST',
+                headers: {'Content-Type':'application/json','X-CSRF-TOKEN':csrfToken,'Accept':'application/json'},
+                body: JSON.stringify({ comment: text })
+            });
+            const data = await res.json();
+            if(data.success && data.comment){
+                // append new comment at end
+                const commentsList = document.getElementById('comments-list');
+                commentsList.insertAdjacentHTML('beforeend', buildCommentHtml(data.comment));
+                qs('#main-comment-input').value='';
+                Swal.fire({toast:true,position:'top-end',icon:'success',title:'Comment posted!',showConfirmButton:false,timer:1200});
+            } else {
+                Swal.fire('Error',data.message||'Failed to post comment','error');
             }
-        });
+        }catch(err){ console.error(err); Swal.fire('Error','Something went wrong','error'); }
+        btn.disabled=false; btn.innerHTML = '<i class="fa-solid fa-paper-plane me-1"></i> Post Comment';
+    });
 
-        // Submit reply
-        document.addEventListener('click', function(e) {
-            if (e.target.closest('.submit-reply')) {
-                const commentId = e.target.closest('.submit-reply').dataset.commentId;
-                const replyText = document.querySelector(`#reply-form-${commentId} .reply-textarea`).value.trim();
-                
-                if (!replyText) {
-                    Swal.fire('Error', 'Please write a reply', 'warning');
-                    return;
-                }
+    // Submit reply (delegated)
+    document.addEventListener('click', async function(e){
+        const t = e.target.closest('.submit-reply');
+        if(!t) return;
+        const commentId = t.dataset.commentId;
+        const textarea = qs(`#reply-form-${commentId} .reply-textarea`);
+        const text = (textarea.value||'').trim();
+        if(!text) return Swal.fire('Error','Please write a reply','warning');
+        const btn = t; btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Replying...';
+        try{
+            // Use public endpoint if in public view, else use admin endpoint
+            const replyEndpoint = publicToken 
+                ? `/quotation/public/${publicToken}/comments/${commentId}/reply`
+                : `/comments/${commentId}/replies`;
+            const res = await fetch(replyEndpoint,{
+                method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrfToken,'Accept':'application/json'}, body: JSON.stringify({ comment: text })
+            });
+            const data = await res.json();
+            if(data.success && data.reply){
+                const container = qs(`[data-comment-id="${commentId}"] .replies-container`);
+                if(container) container.insertAdjacentHTML('beforeend', buildReplyHtml(data.reply));
+                textarea.value=''; qs(`#reply-form-${commentId}`).style.display='none';
+                Swal.fire({toast:true,position:'top-end',icon:'success',title:'Reply posted!',showConfirmButton:false,timer:1200});
+            } else { Swal.fire('Error',data.message||'Failed to post reply','error'); }
+        }catch(err){ console.error(err); Swal.fire('Error','Something went wrong','error'); }
+        btn.disabled=false; btn.innerHTML='Reply';
+    });
 
-                const btn = e.target.closest('.submit-reply');
-                btn.disabled = true;
-                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Replying...';
+    // Edit comment - toggle inline edit form
+    document.addEventListener('click', function(e){
+        const t = e.target.closest('.edit-comment'); if(!t) return;
+        const id = t.dataset.commentId; const form = qs(`#edit-comment-form-${id}`); if(!form) return; form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    });
 
-                fetch(`/comments/${commentId}/replies`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({ comment: replyText })
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        // Add reply to DOM without reloading
-                        const newReply = data.reply;
-                        const userInitial = (newReply.user_name && newReply.user_name.length > 0) 
-                            ? newReply.user_name[0].toUpperCase() 
-                            : 'U';
-                        const repliesContainer = document.querySelector(`[data-comment-id="${commentId}"] .replies-container`) || 
-                                                document.createElement('div');
-                        
-                        if (!repliesContainer.parentElement) {
-                            const replyContainer = document.createElement('div');
-                            replyContainer.className = 'replies-container ms-5';
-                            document.querySelector(`[data-comment-id="${commentId}"]`).appendChild(replyContainer);
-                        }
-                        
-                        const newReplyHtml = `
-                            <div class="reply-item mb-3 pb-3 border-bottom" data-reply-id="${newReply.id}">
-                                <div class="d-flex">
-                                    <div class="flex-shrink-0">
-                                        <div class="avatar avatar-sm ${newReply.sender_type === 'customer' ? 'avatar-primary' : 'avatar-success'}">
-                                            <span class="avatar-initial rounded-circle">${userInitial}</span>
-                                        </div>
-                                    </div>
-                                    <div class="flex-grow-1 ms-2">
-                                        <div class="d-flex justify-content-between align-items-start mb-1">
-                                            <div>
-                                                <span class="fw-semibold" style="font-size: 0.9rem;">${newReply.user_name}</span>
-                                                <small class="text-muted ms-2">just now</small>
-                                            </div>
-                                            <div class="reply-actions">
-                                                <button class="btn btn-sm btn-link text-primary edit-reply" data-reply-id="${newReply.id}" title="Edit">
-                                                    <i class="fa-solid fa-pen-to-square"></i>
-                                                </button>
-                                                <button class="btn btn-sm btn-link text-danger delete-reply" data-reply-id="${newReply.id}" title="Delete">
-                                                    <i class="fa-solid fa-trash"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <p class="mb-0 reply-text" style="font-size: 0.95rem;">${newReply.comment}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                        
-                        repliesContainer.insertAdjacentHTML('beforeend', newReplyHtml);
-                        document.querySelector(`#reply-form-${commentId}`).style.display = 'none';
-                        document.querySelector(`#reply-form-${commentId} .reply-textarea`).value = '';
-                        
-                        Swal.fire({
-                            toast: true,
-                            position: 'top-end',
-                            icon: 'success',
-                            title: 'Reply posted!',
-                            showConfirmButton: false,
-                            timer: 1200
-                        });
-                    } else {
-                        Swal.fire('Error', data.message || 'Failed to post reply', 'error');
-                    }
-                })
-                .catch(error => {
-                    console.error(error);
-                    Swal.fire('Error', 'Something went wrong', 'error');
-                })
-                .finally(() => {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fa-solid fa-paper-plane me-1"></i> Reply';
-                });
-            }
-        });
+    // Cancel edit comment
+    document.addEventListener('click', function(e){
+        const t = e.target.closest('.cancel-edit-comment'); if(!t) return;
+        const id = t.dataset.commentId; const form = qs(`#edit-comment-form-${id}`); if(!form) return; form.style.display='none';
+    });
 
-        // Edit reply
-        document.addEventListener('click', function(e) {
-            if (e.target.closest('.edit-reply')) {
-                const replyId = e.target.closest('.edit-reply').dataset.replyId;
-                const replyText = document.querySelector(`[data-reply-id="${replyId}"] .reply-text`).textContent;
-                
-                editingReplyId = replyId;
-                document.getElementById('edit-reply-textarea').value = replyText;
-                
-                const modal = new bootstrap.Modal(document.getElementById('editReplyModal'));
-                modal.show();
-            }
-        });
+    // Save edit comment
+    document.addEventListener('click', async function(e){
+        const t = e.target.closest('.save-edit-comment'); if(!t) return;
+        const id = t.dataset.commentId; const textarea = qs(`#edit-comment-form-${id} .edit-comment-text`);
+        const newText = (textarea.value||'').trim(); if(!newText) return Swal.fire('Error','Comment cannot be empty','warning');
+        t.disabled=true; t.innerHTML='Saving...';
+        try{
+            // Use public endpoint if in public view, else use admin endpoint
+            const updateEndpoint = publicToken 
+                ? `/quotation/public/${publicToken}/comments/${id}`
+                : `/comments/${id}`;
+            const res = await fetch(updateEndpoint, { method:'PUT', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrfToken,'Accept':'application/json'}, body: JSON.stringify({ comment: newText }) });
+            const data = await res.json();
+            if(data.success){ qs(`[data-comment-id="${id}"] .comment-text`).textContent = newText; qs(`#edit-comment-form-${id}`).style.display='none'; Swal.fire({toast:true,position:'top-end',icon:'success',title:'Updated',showConfirmButton:false,timer:1200}); }
+            else Swal.fire('Error',data.message||'Failed to update','error');
+        }catch(err){ console.error(err); Swal.fire('Error','Something went wrong','error'); }
+        t.disabled=false; t.innerHTML='Save';
+    });
 
-        // Save reply edit
-        document.getElementById('save-reply-edit')?.addEventListener('click', async function() {
-            const newText = document.getElementById('edit-reply-textarea').value.trim();
-            if (!newText) {
-                Swal.fire('Error', 'Reply cannot be empty', 'warning');
-                return;
-            }
-
-            this.disabled = true;
-            this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
-
-            try {
-                const res = await fetch(`/replies/${editingReplyId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({ comment: newText })
-                });
-
-                const data = await res.json();
-                if (data.success) {
-                    // Check if this is a nested reply
-                    const isNested = document.getElementById('edit-reply-textarea').dataset.isNestedReply === 'true';
-                    if (isNested) {
-                        document.querySelector(`[data-nested-reply-id="${editingReplyId}"] p`).textContent = newText;
-                    } else {
-                        document.querySelector(`[data-reply-id="${editingReplyId}"] .reply-text`).textContent = newText;
-                    }
-                    
-                    bootstrap.Modal.getInstance(document.getElementById('editReplyModal')).hide();
-                    document.getElementById('edit-reply-textarea').dataset.isNestedReply = 'false';
-                    
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'success',
-                        title: 'Reply updated!',
-                        showConfirmButton: false,
-                        timer: 1200
-                    });
-                } else {
-                    Swal.fire('Error', data.message || 'Failed to update', 'error');
-                }
-            } catch (error) {
-                console.error(error);
-                Swal.fire('Error', 'Something went wrong', 'error');
-            }
-
-            this.disabled = false;
-            this.innerHTML = 'Save Changes';
-        });
-
-        // Delete reply
-        document.addEventListener('click', function(e) {
-            if (e.target.closest('.delete-reply')) {
-                const replyId = e.target.closest('.delete-reply').dataset.replyId;
-                
-                Swal.fire({
-                    title: 'Delete reply?',
-                    text: 'This action cannot be undone.',
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#d33',
-                    cancelButtonColor: '#6c757d',
-                    confirmButtonText: 'Yes, delete it'
-                }).then(async (result) => {
-                    if (result.isConfirmed) {
-                        try {
-                            const res = await fetch(`/replies/${replyId}`, {
-                                method: 'DELETE',
-                                headers: {
-                                    'X-CSRF-TOKEN': csrfToken,
-                                    'Accept': 'application/json'
-                                }
-                            });
-
-                            const data = await res.json();
-                            if (data.success) {
-                                document.querySelector(`[data-reply-id="${replyId}"]`).remove();
-                                Swal.fire({
-                                    toast: true,
-                                    position: 'top-end',
-                                    icon: 'success',
-                                    title: 'Reply deleted!',
-                                    showConfirmButton: false,
-                                    timer: 1200
-                                });
-                            } else {
-                                Swal.fire('Error', data.message || 'Failed to delete', 'error');
-                            }
-                        } catch (error) {
-                            console.error(error);
-                            Swal.fire('Error', 'Something went wrong', 'error');
-                        }
-                    }
-                });
-            }
-        });
-
-        // Toggle nested reply form
-        document.addEventListener('click', function(e) {
-            if (e.target.closest('.nested-reply-toggle')) {
-                const replyId = e.target.closest('.nested-reply-toggle').dataset.replyId;
-                const nestedReplyForm = document.getElementById(`nested-reply-form-${replyId}`);
-                if (nestedReplyForm) {
-                    nestedReplyForm.style.display = nestedReplyForm.style.display === 'none' ? 'block' : 'none';
-                }
-            }
-        });
-
-        // Cancel nested reply
-        document.addEventListener('click', function(e) {
-            if (e.target.closest('.cancel-nested-reply')) {
-                const replyId = e.target.closest('.cancel-nested-reply').dataset.replyId;
-                const nestedReplyForm = document.getElementById(`nested-reply-form-${replyId}`);
-                if (nestedReplyForm) {
-                    nestedReplyForm.style.display = 'none';
-                    nestedReplyForm.querySelector('.nested-reply-textarea').value = '';
-                }
-            }
-        });
-
-        // Submit nested reply
-        document.addEventListener('click', function(e) {
-            if (e.target.closest('.submit-nested-reply')) {
-                const replyId = e.target.closest('.submit-nested-reply').dataset.replyId;
-                const nestedReplyText = document.querySelector(`#nested-reply-form-${replyId} .nested-reply-textarea`).value.trim();
-                
-                if (!nestedReplyText) {
-                    Swal.fire('Error', 'Please write a reply', 'warning');
-                    return;
-                }
-
-                const btn = e.target.closest('.submit-nested-reply');
-                btn.disabled = true;
-                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Replying...';
-
-                fetch(`/replies/${replyId}/nested-replies`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({ comment: nestedReplyText })
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        const newNestedReply = data.reply;
-                        const userInitial = (newNestedReply.user_name && newNestedReply.user_name.length > 0) 
-                            ? newNestedReply.user_name[0].toUpperCase() 
-                            : 'U';
-                        
-                        // Find or create nested-replies container
-                        let nestedRepliesContainer = document.querySelector(`[data-reply-id="${replyId}"] .nested-replies-container`);
-                        if (!nestedRepliesContainer) {
-                            nestedRepliesContainer = document.createElement('div');
-                            nestedRepliesContainer.className = 'nested-replies-container ms-4 mt-2';
-                            document.querySelector(`[data-reply-id="${replyId}"]`).appendChild(nestedRepliesContainer);
-                        }
-
-                        const newNestedReplyHtml = `
-                            <div class="nested-reply-item mb-2 pb-2 border-start ps-2" data-nested-reply-id="${newNestedReply.id}" style="border-color: #dee2e6;">
-                                <div class="d-flex">
-                                    <div class="flex-shrink-0">
-                                        <div class="avatar avatar-xs ${newNestedReply.sender_type === 'customer' ? 'avatar-primary' : 'avatar-success'}" style="width: 28px; height: 28px;">
-                                            <span class="avatar-initial rounded-circle" style="font-size: 0.7rem;">${userInitial}</span>
-                                        </div>
-                                    </div>
-                                    <div class="flex-grow-1 ms-2">
-                                        <div class="d-flex justify-content-between align-items-start mb-1">
-                                            <div>
-                                                <small class="fw-semibold">${newNestedReply.user_name}</small>
-                                                <small class="text-muted ms-2">just now</small>
-                                            </div>
-                                            <div class="nested-reply-actions" style="font-size: 0.85rem;">
-                                                <button class="btn btn-sm btn-link text-primary edit-nested-reply" data-nested-reply-id="${newNestedReply.id}" title="Edit">
-                                                    <i class="fa-solid fa-pen-to-square"></i>
-                                                </button>
-                                                <button class="btn btn-sm btn-link text-danger delete-nested-reply" data-nested-reply-id="${newNestedReply.id}" title="Delete">
-                                                    <i class="fa-solid fa-trash"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <p class="mb-0" style="font-size: 0.85rem;">${newNestedReply.comment}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                        
-                        nestedRepliesContainer.insertAdjacentHTML('beforeend', newNestedReplyHtml);
-                        document.querySelector(`#nested-reply-form-${replyId}`).style.display = 'none';
-                        document.querySelector(`#nested-reply-form-${replyId} .nested-reply-textarea`).value = '';
-                        
-                        Swal.fire({
-                            toast: true,
-                            position: 'top-end',
-                            icon: 'success',
-                            title: 'Nested reply posted!',
-                            showConfirmButton: false,
-                            timer: 1200
-                        });
-                    } else {
-                        Swal.fire('Error', data.message || 'Failed to post nested reply', 'error');
-                    }
-                })
-                .catch(error => {
-                    console.error(error);
-                    Swal.fire('Error', 'Something went wrong', 'error');
-                })
-                .finally(() => {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fa-solid fa-paper-plane me-1"></i> Reply';
-                });
-            }
-        });
-
-        // Delete nested reply
-        document.addEventListener('click', function(e) {
-            if (e.target.closest('.delete-nested-reply')) {
-                const nestedReplyId = e.target.closest('.delete-nested-reply').dataset.nestedReplyId;
-                
-                Swal.fire({
-                    title: 'Delete reply?',
-                    text: 'This action cannot be undone.',
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#d33',
-                    cancelButtonColor: '#6c757d',
-                    confirmButtonText: 'Yes, delete it'
-                }).then(async (result) => {
-                    if (result.isConfirmed) {
-                        try {
-                            const res = await fetch(`/replies/${nestedReplyId}`, {
-                                method: 'DELETE',
-                                headers: {
-                                    'X-CSRF-TOKEN': csrfToken,
-                                    'Accept': 'application/json'
-                                }
-                            });
-
-                            const data = await res.json();
-                            if (data.success) {
-                                document.querySelector(`[data-nested-reply-id="${nestedReplyId}"]`).remove();
-                                Swal.fire({
-                                    toast: true,
-                                    position: 'top-end',
-                                    icon: 'success',
-                                    title: 'Nested reply deleted!',
-                                    showConfirmButton: false,
-                                    timer: 1200
-                                });
-                            } else {
-                                Swal.fire('Error', data.message || 'Failed to delete', 'error');
-                            }
-                        } catch (error) {
-                            console.error(error);
-                            Swal.fire('Error', 'Something went wrong', 'error');
-                        }
-                    }
-                });
-            }
-        });
-
-        // Edit nested reply
-        document.addEventListener('click', function(e) {
-            if (e.target.closest('.edit-nested-reply')) {
-                const nestedReplyId = e.target.closest('.edit-nested-reply').dataset.nestedReplyId;
-                const nestedReplyText = document.querySelector(`[data-nested-reply-id="${nestedReplyId}"] p`).textContent;
-                
-                editingReplyId = nestedReplyId;
-                document.getElementById('edit-reply-textarea').value = nestedReplyText;
-                document.getElementById('edit-reply-textarea').dataset.isNestedReply = 'true';
-                
-                const modal = new bootstrap.Modal(document.getElementById('editReplyModal'));
-                modal.show();
-            }
+    // Delete comment
+    document.addEventListener('click', function(e){
+        const t = e.target.closest('.delete-comment'); if(!t) return;
+        const id = t.dataset.commentId;
+        Swal.fire({title:'Delete comment?',text:'This cannot be undone',icon:'warning',showCancelButton:true,confirmButtonColor:'#d33',cancelButtonColor:'#6c757d',confirmButtonText:'Yes, delete it'}).then(async (res)=>{
+            if(!res.isConfirmed) return;
+            try{
+                // Use public endpoint if in public view, else use admin endpoint
+                const deleteEndpoint = publicToken 
+                    ? `/quotation/public/${publicToken}/comments/${id}`
+                    : `/comments/${id}`;
+                const resp = await fetch(deleteEndpoint,{ method:'DELETE', headers:{'X-CSRF-TOKEN':csrfToken,'Accept':'application/json'} });
+                const data = await resp.json(); if(data.success){ qs(`[data-comment-id="${id}"]`).remove(); Swal.fire({toast:true,position:'top-end',icon:'success',title:'Deleted',showConfirmButton:false,timer:1200}); } else Swal.fire('Error',data.message||'Failed to delete','error');
+            }catch(err){ console.error(err); Swal.fire('Error','Something went wrong','error'); }
         });
     });
+
+    // Edit reply - toggle
+    document.addEventListener('click', function(e){ const t = e.target.closest('.edit-reply'); if(!t) return; const id = t.dataset.replyId; const form = qs(`#edit-reply-form-${id}`); if(!form) return; form.style.display = form.style.display === 'none' ? 'block' : 'none'; });
+    // Cancel edit reply
+    document.addEventListener('click', function(e){ const t = e.target.closest('.cancel-edit-reply'); if(!t) return; const id = t.dataset.replyId; const form = qs(`#edit-reply-form-${id}`); if(!form) return; form.style.display='none'; });
+
+    // Save edit reply
+    document.addEventListener('click', async function(e){
+        const t = e.target.closest('.save-edit-reply'); if(!t) return;
+        const id = t.dataset.replyId; const textarea = qs(`#edit-reply-form-${id} .edit-reply-text`);
+        const newText = (textarea.value||'').trim(); if(!newText) return Swal.fire('Error','Reply cannot be empty','warning');
+        t.disabled=true; t.innerHTML='Saving...';
+        try{
+            // Use public endpoint if in public view, else use admin endpoint
+            const updateEndpoint = publicToken 
+                ? `/quotation/public/${publicToken}/replies/${id}`
+                : `/replies/${id}`;
+            const res = await fetch(updateEndpoint, { method:'PUT', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrfToken,'Accept':'application/json'}, body: JSON.stringify({ comment: newText }) });
+            const data = await res.json(); if(data.success){ const isNested = qs(`[data-nested-reply-id="${id}"]`); if(isNested) qs(`[data-nested-reply-id="${id}"] p`).textContent = newText; else qs(`[data-reply-id="${id}"] .reply-text`).textContent = newText; qs(`#edit-reply-form-${id}`).style.display='none'; Swal.fire({toast:true,position:'top-end',icon:'success',title:'Updated',showConfirmButton:false,timer:1200}); } else Swal.fire('Error',data.message||'Failed to update','error');
+        }catch(err){ console.error(err); Swal.fire('Error','Something went wrong','error'); }
+        t.disabled=false; t.innerHTML='Save';
+    });
+
+    // Delete reply
+    document.addEventListener('click', function(e){ const t = e.target.closest('.delete-reply, .delete-nested-reply'); if(!t) return; const id = t.dataset.replyId || t.dataset.nestedReplyId; Swal.fire({title:'Delete reply?',text:'This cannot be undone',icon:'warning',showCancelButton:true,confirmButtonColor:'#d33',cancelButtonColor:'#6c757d',confirmButtonText:'Yes, delete it'}).then(async (res)=>{ if(!res.isConfirmed) return; try{ const deleteEndpoint = publicToken ? `/quotation/public/${publicToken}/replies/${id}` : `/replies/${id}`; const resp = await fetch(deleteEndpoint,{ method:'DELETE', headers:{'X-CSRF-TOKEN':csrfToken,'Accept':'application/json'} }); const data = await resp.json(); if(data.success){ qs(`[data-reply-id="${id}"]`)?.remove(); qs(`[data-nested-reply-id="${id}"]`)?.remove(); Swal.fire({toast:true,position:'top-end',icon:'success',title:'Deleted',showConfirmButton:false,timer:1200}); } else Swal.fire('Error',data.message||'Failed to delete','error'); }catch(err){ console.error(err); Swal.fire('Error','Something went wrong','error'); } }); });
+
+    // Builders for HTML snippets (simple)
+    function buildCommentHtml(c){
+        // Permission check: show edit/delete buttons conditionally
+        // In public view: ONLY for public comments (user_id === null)
+        // In admin view: for owner OR public comments
+        let editDeleteButtons = '';
+        if (publicToken) {
+            // Public view: only for public comments (user_id === null)
+            if (c.user_id === null) {
+                editDeleteButtons = `<button class="btn btn-sm btn-link text-primary edit-comment" data-comment-id="${c.id}">Edit</button>\n                            <button class="btn btn-sm btn-link text-danger delete-comment" data-comment-id="${c.id}">Delete</button>`;
+            }
+        } else {
+            // Admin view: show for owner OR public comments
+            editDeleteButtons = `<button class="btn btn-sm btn-link text-primary edit-comment" data-comment-id="${c.id}">Edit</button>\n                            <button class="btn btn-sm btn-link text-danger delete-comment" data-comment-id="${c.id}">Delete</button>`;
+        }
+        
+        return `\n        <div class="comment-thread mb-4 border-start border-2 border-primary ps-3" data-comment-id="${c.id}">\n            <div class="d-flex mb-2">\n                <div class="flex-shrink-0"><div class="avatar ${c.sender_type==='customer'?'avatar-primary':'avatar-success'}"><span class="avatar-initial rounded-circle">${(c.user_name||'U').charAt(0).toUpperCase()}</span></div></div>\n                <div class="flex-grow-1 ms-3">\n                    <div class="d-flex justify-content-between align-items-start mb-1">\n                        <div><span class="fw-semibold">${c.user_name}</span><small class="text-muted ms-2">just now</small></div>\n                        <div class="comment-actions">\n                            ${editDeleteButtons}\n                            <button class="btn btn-sm btn-link text-secondary reply-toggle" data-comment-id="${c.id}">Reply</button>\n                        </div>\n                    </div>\n                    <p class="mb-2 comment-text">${escapeHtml(c.comment)}</p>\n                    <div class="reply-form-container mt-2" id="reply-form-${c.id}" style="display:none;">\n                        <textarea class="form-control mb-2 reply-textarea" rows="2"></textarea>\n                        <div class="d-flex gap-2">\n                            <button class="btn btn-sm btn-primary submit-reply" data-comment-id="${c.id}">Reply</button>\n                            <button class="btn btn-sm btn-secondary cancel-reply" data-comment-id="${c.id}">Cancel</button>\n                        </div>\n                    </div>\n                    <div class="replies-container mt-3"></div>\n                </div>\n            </div>\n        </div>\n        `;
+    }
+
+    function buildReplyHtml(r){
+        // Permission check: show edit/delete buttons conditionally
+        // In public view: ONLY for public replies (user_id === null)
+        // In admin view: for owner OR public replies
+        let editDeleteButtons = '';
+        if (publicToken) {
+            // Public view: only for public replies (user_id === null)
+            if (r.user_id === null) {
+                editDeleteButtons = `<button class="btn btn-sm btn-link text-primary edit-reply" data-reply-id="${r.id}">Edit</button><button class="btn btn-sm btn-link text-danger delete-reply" data-reply-id="${r.id}">Delete</button>`;
+            }
+        } else {
+            // Admin view: show for owner OR public replies
+            editDeleteButtons = `<button class="btn btn-sm btn-link text-primary edit-reply" data-reply-id="${r.id}">Edit</button><button class="btn btn-sm btn-link text-danger delete-reply" data-reply-id="${r.id}">Delete</button>`;
+        }
+        
+        return `\n        <div class="reply-item mb-3" data-reply-id="${r.id}">\n            <div class="d-flex">\n                <div class="flex-shrink-0"><div class="avatar avatar-sm ${r.sender_type==='customer'?'avatar-primary':'avatar-success'}"><span class="avatar-initial rounded-circle">${(r.user_name||'U').charAt(0).toUpperCase()}</span></div></div>\n                <div class="flex-grow-1 ms-2">\n                    <div class="d-flex justify-content-between align-items-start mb-1">\n                        <div><span class="fw-semibold">${r.user_name}</span><small class="text-muted ms-2">just now</small></div>\n                        <div class="reply-actions">${editDeleteButtons}</div>\n                    </div>\n                    <p class="mb-1 reply-text">${escapeHtml(r.comment)}</p>\n                    <div class="edit-reply-form mt-2" id="edit-reply-form-${r.id}" style="display:none;">\n                        <textarea class="form-control mb-2 edit-reply-text" data-reply-id="${r.id}">${escapeHtml(r.comment)}</textarea>\n                        <div class="d-flex gap-2">\n                            <button class="btn btn-sm btn-primary save-edit-reply" data-reply-id="${r.id}">Save</button>\n                            <button class="btn btn-sm btn-secondary cancel-edit-reply" data-reply-id="${r.id}">Cancel</button>\n                        </div>\n                    </div>\n                </div>\n            </div>\n        </div>\n        `;
+    }
+
+    function escapeHtml(unsafe){ return String(unsafe).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
+})();
 </script>

@@ -1,3 +1,4 @@
+
 @extends('layouts.public')
 
 @section('content')
@@ -172,7 +173,13 @@
         @endif
 
         <!-- Threaded Comments Section (Always Visible) -->
-        @include('components.threaded-comments', ['comments' => $quotation->comments, 'quotationId' => $quotation->id, 'publicToken' => $quotation->public_token])
+    @include('components.threaded-comments', [
+        'comments' => $quotation->comments,
+        'quotationId' => $quotation->id,
+        'publicToken' => $quotation->public_token,
+        'commentEndpoint' => route('quotation.comment.submit', $quotation->public_token),
+        'commentsEndpoint' => route('quotation.public.comments', $quotation->public_token)
+    ])
 
             <!-- Revision History Button and Modal -->
             <div class="mt-3 mb-4 text-end">

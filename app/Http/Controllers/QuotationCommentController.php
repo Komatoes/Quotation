@@ -17,7 +17,7 @@ class QuotationCommentController extends Controller
     {
         $quotation = Quotation::findOrFail($id);
         $comments = QuotationComment::where('quotation_id', $quotation->id)
-            ->with('replies')
+            ->with(['replies.nestedReplies'])
             ->orderBy('created_at', 'asc')
             ->get();
         return response()->json($comments);
@@ -31,7 +31,7 @@ class QuotationCommentController extends Controller
         $quotation = Quotation::where('public_token', $publicToken)->firstOrFail();
 
         $comments = QuotationComment::where('quotation_id', $quotation->id)
-            ->with('replies')
+            ->with(['replies.nestedReplies'])
             ->orderBy('created_at', 'asc')
             ->get();
 
@@ -49,7 +49,7 @@ class QuotationCommentController extends Controller
 
         $quotation = Quotation::where('public_token', $publicToken)->firstOrFail();
 
-        QuotationComment::create([
+        $comment = QuotationComment::create([
             'quotation_id' => $quotation->id,
             'user_id'      => null,
             'user_name'    => $quotation->client->first_name . ' ' . $quotation->client->last_name,
@@ -57,7 +57,14 @@ class QuotationCommentController extends Controller
             'sender_type'  => 'customer',
         ]);
 
-        return response()->json(['success' => true]);
+        // Optionally eager load relationships if needed for UI
+        $comment = QuotationComment::with(['replies.nestedReplies'])->find($comment->id);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Comment added successfully',
+            'comment' => $comment
+        ]);
     }
 
     /**
@@ -97,16 +104,14 @@ class QuotationCommentController extends Controller
 
         $comment = QuotationComment::findOrFail($id);
 
-        // Check authorization
+        // Allow: public user (user_id null), or owner (admin/staff)
         if (Auth::check()) {
-            // Authenticated user - can only edit their own comment
-            if (Auth::id() !== $comment->user_id) {
-                return response()->json(['success' => false, 'message' => 'You can only edit your own comments'], 403);
+            if (Auth::id() !== $comment->user_id && $comment->user_id !== null) {
+                return response()->json(['success' => false, 'message' => 'You can only edit your own or public comments'], 403);
             }
         } else {
-            // Unauthenticated public customer - can only edit if comment has no user_id
             if ($comment->user_id !== null) {
-                return response()->json(['success' => false, 'message' => 'You can only edit your own comments'], 403);
+                return response()->json(['success' => false, 'message' => 'You can only edit your own public comments'], 403);
             }
         }
 
@@ -125,16 +130,14 @@ class QuotationCommentController extends Controller
     {
         $comment = QuotationComment::findOrFail($id);
 
-        // Check authorization
+        // Allow: public user (user_id null), or owner (admin/staff)
         if (Auth::check()) {
-            // Authenticated user - can only delete their own comment
-            if (Auth::id() !== $comment->user_id) {
-                return response()->json(['success' => false, 'message' => 'You can only delete your own comments'], 403);
+            if (Auth::id() !== $comment->user_id && $comment->user_id !== null) {
+                return response()->json(['success' => false, 'message' => 'You can only delete your own or public comments'], 403);
             }
         } else {
-            // Unauthenticated public customer - can only delete if comment has no user_id
             if ($comment->user_id !== null) {
-                return response()->json(['success' => false, 'message' => 'You can only delete your own comments'], 403);
+                return response()->json(['success' => false, 'message' => 'You can only delete your own public comments'], 403);
             }
         }
 
@@ -222,6 +225,176 @@ class QuotationCommentController extends Controller
                 'sender_type'          => 'customer',
             ]);
         }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Nested reply added successfully',
+            'reply'   => $nestedReply
+        ]);
+    }
+
+    /**
+     * Public customer updates their comment (by public token)
+     */
+    public function updatePublicComment(Request $request, $token, $id)
+    {
+        $request->validate([
+            'comment' => 'required|string|max:1000'
+        ]);
+
+        // Verify quotation exists with this token
+        $quotation = Quotation::where('public_token', $token)->firstOrFail();
+        
+        // Verify comment belongs to this quotation and is public (user_id = null)
+        $comment = QuotationComment::where('id', $id)
+            ->where('quotation_id', $quotation->id)
+            ->where('user_id', null)
+            ->firstOrFail();
+
+        $comment->update(['comment' => $request->comment]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Comment updated successfully'
+        ]);
+    }
+
+    /**
+     * Public customer deletes their comment (by public token)
+     */
+    public function destroyPublicComment($token, $id)
+    {
+        // Verify quotation exists with this token
+        $quotation = Quotation::where('public_token', $token)->firstOrFail();
+        
+        // Verify comment belongs to this quotation and is public (user_id = null)
+        $comment = QuotationComment::where('id', $id)
+            ->where('quotation_id', $quotation->id)
+            ->where('user_id', null)
+            ->firstOrFail();
+
+        $comment->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Comment deleted successfully'
+        ]);
+    }
+
+    /**
+     * Public customer updates their reply (by public token)
+     */
+    public function updatePublicReply(Request $request, $token, $id)
+    {
+        $request->validate([
+            'comment' => 'required|string|max:1000'
+        ]);
+
+        // Verify quotation exists with this token
+        $quotation = Quotation::where('public_token', $token)->firstOrFail();
+        
+        // Verify reply belongs to this quotation and is public (user_id = null)
+        $reply = QuotationCommentReply::where('id', $id)
+            ->where('user_id', null)
+            ->whereHas('parentComment', function($q) use ($quotation) {
+                $q->where('quotation_id', $quotation->id);
+            })
+            ->firstOrFail();
+
+        $reply->update(['comment' => $request->comment]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Reply updated successfully'
+        ]);
+    }
+
+    /**
+     * Public customer deletes their reply (by public token)
+     */
+    public function destroyPublicReply($token, $id)
+    {
+        // Verify quotation exists with this token
+        $quotation = Quotation::where('public_token', $token)->firstOrFail();
+        
+        // Verify reply belongs to this quotation and is public (user_id = null)
+        $reply = QuotationCommentReply::where('id', $id)
+            ->where('user_id', null)
+            ->whereHas('parentComment', function($q) use ($quotation) {
+                $q->where('quotation_id', $quotation->id);
+            })
+            ->firstOrFail();
+
+        $reply->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Reply deleted successfully'
+        ]);
+    }
+
+    /**
+     * Public customer submits a reply to a comment (by public token)
+     */
+    public function storePublicReply(Request $request, $token, $id)
+    {
+        $request->validate([
+            'comment' => 'required|string|max:1000'
+        ]);
+
+        // Verify quotation exists with this token
+        $quotation = Quotation::where('public_token', $token)->firstOrFail();
+        
+        // Verify comment belongs to this quotation
+        $parentComment = QuotationComment::where('id', $id)
+            ->where('quotation_id', $quotation->id)
+            ->firstOrFail();
+
+        // Create reply with user_id = null (public reply)
+        $reply = QuotationCommentReply::create([
+            'quotation_comment_id' => $parentComment->id,
+            'parent_reply_id'      => null,
+            'user_id'              => null,
+            'user_name'            => $quotation->client->first_name . ' ' . $quotation->client->last_name,
+            'comment'              => $request->comment,
+            'sender_type'          => 'customer',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Reply added successfully',
+            'reply'   => $reply
+        ]);
+    }
+
+    /**
+     * Public customer submits a nested reply (by public token)
+     */
+    public function storePublicNestedReply(Request $request, $token, $id)
+    {
+        $request->validate([
+            'comment' => 'required|string|max:1000'
+        ]);
+
+        // Verify quotation exists with this token
+        $quotation = Quotation::where('public_token', $token)->firstOrFail();
+        
+        // Verify reply belongs to this quotation
+        $parentReply = QuotationCommentReply::where('id', $id)
+            ->whereHas('parentComment', function($q) use ($quotation) {
+                $q->where('quotation_id', $quotation->id);
+            })
+            ->firstOrFail();
+
+        // Create nested reply with user_id = null (public reply)
+        $nestedReply = QuotationCommentReply::create([
+            'quotation_comment_id' => $parentReply->quotation_comment_id,
+            'parent_reply_id'      => $parentReply->id,
+            'user_id'              => null,
+            'user_name'            => $quotation->client->first_name . ' ' . $quotation->client->last_name,
+            'comment'              => $request->comment,
+            'sender_type'          => 'customer',
+        ]);
 
         return response()->json([
             'success' => true,

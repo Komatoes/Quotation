@@ -66,7 +66,6 @@
                 </div>
             </div>
 
-
             <!-- Materials Table (Admin only) -->
             @if (Auth::user()->can('view_materials'))
             <div class="card">
@@ -86,7 +85,7 @@
                                 <i class="fa-solid fa-clock-rotate-left me-1"></i> View Revisions
                             </button>
                         @endif
-                        @if (Auth::user()->can('create_revision'))
+                        @if (Auth::user()->can('create_revision') && !in_array(strtolower($quotation->status->status_name ?? ''), ['completed','rejected']))
                             <button type="button" class="btn btn-sm btn-outline-warning" id="createRevisionBtn" data-id="{{ $quotation->id }}" title="Create Revision">
                                 <i class="fa-solid fa-copy me-1"></i> Create Revision
                             </button>
@@ -135,18 +134,14 @@
                                     </td>
                                     <td class="line-total">
                                         @if (Auth::user()->can('view_prices'))
-                                            @if ($qStatus === 'draft' && empty($readonly))
-                                                ₱{{ number_format(($mat->pivot->unit_cost ?? $mat->unit_price) * $mat->pivot->quantity, 2) }}
-                                            @else
-                                                ₱{{ number_format($mat->pivot->unit_cost * $mat->pivot->quantity, 2) }}
-                                            @endif
+                                            ₱{{ number_format(($mat->pivot->unit_cost ?? $mat->unit_price) * $mat->pivot->quantity, 2) }}
                                         @else
                                             <span class="badge bg-secondary">Hidden</span>
                                         @endif
+                                    </td>
                                     <td class="text-center">
                                         @if (empty($readonly))
-                                            <a href="#" class="text-danger delete-material"
-                                                data-id="{{ $mat->pivot->id }}" data-quot="{{ $quotation->id }}">
+                                            <a href="#" class="text-danger delete-material" data-id="{{ $mat->pivot->id }}" data-quot="{{ $quotation->id }}">
                                                 <i class="fa-solid fa-trash"></i>
                                             </a>
                                         @endif
@@ -164,7 +159,7 @@
                                             value="{{ $quotation->labor_fee }}" step="0.01" data-field="labor_fee"
                                             onfocus="if(this.value == '0.00') this.value = ''">
                                     @else
-                                        <span>{{ number_format($quotation->labor_fee, 2) }}</span>
+                                        <span>₱{{ number_format($quotation->labor_fee, 2) }}</span>
                                     @endif
                                 </td>
                             </tr>
@@ -176,7 +171,7 @@
                                             value="{{ $quotation->delivery_fee }}" step="0.01" data-field="delivery_fee"
                                             onfocus="if(this.value == '0.00') this.value = ''">
                                     @else
-                                        <span>{{ number_format($quotation->delivery_fee, 2) }}</span>
+                                        <span>₱{{ number_format($quotation->delivery_fee, 2) }}</span>
                                     @endif
                                 </td>
                             </tr>
@@ -185,117 +180,40 @@
                                 <td colspan="3" class="text-end fw-bold">Grand Total:</td>
                                 <td colspan="2" class="fw-bold text-danger" id="grandTotal">
                                     @if (Auth::user()->can('view_prices'))
-                                        ₱{{ number_format($materials->sum(fn($m) => $m->pivot->unit_cost * $m->pivot->quantity) + $quotation->labor_fee + $quotation->delivery_fee, 2) }}
+                                        ₱{{ number_format($materials->sum(fn($m) => ($m->pivot->unit_cost ?? $m->unit_price) * $m->pivot->quantity) + $quotation->labor_fee + $quotation->delivery_fee, 2) }}
                                     @else
                                         <span class="badge bg-secondary">Hidden</span>
                                     @endif
-            <script>
-            // Editable price logic for draft quotations
-            document.addEventListener('DOMContentLoaded', function() {
-                document.querySelectorAll('.update-price').forEach(function(input) {
-                    input.addEventListener('change', async function() {
-                        const newPrice = parseFloat(this.value);
-                        const pivotId = this.dataset.pivot;
-                        const materialId = this.dataset.material;
-                        if (isNaN(newPrice) || newPrice < 0) {
-                            Swal.fire('Invalid Price', 'Please enter a valid price.', 'warning');
-                            return;
-                        }
-                        this.disabled = true;
-                        this.classList.add('is-loading');
-                        try {
-                            // Only update the quotation_material pivot. The controller will
-                            // also update the master material's unit_price. This enforces
-                            // a one-way sync: changes from quotation -> materials.
-                            const pivotRes = await fetch(`/quotation-materials/${pivotId}/update-unit-cost`, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                    'Accept': 'application/json'
-                                },
-                                body: JSON.stringify({ unit_cost: newPrice })
-                            });
-
-                            let pivotData;
-                            try {
-                                if (pivotRes.headers.get('content-type')?.includes('application/json')) {
-                                    pivotData = await pivotRes.json();
-                                } else {
-                                    throw new Error('Pivot response not JSON');
-                                }
-                            } catch (e) {
-                                console.error('Pivot price response error:', e);
-                                Swal.fire('Error', 'Pivot price response not JSON.', 'error');
-                                this.disabled = false;
-                                this.classList.remove('is-loading');
-                                return;
-                            }
-
-                            if (pivotRes.ok && pivotData.success) {
-                                // Update the line total for this row
-                                const row = this.closest('tr');
-                                const quantity = parseFloat(row.querySelector('.update-quantity').value || 0);
-                                const lineTotal = newPrice * (isNaN(quantity) ? 0 : quantity);
-                                row.querySelector('.line-total').textContent = `₱${lineTotal.toFixed(2)}`;
-
-                                // Update grand total
-                                if (pivotData.grand_total !== undefined) {
-                                    document.getElementById('grandTotal').textContent =
-                                        `₱${parseFloat(pivotData.grand_total).toFixed(2)}`;
-                                }
-
-                                Toast('Price updated!');
-                            } else {
-                                console.error('Pivot update failed:', {pivotRes, pivotData});
-                                Swal.fire('Error', 'Failed to update price.', 'error');
-                            }
-                        } catch (err) {
-                            console.error('Unexpected error:', err);
-                            Swal.fire('Error', 'Something went wrong (JS).', 'error');
-                        }
-                        this.disabled = false;
-                        this.classList.remove('is-loading');
-                    });
-                });
-            });
-            </script>
                                 </td>
                             </tr>
                         </tfoot>
                     </table>
                 </div>
             </div>
-            @else
-                <!-- Staff users see this message if they try to access draft quotations -->
-                <div class="card border-warning">
-                    <div class="card-body text-center">
-                        <p class="text-muted mb-0"><i class="fa-solid fa-lock me-2"></i>Materials and pricing information is restricted to administrators.</p>
-                    </div>
-                </div>
             @endif
 
-            @if (empty($readonly) && !in_array(strtolower($quotation->status->status_name ?? ''), ['completed','rejected']))
-                <!-- Primary Actions: Approve, Save Draft, Reject, Export -->
-                <div class="row mt-3">
-                    <div class="col-12 d-flex flex-wrap gap-2 justify-content-end">
-                        <button type="button" class="btn btn-success" id="approveBtn" data-quot="{{ $quotation->id }}"
-                            @if (!$quotation->customer_approved) disabled @endif>
-                            <i class="fa-solid fa-check-circle me-1"></i> Approve
-                        </button>
-                        <button type="button" class="btn btn-primary" id="saveDraftBtn" data-quot="{{ $quotation->id }}">
-                            <i class="fa-solid fa-floppy-disk me-1"></i> Save Draft
-                        </button>
-                        <button type="button" class="btn btn-danger" id="rejectBtn" data-quot="{{ $quotation->id }}">
-                            <i class="fa-solid fa-ban me-1"></i> Reject
-                        </button>
-                        <a href="{{ route('quotations.export', ['id' => $quotation->id]) }}"
-                            class="btn btn-info d-flex align-items-center">
-                            <i class="fa-solid fa-file-word me-1"></i> Export to DOC
-                        </a>
-                    </div>
+
+        @if (empty($readonly) && !in_array(strtolower($quotation->status->status_name ?? ''), ['completed','rejected']))
+            <!-- Primary Actions: Approve, Save Draft, Reject, Export -->
+            <div class="row mt-3">
+                <div class="col-12 d-flex flex-wrap gap-2 justify-content-end">
+                    <button type="button" class="btn btn-success" id="approveBtn" data-quot="{{ $quotation->id }}"
+                        @if (!$quotation->customer_approved) disabled @endif>
+                        <i class="fa-solid fa-check-circle me-1"></i> Approve
+                    </button>
+                    <button type="button" class="btn btn-primary" id="saveDraftBtn" data-quot="{{ $quotation->id }}">
+                        <i class="fa-solid fa-floppy-disk me-1"></i> Save Draft
+                    </button>
+                    <button type="button" class="btn btn-danger" id="rejectBtn" data-quot="{{ $quotation->id }}">
+                        <i class="fa-solid fa-ban me-1"></i> Reject
+                    </button>
+                    <a href="{{ route('quotations.export', ['id' => $quotation->id]) }}"
+                        class="btn btn-info d-flex align-items-center">
+                        <i class="fa-solid fa-file-word me-1"></i> Export to DOC
+                    </a>
                 </div>
-            @endif
+            </div>
+        @endif
 
 
 
@@ -1066,72 +984,7 @@
     });
 </script>
 
-<!-- Comments refresh functionality -->
-<script>
-    function loadComments() {
-        const quotationId = '{{ $quotation->id }}';
-        const commentsDiv = document.getElementById('comments-list');
-
-        fetch(`/quotation/${quotationId}/comments`)
-            .then(response => response.json())
-            .then(comments => {
-                if (comments.length === 0) {
-                    commentsDiv.innerHTML = '<p class="text-muted">No comments yet.</p>';
-                    return;
-                }
-
-                commentsDiv.innerHTML = comments.map(comment => `
-                    <div class="d-flex mb-4">
-                        <div class="flex-shrink-0">
-                            <div class="avatar ${comment.sender_type === 'customer' ? 'avatar-primary' : 'avatar-success'}">
-                                <span class="avatar-initial rounded-circle">
-                                    ${comment.sender_type === 'customer' ? 'C' : 'A'}
-                                </span>
-                            </div>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <div class="mb-1">
-                                <span class="fw-semibold">
-                                    ${comment.sender_type === 'customer' ? 'Customer' : 'Admin'}
-                                </span>
-                                <small class="text-muted"> • ${timeAgo(new Date(comment.created_at))}</small>
-                            </div>
-                            <p class="mb-1">${comment.comment}</p>
-                        </div>
-                    </div>
-                `).join('');
-            })
-            .catch(error => {
-                console.error('Error loading comments:', error);
-            });
-    }
-
-    // Helper function to format dates
-    function timeAgo(date) {
-        const seconds = Math.floor((new Date() - date) / 1000);
-
-        let interval = Math.floor(seconds / 31536000);
-        if (interval >= 1) return interval + ' year' + (interval === 1 ? '' : 's') + ' ago';
-
-        interval = Math.floor(seconds / 2592000);
-        if (interval >= 1) return interval + ' month' + (interval === 1 ? '' : 's') + ' ago';
-
-        interval = Math.floor(seconds / 86400);
-        if (interval >= 1) return interval + ' day' + (interval === 1 ? '' : 's') + ' ago';
-
-        interval = Math.floor(seconds / 3600);
-        if (interval >= 1) return interval + ' hour' + (interval === 1 ? '' : 's') + ' ago';
-
-        interval = Math.floor(seconds / 60);
-        if (interval >= 1) return interval + ' minute' + (interval === 1 ? '' : 's') + ' ago';
-
-        return 'just now';
-    }
-
-    // Start periodic refresh
-    loadComments(); // Load immediately
-    setInterval(loadComments, 10000); // Then every 10 seconds
-</script>
+<!-- Comments handled by threaded-comments component with built-in JS handlers -->
 
 <script>
     // Edit Client: open modal, submit update via fetch, and update UI

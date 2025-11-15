@@ -41,6 +41,14 @@ Route::prefix('quotation/public')->group(function () {
     // 💬 Comments (public)
     Route::post('/{token}/comment', [QuotationCommentController::class, 'storePublicComment'])->name('quotation.comment.submit');
     Route::get('/{token}/comments', [QuotationCommentController::class, 'getComments'])->name('quotation.public.comments');
+    Route::put('/{token}/comments/{id}', [QuotationCommentController::class, 'updatePublicComment'])->name('quotation.public.comment.update');
+    Route::delete('/{token}/comments/{id}', [QuotationCommentController::class, 'destroyPublicComment'])->name('quotation.public.comment.destroy');
+    
+    // 💬 Replies (public) - NO AUTH, uses token for context
+    Route::post('/{token}/comments/{id}/reply', [QuotationCommentController::class, 'storePublicReply'])->name('quotation.public.reply');
+    Route::post('/{token}/replies/{id}/nested-reply', [QuotationCommentController::class, 'storePublicNestedReply'])->name('quotation.public.nested-reply');
+    Route::put('/{token}/replies/{id}', [QuotationCommentController::class, 'updatePublicReply'])->name('quotation.public.reply.update');
+    Route::delete('/{token}/replies/{id}', [QuotationCommentController::class, 'destroyPublicReply'])->name('quotation.public.reply.destroy');
 
     // ✅ Customer Approves Quotation
     Route::post('/{token}/customer-approve', [QuotationCommentController::class, 'customerApprove'])

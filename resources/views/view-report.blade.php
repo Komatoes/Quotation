@@ -223,10 +223,66 @@
         </div>
     </div>
 
+
     <!-- Threaded Comments Section -->
     @include('components.threaded-comments', ['comments' => $quotation->comments, 'quotationId' => $quotation->id])
 
+<!-- Comments refresh and rebind functionality -->
 <script>
+    function timeAgo(date) {
+        const seconds = Math.floor((new Date() - date) / 1000);
+        let interval = Math.floor(seconds / 31536000);
+        if (interval >= 1) return interval + ' year' + (interval === 1 ? '' : 's') + ' ago';
+        interval = Math.floor(seconds / 2592000);
+        if (interval >= 1) return interval + ' month' + (interval === 1 ? '' : 's') + ' ago';
+        interval = Math.floor(seconds / 86400);
+        if (interval >= 1) return interval + ' day' + (interval === 1 ? '' : 's') + ' ago';
+        interval = Math.floor(seconds / 3600);
+        if (interval >= 1) return interval + ' hour' + (interval === 1 ? '' : 's') + ' ago';
+        interval = Math.floor(seconds / 60);
+        if (interval >= 1) return interval + ' minute' + (interval === 1 ? '' : 's') + ' ago';
+        return 'just now';
+    }
+
+    function reloadCommentsSection() {
+        const quotationId = '{{ $quotation->id }}';
+        fetch(`/quotation/${quotationId}/comments-html`)
+            .then(response => response.text())
+            .then(html => {
+                const commentsDiv = document.getElementById('comments-list');
+                if (commentsDiv) {
+                    commentsDiv.innerHTML = html;
+                }
+                rebindCommentActionHandlers();
+            })
+            .catch(error => {
+                console.error('Error reloading comments:', error);
+            });
+    }
+
+    function rebindCommentActionHandlers() {
+        document.querySelectorAll('.comment-edit-btn').forEach(btn => {
+            btn.onclick = function() {
+                reloadCommentsSection();
+            };
+        });
+        document.querySelectorAll('.comment-delete-btn').forEach(btn => {
+            btn.onclick = function() {
+                reloadCommentsSection();
+            };
+        });
+        document.querySelectorAll('.comment-reply-btn').forEach(btn => {
+            btn.onclick = function() {
+                reloadCommentsSection();
+            };
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        reloadCommentsSection();
+        setInterval(reloadCommentsSection, 10000);
+    });
+</script>
 @endsection
 
 
