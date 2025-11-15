@@ -124,7 +124,7 @@
                                             @if ($qStatus === 'draft' && empty($readonly))
                                                 <input type="number" class="form-control update-price"
                                                     data-pivot="{{ $mat->pivot->id }}" data-material="{{ $mat->id }}"
-                                                    value="{{ number_format($mat->unit_price, 2, '.', '') }}" min="0" step="0.01"
+                                                    value="{{ number_format($mat->pivot->unit_cost ?? $mat->unit_price, 2, '.', '') }}" min="0" step="0.01"
                                                     style="width: 100px; display:inline-block;">
                                             @else
                                                 ₱{{ number_format($mat->pivot->unit_cost, 2) }}
@@ -136,7 +136,7 @@
                                     <td class="line-total">
                                         @if (Auth::user()->can('view_prices'))
                                             @if ($qStatus === 'draft' && empty($readonly))
-                                                ₱{{ number_format($mat->unit_price * $mat->pivot->quantity, 2) }}
+                                                ₱{{ number_format(($mat->pivot->unit_cost ?? $mat->unit_price) * $mat->pivot->quantity, 2) }}
                                             @else
                                                 ₱{{ number_format($mat->pivot->unit_cost * $mat->pivot->quantity, 2) }}
                                             @endif
@@ -204,17 +204,9 @@
                         this.disabled = true;
                         this.classList.add('is-loading');
                         try {
-                            // Update material price
-                            const matRes = await fetch(`/materials/${materialId}/update-price`, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                    'Accept': 'application/json'
-                                },
-                                body: JSON.stringify({ price: newPrice })
-                            });
-                            // Update quotation_materials pivot price
+                            // Only update the quotation_material pivot. The controller will
+                            // also update the master material's unit_price. This enforces
+                            // a one-way sync: changes from quotation -> materials.
                             const pivotRes = await fetch(`/quotation-materials/${pivotId}/update-unit-cost`, {
                                 method: 'POST',
                                 headers: {
@@ -225,20 +217,7 @@
                                 body: JSON.stringify({ unit_cost: newPrice })
                             });
 
-                            let matData, pivotData;
-                            try {
-                                if (matRes.headers.get('content-type')?.includes('application/json')) {
-                                    matData = await matRes.json();
-                                } else {
-                                    throw new Error('Material response not JSON');
-                                }
-                            } catch (e) {
-                                console.error('Material price response error:', e);
-                                Swal.fire('Error', 'Material price response not JSON.', 'error');
-                                this.disabled = false;
-                                this.classList.remove('is-loading');
-                                return;
-                            }
+                            let pivotData;
                             try {
                                 if (pivotRes.headers.get('content-type')?.includes('application/json')) {
                                     pivotData = await pivotRes.json();
@@ -253,22 +232,22 @@
                                 return;
                             }
 
-                            if (matRes.ok && matData.success && pivotRes.ok && pivotData.success) {
+                            if (pivotRes.ok && pivotData.success) {
                                 // Update the line total for this row
                                 const row = this.closest('tr');
-                                const quantity = parseFloat(row.querySelector('.update-quantity').value);
-                                const lineTotal = newPrice * quantity;
+                                const quantity = parseFloat(row.querySelector('.update-quantity').value || 0);
+                                const lineTotal = newPrice * (isNaN(quantity) ? 0 : quantity);
                                 row.querySelector('.line-total').textContent = `₱${lineTotal.toFixed(2)}`;
-                                
+
                                 // Update grand total
                                 if (pivotData.grand_total !== undefined) {
                                     document.getElementById('grandTotal').textContent =
                                         `₱${parseFloat(pivotData.grand_total).toFixed(2)}`;
                                 }
-                                
+
                                 Toast('Price updated!');
                             } else {
-                                console.error('Update failed:', {matRes, matData, pivotRes, pivotData});
+                                console.error('Pivot update failed:', {pivotRes, pivotData});
                                 Swal.fire('Error', 'Failed to update price.', 'error');
                             }
                         } catch (err) {
@@ -887,17 +866,7 @@
                                 this.disabled = true;
                                 this.classList.add('is-loading');
                                 try {
-                                    // Update material price
-                                    const matRes = await fetch(`/materials/${materialId}/update-price`, {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                                            'Accept': 'application/json'
-                                        },
-                                        body: JSON.stringify({ price: newPrice })
-                                    });
-                                    // Update quotation_materials pivot price
+                                    // Only update the pivot. The controller will update the master material.
                                     const pivotRes = await fetch(`/quotation-materials/${pivotId}/update-unit-cost`, {
                                         method: 'POST',
                                         headers: {
@@ -908,20 +877,7 @@
                                         body: JSON.stringify({ unit_cost: newPrice })
                                     });
 
-                                    let matData, pivotData;
-                                    try {
-                                        if (matRes.headers.get('content-type')?.includes('application/json')) {
-                                            matData = await matRes.json();
-                                        } else {
-                                            throw new Error('Material response not JSON');
-                                        }
-                                    } catch (e) {
-                                        console.error('Material price response error:', e);
-                                        Swal.fire('Error', 'Material price response not JSON.', 'error');
-                                        this.disabled = false;
-                                        this.classList.remove('is-loading');
-                                        return;
-                                    }
+                                    let pivotData;
                                     try {
                                         if (pivotRes.headers.get('content-type')?.includes('application/json')) {
                                             pivotData = await pivotRes.json();
@@ -936,11 +892,11 @@
                                         return;
                                     }
 
-                                    if (matRes.ok && matData.success && pivotRes.ok && pivotData.success) {
+                                    if (pivotRes.ok && pivotData.success) {
                                         // Update the line total for this row
                                         const row = this.closest('tr');
-                                        const quantity = parseFloat(row.querySelector('.update-quantity').value);
-                                        const lineTotal = newPrice * quantity;
+                                        const quantity = parseFloat(row.querySelector('.update-quantity').value || 0);
+                                        const lineTotal = newPrice * (isNaN(quantity) ? 0 : quantity);
                                         row.querySelector('.line-total').textContent = `₱${lineTotal.toFixed(2)}`;
                                         
                                         // Update grand total
@@ -951,7 +907,7 @@
                                         
                                         Toast('Price updated!');
                                     } else {
-                                        console.error('Update failed:', {matRes, matData, pivotRes, pivotData});
+                                        console.error('Pivot update failed:', {pivotRes, pivotData});
                                         Swal.fire('Error', 'Failed to update price.', 'error');
                                     }
                                 } catch (err) {
