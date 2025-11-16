@@ -4,28 +4,16 @@
         <h5 class="card-title mb-0">Comments & Feedback</h5>
     </div>
     <div class="card-body">
-        {{-- Use Bootstrap list-group for comments --}}
-        <ul id="comments-list" class="list-group list-group-flush">
-            @forelse($comments as $comment)
-                <li class="list-group-item" data-comment-id="{{ $comment->id }}">
-                    <div class="d-flex">
-                        <div class="flex-shrink-0 me-3">
-                            <div class="avatar {{ $comment->sender_type === 'customer' ? 'avatar-primary' : 'avatar-success' }}">
-                                <span class="avatar-initial rounded-circle">{{ isset($comment->user_name) ? strtoupper(substr($comment->user_name,0,1)) : 'U' }}</span>
-                            </div>
-                        </div>
-                        <div class="flex-grow-1">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <span class="fw-semibold">{{ $comment->user_name ?? ($comment->sender_type === 'customer' ? 'Customer' : 'Admin') }}</span>
-                                    <small class="text-muted ms-2">{{ $comment->created_at->diffForHumans() }}</small>
-                                </div>
+        <ul id="comments-list" class="list-unstyled">
+            @forelse($comments ?? collect() as $comment)
+                <li class="mb-3" data-comment-id="{{ $comment->id }}">
+                    <div class="d-flex mb-2">
+                        <div class="flex-shrink-0"><div class="avatar {{ $comment->sender_type === 'customer' ? 'avatar-primary' : 'avatar-success' }}"><span class="avatar-initial rounded-circle">{{ isset($comment->user_name) ? strtoupper(substr($comment->user_name,0,1)) : 'U' }}</span></div></div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <div><span class="fw-semibold">{{ $comment->user_name ?? ($comment->sender_type === 'customer' ? 'Customer' : 'Admin') }}</span><small class="text-muted ms-2">{{ $comment->created_at->diffForHumans() }}</small></div>
                                 <div class="comment-actions">
-                                    {{-- Permission checks: --}}
-                                    {{-- PUBLIC view: show edit/delete ONLY for public comments (user_id === null) --}}
-                                    {{-- ADMIN view: show edit/delete if user owns it OR comment is public (user_id === null) --}}
                                     @if(isset($publicToken))
-                                        {{-- Public view: ONLY public comments --}}
                                         @if($comment->user_id === null)
                                             <button class="btn btn-sm btn-link text-primary edit-comment" data-comment-id="{{ $comment->id }}">Edit</button>
                                             <button class="btn btn-sm btn-link text-danger delete-comment" data-comment-id="{{ $comment->id }}">Delete</button>
@@ -357,7 +345,7 @@
             editDeleteButtons = `<button class="btn btn-sm btn-link text-primary edit-comment" data-comment-id="${c.id}">Edit</button>\n                            <button class="btn btn-sm btn-link text-danger delete-comment" data-comment-id="${c.id}">Delete</button>`;
         }
         
-        return `\n        <div class="comment-thread mb-4 border-start border-2 border-primary ps-3" data-comment-id="${c.id}">\n            <div class="d-flex mb-2">\n                <div class="flex-shrink-0"><div class="avatar ${c.sender_type==='customer'?'avatar-primary':'avatar-success'}"><span class="avatar-initial rounded-circle">${(c.user_name||'U').charAt(0).toUpperCase()}</span></div></div>\n                <div class="flex-grow-1 ms-3">\n                    <div class="d-flex justify-content-between align-items-start mb-1">\n                        <div><span class="fw-semibold">${c.user_name}</span><small class="text-muted ms-2">just now</small></div>\n                        <div class="comment-actions">\n                            ${editDeleteButtons}\n                            <button class="btn btn-sm btn-link text-secondary reply-toggle" data-comment-id="${c.id}">Reply</button>\n                        </div>\n                    </div>\n                    <p class="mb-2 comment-text">${escapeHtml(c.comment)}</p>\n                    <div class="reply-form-container mt-2" id="reply-form-${c.id}" style="display:none;">\n                        <textarea class="form-control mb-2 reply-textarea" rows="2"></textarea>\n                        <div class="d-flex gap-2">\n                            <button class="btn btn-sm btn-primary submit-reply" data-comment-id="${c.id}">Reply</button>\n                            <button class="btn btn-sm btn-secondary cancel-reply" data-comment-id="${c.id}">Cancel</button>\n                        </div>\n                    </div>\n                    <div class="replies-container mt-3"></div>\n                </div>\n            </div>\n        </div>\n        `;
+        return `\n        <div class="comment-thread mb-4 border-start border-2 border-primary ps-3" data-comment-id="${c.id}">\n            <div class="d-flex mb-2">\n                <div class="flex-shrink-0"><div class="avatar ${c.sender_type==='customer'?'avatar-primary':'avatar-success'}"><span class="avatar-initial rounded-circle">${(c.user_name||'U').charAt(0).toUpperCase()}</span></div></div>\n                <div class="flex-grow-1 ms-3">\n                    <div class="d-flex justify-content-between align-items-start mb-1">\n                        <div><span class="fw-semibold">${c.user_name}</span><small class="text-muted ms-2">just now</small></div>\n                        <div class="comment-actions">\n                            ${editDeleteButtons}\n                            <button class="btn btn-sm btn-link text-secondary reply-toggle" data-comment-id="${c.id}">Reply</button>\n                        </div>\n                    </div>\n                    <p class="mb-2 comment-text">${escapeHtml(c.comment)}</p>\n\n                    <!-- Inline edit form -->\n                    <div class="edit-comment-form mt-2" id="edit-comment-form-${c.id}" style="display:none;">\n                        <textarea class="form-control mb-2 edit-comment-text" data-comment-id="${c.id}">${escapeHtml(c.comment)}</textarea>\n                        <div class="d-flex gap-2">\n                            <button class="btn btn-sm btn-primary save-edit-comment" data-comment-id="${c.id}">Save</button>\n                            <button class="btn btn-sm btn-secondary cancel-edit-comment" data-comment-id="${c.id}">Cancel</button>\n                        </div>\n                    </div>\n\n                    <div class="reply-form-container mt-2" id="reply-form-${c.id}" style="display:none;">\n                        <textarea class="form-control mb-2 reply-textarea" rows="2"></textarea>\n                        <div class="d-flex gap-2">\n                            <button class="btn btn-sm btn-primary submit-reply" data-comment-id="${c.id}">Reply</button>\n                            <button class="btn btn-sm btn-secondary cancel-reply" data-comment-id="${c.id}">Cancel</button>\n                        </div>\n                    </div>\n                    <div class="replies-container mt-3"></div>\n                </div>\n            </div>\n        </div>\n        `;
     }
 
     function buildReplyHtml(r){

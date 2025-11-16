@@ -416,14 +416,14 @@ class QuotationCommentController extends Controller
 
         // Check authorization
         if (Auth::check()) {
-            // Authenticated user - can only edit their own reply
-            if (Auth::id() !== $reply->user_id) {
-                return response()->json(['success' => false, 'message' => 'You can only edit your own replies'], 403);
+            // Authenticated user (admin/staff) - can edit their own reply OR public replies
+            if (Auth::id() !== $reply->user_id && $reply->user_id !== null) {
+                return response()->json(['success' => false, 'message' => 'You can only edit your own or public replies'], 403);
             }
         } else {
             // Unauthenticated public customer - can only edit if reply has no user_id
             if ($reply->user_id !== null) {
-                return response()->json(['success' => false, 'message' => 'You can only edit your own replies'], 403);
+                return response()->json(['success' => false, 'message' => 'You can only edit your own public replies'], 403);
             }
         }
 
@@ -444,14 +444,14 @@ class QuotationCommentController extends Controller
 
         // Check authorization
         if (Auth::check()) {
-            // Authenticated user - can only delete their own reply
-            if (Auth::id() !== $reply->user_id) {
-                return response()->json(['success' => false, 'message' => 'You can only delete your own replies'], 403);
+            // Authenticated user (admin/staff) - can delete their own reply OR public replies
+            if (Auth::id() !== $reply->user_id && $reply->user_id !== null) {
+                return response()->json(['success' => false, 'message' => 'You can only delete your own or public replies'], 403);
             }
         } else {
             // Unauthenticated public customer - can only delete if reply has no user_id
             if ($reply->user_id !== null) {
-                return response()->json(['success' => false, 'message' => 'You can only delete your own replies'], 403);
+                return response()->json(['success' => false, 'message' => 'You can only delete your own public replies'], 403);
             }
         }
 

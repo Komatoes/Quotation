@@ -227,62 +227,6 @@
     <!-- Threaded Comments Section -->
     @include('components.threaded-comments', ['comments' => $quotation->comments, 'quotationId' => $quotation->id])
 
-<!-- Comments refresh and rebind functionality -->
-<script>
-    function timeAgo(date) {
-        const seconds = Math.floor((new Date() - date) / 1000);
-        let interval = Math.floor(seconds / 31536000);
-        if (interval >= 1) return interval + ' year' + (interval === 1 ? '' : 's') + ' ago';
-        interval = Math.floor(seconds / 2592000);
-        if (interval >= 1) return interval + ' month' + (interval === 1 ? '' : 's') + ' ago';
-        interval = Math.floor(seconds / 86400);
-        if (interval >= 1) return interval + ' day' + (interval === 1 ? '' : 's') + ' ago';
-        interval = Math.floor(seconds / 3600);
-        if (interval >= 1) return interval + ' hour' + (interval === 1 ? '' : 's') + ' ago';
-        interval = Math.floor(seconds / 60);
-        if (interval >= 1) return interval + ' minute' + (interval === 1 ? '' : 's') + ' ago';
-        return 'just now';
-    }
-
-    function reloadCommentsSection() {
-        const quotationId = '{{ $quotation->id }}';
-        fetch(`/quotation/${quotationId}/comments-html`)
-            .then(response => response.text())
-            .then(html => {
-                const commentsDiv = document.getElementById('comments-list');
-                if (commentsDiv) {
-                    commentsDiv.innerHTML = html;
-                }
-                rebindCommentActionHandlers();
-            })
-            .catch(error => {
-                console.error('Error reloading comments:', error);
-            });
-    }
-
-    function rebindCommentActionHandlers() {
-        document.querySelectorAll('.comment-edit-btn').forEach(btn => {
-            btn.onclick = function() {
-                reloadCommentsSection();
-            };
-        });
-        document.querySelectorAll('.comment-delete-btn').forEach(btn => {
-            btn.onclick = function() {
-                reloadCommentsSection();
-            };
-        });
-        document.querySelectorAll('.comment-reply-btn').forEach(btn => {
-            btn.onclick = function() {
-                reloadCommentsSection();
-            };
-        });
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        reloadCommentsSection();
-        setInterval(reloadCommentsSection, 10000);
-    });
-</script>
 @endsection
 
 
@@ -610,6 +554,19 @@
                 contact_no: document.getElementById('clientContactInput').value,
                 address: document.getElementById('clientAddressInput').value
             };
+
+            // Client-side sanitization & validation
+            const sanitize = (s, max = 1000) => String(s || '').replace(/[\x00-\x1F\x7F<>]/g, '').slice(0, max).trim();
+            const sanitizeContact = (s) => String(s || '').replace(/[^0-9+\-()\s]/g, '').slice(0, 40).trim();
+
+            payload.first_name = sanitize(payload.first_name, 100);
+            payload.last_name = sanitize(payload.last_name, 100);
+            payload.address = sanitize(payload.address, 1000);
+            payload.contact_no = sanitizeContact(payload.contact_no);
+
+            if (!payload.first_name) { Swal.fire('Validation', 'First name is required.', 'warning'); saveBtn.disabled = false; saveBtn.innerHTML = 'Save changes'; return; }
+            if (!payload.last_name) { Swal.fire('Validation', 'Last name is required.', 'warning'); saveBtn.disabled = false; saveBtn.innerHTML = 'Save changes'; return; }
+            if (!payload.address) { Swal.fire('Validation', 'Address is required.', 'warning'); saveBtn.disabled = false; saveBtn.innerHTML = 'Save changes'; return; }
 
             try {
                 const res = await fetch(`/clients/{{ $quotation->client->id }}`, {

@@ -1,6 +1,6 @@
 <!-- 🧱 New Material Modal -->
 <div class="modal fade" id="newMaterialModal" tabindex="-1" aria-labelledby="newMaterialModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <form id="newMaterialForm" class="add-new-record pt-0 row g-2" method="POST" action="{{ url('/materials/store') }}">
                 @csrf
@@ -92,45 +92,44 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            // Step 3️⃣: Hide modal
-            const modalInstance = bootstrap.Modal.getInstance(newMaterialModalEl);
-            if (modalInstance) modalInstance.hide();
-
-            // Step 4️⃣: Success notification
-            Swal.fire({
-                title: "Success!",
-                text: "Material added and attached to quotation.",
-                icon: "success",
-                timer: 1500,
-                showConfirmButton: false
-            });
-
-            // Step 5️⃣: Dynamically reload materials in the quotation table
-            if (window.quotationMaterialHandler && typeof window.quotationMaterialHandler.loadMaterials === 'function') {
-                await window.quotationMaterialHandler.loadMaterials();
-            }
-
-            // Step 6️⃣: Update grand total dynamically
-            if (resp.grand_total !== undefined) {
-                const grandTotalEl = document.getElementById("grandTotal");
-                if (grandTotalEl) {
-                    grandTotalEl.textContent = "₱" + parseFloat(resp.grand_total).toFixed(2);
+            // Step 3️⃣: Close modal immediately; centralized handler will reconcile backdrops
+            try {
+                const modalInstance = bootstrap.Modal.getInstance(newMaterialModalEl);
+                if (modalInstance) {
+                    modalInstance.hide();
                 }
+            } catch (err) {
+                console.error("Error hiding modal:", err);
             }
 
-            // Step 7️⃣: Reset the form
-            newMaterialForm.reset();
+            // Step 4️⃣: Success notification (delayed to not conflict with modal hide animation)
+            setTimeout(() => {
+                Swal.fire({
+                    title: "Success!",
+                    text: "Material added and attached to quotation.",
+                    icon: "success",
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+
+                // Step 5️⃣: Dynamically reload materials in the quotation table
+                if (window.quotationMaterialHandler && typeof window.quotationMaterialHandler.loadMaterials === 'function') {
+                    window.quotationMaterialHandler.loadMaterials();
+                }
+
+                // Step 6️⃣: Update grand total dynamically
+                if (resp.grand_total !== undefined) {
+                    const grandTotalEl = document.getElementById("grandTotal");
+                    if (grandTotalEl) {
+                        grandTotalEl.textContent = "₱" + parseFloat(resp.grand_total).toFixed(2);
+                    }
+                }
+            }, 650);
 
         } catch (err) {
             console.error("Error:", err);
             Swal.fire({ title: "Error", text: "Something went wrong!", icon: "error" });
         }
-    });
-
-    // ✅ Clean up modal backdrop properly
-    newMaterialModalEl.addEventListener("hidden.bs.modal", function () {
-        document.querySelectorAll(".modal-backdrop").forEach(el => el.remove());
-        document.body.classList.remove("modal-open");
     });
 });
 </script>
