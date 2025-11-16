@@ -65,8 +65,8 @@
     style="position: absolute; bottom: 0; left: 0; width: 100%; 
              border-top: 1px solid rgba(255,255,255,0.15); background: transparent; padding: 15px 0; margin: 0;">
     @csrf
-    <button type="button" id="logoutBtn" class="menu-link d-flex align-items-center justify-content-center"
-        style="color: #ffffff; width: 100%; border: none; background: none; padding: 10px 15px; text-align: left; font-size: 1.08rem;">
+    <button type="button" id="logoutBtn" class="logout-link d-flex align-items-center justify-content-center"
+        style="color: #ffffff; width: 100%; border: none; background: none; padding: 10px 15px; text-align: left; font-size: 1.08rem; position: relative; z-index: 2; pointer-events: auto;">
         <i class="fa-solid fa-right-from-bracket menu-icon"></i>
         <div>Sign Out</div>
     </button>
@@ -74,13 +74,30 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // 🔹 Handle logout
-        const logoutBtn = document.getElementById('logoutBtn');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', function() {
-                const mobileSidebar = document.getElementById('mobileSidebar');
+        // 🔹 Handle logout (simplified flow)
+        // Attach handlers to all logout buttons (desktop + mobile instances).
+        (function() {
+            const buttons = Array.from(document.querySelectorAll('button#logoutBtn'));
+            if (!buttons.length) {
+                console.error('No logout buttons found');
+                return;
+            }
 
-                function showLogoutSwal() {
+            buttons.forEach(btn => {
+                try { btn.style.zIndex = 2000; } catch (e) {}
+
+                let handled = false;
+                const getLocalForm = () => {
+                    // prefer form ancestor (mobile copy), fall back to global
+                    return btn.closest('form') || document.getElementById('logoutForm');
+                };
+
+                const handler = (ev) => {
+                    if (handled) return;
+                    handled = true;
+                    ev && ev.preventDefault && ev.preventDefault();
+                    console.log('[logout] invoked on element', btn, 'via', ev && ev.type);
+
                     Swal.fire({
                         title: 'Confirm Sign Out',
                         text: 'Are you sure you want to sign out?',
@@ -88,38 +105,61 @@
                         showCancelButton: true,
                         confirmButtonColor: '#42955c',
                         cancelButtonColor: '#d33',
-                        confirmButtonText: 'Yes, sign out',
-                        cancelButtonText: 'Cancel',
-                        backdrop: true,
-                        allowOutsideClick: false,
-                        didOpen: () => {
-                            document.querySelectorAll(
-                                    '.swal2-container, .swal2-backdrop-show')
-                                .forEach(el => {
-                                    el.style.zIndex = '99999';
-                                    el.style.position = 'fixed';
-                                });
-                        }
+                        confirmButtonText: 'Yes, sign out'
                     }).then(result => {
                         if (result.isConfirmed) {
-                            document.getElementById('logoutForm').submit();
+                            const form = getLocalForm();
+                            if (form) form.submit();
                         }
+                        setTimeout(() => { handled = false; }, 500);
                     });
-                }
+                };
 
-                if (mobileSidebar && mobileSidebar.classList.contains('show')) {
-                    const sidebarInstance = bootstrap.Offcanvas.getOrCreateInstance(mobileSidebar);
-                    const handler = function() {
-                        showLogoutSwal();
-                        mobileSidebar.removeEventListener('hidden.bs.offcanvas', handler);
-                    };
-                    mobileSidebar.addEventListener('hidden.bs.offcanvas', handler);
-                    sidebarInstance.hide();
-                } else {
-                    showLogoutSwal();
-                }
+                btn.addEventListener('click', handler);
+                btn.addEventListener('touchend', handler, {passive:false});
             });
-        }
+        })();
+
+        // --- TEMP DEBUG: log pointer/touch targets when mobile sidebar is open ---
+        (function() {
+            const mobileSidebar = document.getElementById('mobileSidebar');
+            if (!mobileSidebar) return;
+
+            function describeEl(el) {
+                if (!el) return null;
+                return {
+                    tag: el.tagName,
+                    id: el.id || null,
+                    classes: el.className || null,
+                    pointerEvents: window.getComputedStyle(el).pointerEvents,
+                    zIndex: window.getComputedStyle(el).zIndex
+                };
+            }
+
+            function logAt(x, y) {
+                const top = document.elementFromPoint(x, y);
+                const logoutBtns = Array.from(document.querySelectorAll('button#logoutBtn'));
+                console.log('--- debug pointer at', x, y, ' ---');
+                console.log('elementFromPoint:', describeEl(top), top);
+                logoutBtns.forEach((b, i) => {
+                    console.log('logoutBtn['+i+'] rect:', b.getBoundingClientRect());
+                    console.log('logoutBtn['+i+'] computed:', describeEl(b));
+                    console.log('is logoutBtn['+i+'] or descendant?', (top === b || b.contains(top)));
+                });
+            }
+
+            function onPointer(e) {
+                try {
+                    if (!mobileSidebar.classList.contains('show')) return;
+                    const x = (e.touches && e.touches[0]) ? e.touches[0].clientX : (e.clientX || 0);
+                    const y = (e.touches && e.touches[0]) ? e.touches[0].clientY : (e.clientY || 0);
+                    logAt(x, y);
+                } catch (err) { console.error('debug pointer err', err); }
+            }
+
+            document.addEventListener('touchstart', onPointer, {passive:true});
+            document.addEventListener('pointerdown', onPointer, {passive:true});
+        })();
 
         // 🔹 Handle scroll-to-section links
         document.querySelectorAll('.scroll-to-section').forEach(link => {
