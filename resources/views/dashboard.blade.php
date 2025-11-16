@@ -52,7 +52,7 @@
                                 <div class="card-body text-center py-5">
                                     <i class="fa-solid fa-lock text-warning" style="font-size: 2rem;"></i>
                                     <h5 class="text-warning mt-3 mb-2">Materials Management</h5>
-                                    <p class="text-muted mb-0">This section is restricted to administrators only.</p>
+                                    <p class="text-muted mb-0">This section is restricted to owner only.</p>
                                 </div>
                             </div>
                         </div>

@@ -30,9 +30,11 @@
         <div class="card mb-4">
             <div class="card-body">
                 <h3 class="mb-3">{{ $quotation->subject }}</h3>
-                <p><strong>Customer:</strong> <span id="clientName">{{ $quotation->client->first_name }} {{ $quotation->client->last_name }}</span>
-                    @if(empty($readonly))
-                        <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="editClientBtn">Edit Client</button>
+                <p><strong>Customer:</strong> <span id="clientName">{{ $quotation->client->first_name }}
+                        {{ $quotation->client->last_name }}</span>
+                    @if (empty($readonly))
+                        <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="editClientBtn">Edit
+                            Client</button>
                     @endif
                 </p>
                 <p><strong>Contact:</strong> <span id="clientContact">{{ $quotation->client->contact_no }}</span></p>
@@ -56,15 +58,17 @@
                 @endphp
 
                 <div class="mt-3">
-                    <span class="badge {{ $badgeClass }} mb-3 d-inline-flex align-items-center" id="quotation-status-badge">
+                    <span class="badge {{ $badgeClass }} mb-3 d-inline-flex align-items-center"
+                        id="quotation-status-badge">
                         {{ $badgeText }}
                     </span>
                 </div>
 
-                @if(empty($readonly))
-                <button type="button" class="btn btn-outline-secondary mt-3" id="generateLinkBtn" title="Generate & Copy Public Link">
-                    <i class="fa-solid fa-link me-1"></i> Generate Link
-                </button>
+                @if (empty($readonly))
+                    <button type="button" class="btn btn-outline-secondary mt-3" id="generateLinkBtn"
+                        title="Generate & Copy Public Link">
+                        <i class="fa-solid fa-link me-1"></i> Generate Link
+                    </button>
                 @endif
             </div>
         </div>
@@ -90,7 +94,8 @@
                                 <td>{{ $material->pivot->quantity ?? 0 }}</td>
                                 @if (Auth::user()->can('view_prices'))
                                     <td>₱{{ number_format($material->unit_price, 2) }}</td>
-                                    <td>₱{{ number_format($material->unit_price * ($material->pivot->quantity ?? 0), 2) }}</td>
+                                    <td>₱{{ number_format($material->unit_price * ($material->pivot->quantity ?? 0), 2) }}
+                                    </td>
                                 @endif
                             </tr>
                         @endforeach
@@ -113,7 +118,7 @@
                         <h4 class="mb-0"><b>Grand Total:</b> ₱{{ number_format($grandTotal, 2) }}</h4>
                     @else
                         <div class="alert alert-warning" role="alert">
-                            <i class="fa-solid fa-lock me-2"></i>Pricing information is restricted to administrators.
+                            <i class="fa-solid fa-lock me-2"></i>Pricing information is restricted to owner.
                         </div>
                     @endif
                 </div>
@@ -138,33 +143,39 @@
                 </div>
 
                 <!-- <label for="progress-input"><b>Set Progress:</b></label>
-                        <input type="range" id="progress-input" class="form-range mb-3" min="0" max="100" step="5"
-                        value="{{ $quotation->progress ?? 0 }}" oninput="updateProgress(this.value)">
+                            <input type="range" id="progress-input" class="form-range mb-3" min="0" max="100" step="5"
+                            value="{{ $quotation->progress ?? 0 }}" oninput="updateProgress(this.value)">
 
-                        <label for="progress-report"><b>Progress Report:</b></label>
-                        <textarea id="progress-report" class="form-control mb-2" rows="3">{{ $quotation->latest_progress_report ?? '' }}</textarea>
+                            <label for="progress-report"><b>Progress Report:</b></label>
+                            <textarea id="progress-report" class="form-control mb-2" rows="3">{{ $quotation->latest_progress_report ?? '' }}</textarea>
 
-                        <button class="btn btn-success mb-3" onclick="saveProgress({{ $quotation->id }})">Save Progress</button> -->
+                            <button class="btn btn-success mb-3" onclick="saveProgress({{ $quotation->id }})">Save Progress</button> -->
 
+
+
+                @php
+                    $qStatus = strtolower($quotation->status->status_name ?? '');
+                    $isCompleted = $qStatus === 'completed';
+                    $canModifyProgress = empty($readonly) && !$isCompleted;
+                @endphp
 
                 <label for="progress-input"><b>Set Progress:</b></label>
-                @if(empty($readonly))
                 <input type="range" id="progress-input" class="form-range mb-3 w-100" min="0" max="100"
-                    step="5" value="{{ $quotation->latest_progress ?? 0 }}" oninput="updateProgress(this.value)">
-                @else
-                <span>{{ $quotation->latest_progress ?? 0 }}%</span>
+                    step="5" value="{{ $quotation->latest_progress ?? 0 }}" oninput="updateProgress(this.value)"
+                    @if (!$canModifyProgress) disabled @endif>
+                @if (!$canModifyProgress)
+                    <div class="small text-muted">Progress is locked for this quotation.</div>
                 @endif
 
 
-                @if(empty($readonly))
                 <div class="mb-3">
                     <label for="progress-report" class="form-label">Progress Report</label>
-                    <textarea class="form-control" id="progress-report" rows="2"></textarea>
+                    <textarea class="form-control" id="progress-report" rows="2" @if (!$canModifyProgress) disabled @endif>{{ $quotation->latest_progress_report ?? '' }}</textarea>
                 </div>
 
-                <button class="btn btn-success mb-3" id="save-button" onclick="saveProgress({{ $quotation->id }})">Save
+                <button class="btn btn-success mb-3" id="save-button" onclick="saveProgress({{ $quotation->id }})"
+                    @if (!$canModifyProgress) disabled title="Cannot modify progress" @endif>Save
                     Progress</button>
-                @endif
 
 
 
@@ -214,9 +225,6 @@
                             </p>
                         </div>
                     @empty
-                        <div class="alert alert-info" role="alert">
-                            No progress reports have been logged for this quotation yet.
-                        </div>
                     @endforelse
                 </div>
             </div>
@@ -225,15 +233,16 @@
 
 
     <!-- Threaded Comments Section -->
-    @include('components.threaded-comments', ['comments' => $quotation->comments, 'quotationId' => $quotation->id])
-
+    @include('components.threaded-comments', [
+        'comments' => $quotation->comments,
+        'quotationId' => $quotation->id,
+    ])
 @endsection
 
 
 
 
 <script>
-
     let latestSavedProgress = {{ $quotation->latest_progress ?? 0 }}; // current highest progress
     const isStaff = @json(auth()->user() && auth()->user()->hasRole('staff'));
 
@@ -358,7 +367,7 @@
                     showConfirmButton: false
                 });
 
-                // ✅ If progress reaches 100%, confirm project completion
+                //If progress reaches 100%, confirm project completion
                 if (progressValue === 100 && !isStaff) {
                     setTimeout(() => {
                         Swal.fire({
@@ -373,6 +382,7 @@
                         }).then(async (result) => {
                             if (result.isConfirmed) {
                                 await markAsCompleted(quotationId);
+                                window.location.href = "/dashboard";
                             }
                         });
                     }, 1300);
@@ -462,7 +472,8 @@
         if (generateLinkBtn) {
             generateLinkBtn.addEventListener('click', async function() {
                 generateLinkBtn.disabled = true;
-                generateLinkBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Copying...';
+                generateLinkBtn.innerHTML =
+                    '<span class="spinner-border spinner-border-sm me-2"></span>Copying...';
                 try {
                     const token = "{{ $quotation->public_token ?? '' }}";
                     if (!token) {
@@ -506,15 +517,18 @@
                 <form id="editClientForm">
                     <div class="mb-3">
                         <label for="clientFirstName" class="form-label">First name</label>
-                        <input type="text" class="form-control" id="clientFirstName" name="first_name" value="{{ $quotation->client->first_name }}" required>
+                        <input type="text" class="form-control" id="clientFirstName" name="first_name"
+                            value="{{ $quotation->client->first_name }}" required>
                     </div>
                     <div class="mb-3">
                         <label for="clientLastName" class="form-label">Last name</label>
-                        <input type="text" class="form-control" id="clientLastName" name="last_name" value="{{ $quotation->client->last_name }}" required>
+                        <input type="text" class="form-control" id="clientLastName" name="last_name"
+                            value="{{ $quotation->client->last_name }}" required>
                     </div>
                     <div class="mb-3">
                         <label for="clientContactInput" class="form-label">Contact</label>
-                        <input type="text" class="form-control" id="clientContactInput" name="contact_no" value="{{ $quotation->client->contact_no }}">
+                        <input type="text" class="form-control" id="clientContactInput" name="contact_no"
+                            value="{{ $quotation->client->contact_no }}">
                     </div>
                     <div class="mb-3">
                         <label for="clientAddressInput" class="form-label">Address</label>
@@ -532,7 +546,7 @@
 
 <!-- Edit Client Handler Script -->
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('DOMContentLoaded', function() {
         const editBtn = document.getElementById('editClientBtn');
         const saveBtn = document.getElementById('saveClientBtn');
         const modalEl = document.getElementById('editClientModal');
@@ -546,7 +560,8 @@
 
         saveBtn.addEventListener('click', async () => {
             saveBtn.disabled = true;
-            saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+            saveBtn.innerHTML =
+                '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
 
             const payload = {
                 first_name: document.getElementById('clientFirstName').value,
@@ -556,31 +571,50 @@
             };
 
             // Client-side sanitization & validation
-            const sanitize = (s, max = 1000) => String(s || '').replace(/[\x00-\x1F\x7F<>]/g, '').slice(0, max).trim();
-            const sanitizeContact = (s) => String(s || '').replace(/[^0-9+\-()\s]/g, '').slice(0, 40).trim();
+            const sanitize = (s, max = 1000) => String(s || '').replace(/[\x00-\x1F\x7F<>]/g, '')
+                .slice(0, max).trim();
+            const sanitizeContact = (s) => String(s || '').replace(/[^0-9+\-()\s]/g, '').slice(0,
+                40).trim();
 
             payload.first_name = sanitize(payload.first_name, 100);
             payload.last_name = sanitize(payload.last_name, 100);
             payload.address = sanitize(payload.address, 1000);
             payload.contact_no = sanitizeContact(payload.contact_no);
 
-            if (!payload.first_name) { Swal.fire('Validation', 'First name is required.', 'warning'); saveBtn.disabled = false; saveBtn.innerHTML = 'Save changes'; return; }
-            if (!payload.last_name) { Swal.fire('Validation', 'Last name is required.', 'warning'); saveBtn.disabled = false; saveBtn.innerHTML = 'Save changes'; return; }
-            if (!payload.address) { Swal.fire('Validation', 'Address is required.', 'warning'); saveBtn.disabled = false; saveBtn.innerHTML = 'Save changes'; return; }
+            if (!payload.first_name) {
+                Swal.fire('Validation', 'First name is required.', 'warning');
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = 'Save changes';
+                return;
+            }
+            if (!payload.last_name) {
+                Swal.fire('Validation', 'Last name is required.', 'warning');
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = 'Save changes';
+                return;
+            }
+            if (!payload.address) {
+                Swal.fire('Validation', 'Address is required.', 'warning');
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = 'Save changes';
+                return;
+            }
 
             try {
                 const res = await fetch(`/clients/{{ $quotation->client->id }}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
+                            .content
                     },
                     body: JSON.stringify(payload)
                 });
 
                 const data = await res.json();
                 if (data.success) {
-                    document.getElementById('clientName').textContent = `${payload.first_name} ${payload.last_name}`;
+                    document.getElementById('clientName').textContent =
+                        `${payload.first_name} ${payload.last_name}`;
                     document.getElementById('clientContact').textContent = payload.contact_no;
                     document.getElementById('clientAddress').textContent = payload.address;
 
@@ -599,4 +633,3 @@
         });
     });
 </script>
-
