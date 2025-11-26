@@ -9,6 +9,8 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\QuotationMaterialController;
 use App\Http\Controllers\QuotationExportController;
 use App\Http\Controllers\QuotationCommentController;
+use App\Http\Controllers\QuotationCommentPublicController;
+use App\Http\Controllers\QuotationCommentAdminController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 
@@ -39,16 +41,16 @@ Route::prefix('quotation/public')->group(function () {
     Route::get('/{token}/view', [QuotationController::class, 'showPublicQuotation'])->name('quotation.public.view');
 
     // 💬 Comments (public)
-    Route::post('/{token}/comment', [QuotationCommentController::class, 'storePublicComment'])->name('quotation.comment.submit');
-    Route::get('/{token}/comments', [QuotationCommentController::class, 'getComments'])->name('quotation.public.comments');
-    Route::put('/{token}/comments/{id}', [QuotationCommentController::class, 'updatePublicComment'])->name('quotation.public.comment.update');
-    Route::delete('/{token}/comments/{id}', [QuotationCommentController::class, 'destroyPublicComment'])->name('quotation.public.comment.destroy');
+    Route::post('/{token}/comment', [QuotationCommentPublicController::class, 'storePublicComment'])->name('quotation.comment.submit');
+    Route::get('/{token}/comments', [QuotationCommentPublicController::class, 'getComments'])->name('quotation.public.comments');
+    Route::put('/{token}/comments/{id}', [QuotationCommentPublicController::class, 'updatePublicComment'])->name('quotation.public.comment.update');
+    Route::delete('/{token}/comments/{id}', [QuotationCommentPublicController::class, 'destroyPublicComment'])->name('quotation.public.comment.destroy');
     
     // 💬 Replies (public) - NO AUTH, uses token for context
-    Route::post('/{token}/comments/{id}/reply', [QuotationCommentController::class, 'storePublicReply'])->name('quotation.public.reply');
-    Route::post('/{token}/replies/{id}/nested-reply', [QuotationCommentController::class, 'storePublicNestedReply'])->name('quotation.public.nested-reply');
-    Route::put('/{token}/replies/{id}', [QuotationCommentController::class, 'updatePublicReply'])->name('quotation.public.reply.update');
-    Route::delete('/{token}/replies/{id}', [QuotationCommentController::class, 'destroyPublicReply'])->name('quotation.public.reply.destroy');
+    Route::post('/{token}/comments/{id}/reply', [QuotationCommentPublicController::class, 'storePublicReply'])->name('quotation.public.reply');
+    Route::post('/{token}/replies/{id}/nested-reply', [QuotationCommentPublicController::class, 'storePublicNestedReply'])->name('quotation.public.nested-reply');
+    Route::put('/{token}/replies/{id}', [QuotationCommentPublicController::class, 'updatePublicReply'])->name('quotation.public.reply.update');
+    Route::delete('/{token}/replies/{id}', [QuotationCommentPublicController::class, 'destroyPublicReply'])->name('quotation.public.reply.destroy');
 
     // ✅ Customer Approves Quotation
     Route::post('/{token}/customer-approve', [QuotationCommentController::class, 'customerApprove'])
@@ -69,9 +71,9 @@ Route::middleware(['auth', 'role:admin|staff'])->group(function () {
     Route::get('/quotations/rejected', [QuotationController::class, 'rejected'])->name('quotations.rejected');
     Route::get('/quotations/archive', [QuotationController::class, 'archive'])->name('quotations.archive');
     Route::get('/quotation/{id}/materials', [QuotationController::class, 'getMaterials']);
-    // Admin comments fetch and submit
-    Route::get('/quotation/{id}/comments', [QuotationCommentController::class, 'getAdminComments']);
-    Route::post('/quotation/{id}/comments', [QuotationCommentController::class, 'storeAdminComment']);
+    // Admin comments fetch and submit (separated controller)
+    Route::get('/quotation/{id}/comments', [QuotationCommentAdminController::class, 'getAdminComments']);
+    Route::post('/quotation/{id}/comments', [QuotationCommentAdminController::class, 'storeAdminComment']);
 
     // 💬 Provider Replies + Approval
     Route::post('/quotations/{quotation}/reply', [QuotationController::class, 'providerReply'])->name('quotation.provider.reply');
@@ -140,17 +142,17 @@ Route::post('/reset-password', [App\Http\Controllers\Auth\ResetPasswordControlle
 // COMMENT MANAGEMENT (Public + Authenticated - auth checks inside controller)
 // ---------------------------------------------------------------------------
 
-// For authenticated users (admin/staff) - edit/delete their own comments
+// For authenticated users (admin/staff) - edit/delete their own comments (admin controller)
 Route::middleware('auth')->group(function () {
-    Route::put('/comments/{id}', [QuotationCommentController::class, 'update'])->name('comments.update');
-    Route::delete('/comments/{id}', [QuotationCommentController::class, 'destroy'])->name('comments.destroy');
-    Route::put('/replies/{id}', [QuotationCommentController::class, 'updateReply'])->name('replies.update');
-    Route::delete('/replies/{id}', [QuotationCommentController::class, 'destroyReply'])->name('replies.destroy');
+    Route::put('/comments/{id}', [QuotationCommentAdminController::class, 'update'])->name('comments.update');
+    Route::delete('/comments/{id}', [QuotationCommentAdminController::class, 'destroy'])->name('comments.destroy');
+    Route::put('/replies/{id}', [QuotationCommentAdminController::class, 'updateReply'])->name('replies.update');
+    Route::delete('/replies/{id}', [QuotationCommentAdminController::class, 'destroyReply'])->name('replies.destroy');
 });
 
-// For public customers - reply to comments (no auth needed for public link)
-Route::post('/comments/{id}/replies', [QuotationCommentController::class, 'storeReply'])->name('comments.storeReply');
-Route::post('/replies/{replyId}/nested-replies', [QuotationCommentController::class, 'storeNestedReply'])->name('replies.storeNestedReply');
+// For public customers - reply to comments (no auth needed for public link) - admin side replies for authenticated use
+Route::post('/comments/{id}/replies', [QuotationCommentAdminController::class, 'storeReply'])->name('comments.storeReply');
+Route::post('/replies/{replyId}/nested-replies', [QuotationCommentAdminController::class, 'storeNestedReply'])->name('replies.storeNestedReply');
 
 // ---------------------------------------------------------------------------
 // DIAGNOSTIC ROUTES (for testing permissions)

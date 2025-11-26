@@ -11,7 +11,8 @@ class QuotationComment extends Model
         'user_id',
         'user_name',
         'comment',
-        'sender_type' // differentiate between customer/admin
+        'sender_type', // differentiate between customer/admin
+        'session_token',
     ];
 
     public $timestamps = true;

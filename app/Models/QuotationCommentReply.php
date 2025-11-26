@@ -16,6 +16,7 @@ class QuotationCommentReply extends Model
         'user_name',
         'sender_type',
         'comment',
+        'session_token',
     ];
 
     /**

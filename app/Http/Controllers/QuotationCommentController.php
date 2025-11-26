@@ -49,12 +49,16 @@ class QuotationCommentController extends Controller
 
         $quotation = Quotation::where('public_token', $publicToken)->firstOrFail();
 
+        // Get session token from request header (sent by client JS)
+        $sessionToken = $request->header('X-Session-Token') ?? uniqid();
+
         $comment = QuotationComment::create([
             'quotation_id' => $quotation->id,
             'user_id'      => null,
             'user_name'    => $quotation->client->first_name . ' ' . $quotation->client->last_name,
             'comment'      => $request->comment,
             'sender_type'  => 'customer',
+            'session_token' => $sessionToken,
         ]);
 
         // Optionally eager load relationships if needed for UI
@@ -63,7 +67,8 @@ class QuotationCommentController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Comment added successfully',
-            'comment' => $comment
+            'comment' => $comment,
+            'session_token' => $sessionToken
         ]);
     }
 
@@ -86,6 +91,9 @@ class QuotationCommentController extends Controller
             'sender_type'  => Auth::user()->hasRole('admin') ? 'admin' : (Auth::user()->hasRole('staff') ? 'staff' : 'customer'),
         ]);
 
+        // Reload with relationships
+        $comment = QuotationComment::with(['replies.nestedReplies'])->find($comment->id);
+
         return response()->json([
             'success' => true,
             'message' => 'Comment added successfully',
@@ -94,7 +102,7 @@ class QuotationCommentController extends Controller
     }
 
     /**
-     * Update a comment
+     * Update a comment - STRICT OWNERSHIP ONLY
      */
     public function update(Request $request, $id)
     {
@@ -104,15 +112,9 @@ class QuotationCommentController extends Controller
 
         $comment = QuotationComment::findOrFail($id);
 
-        // Allow: public user (user_id null), or owner (admin/staff)
-        if (Auth::check()) {
-            if (Auth::id() !== $comment->user_id && $comment->user_id !== null) {
-                return response()->json(['success' => false, 'message' => 'You can only edit your own or public comments'], 403);
-            }
-        } else {
-            if ($comment->user_id !== null) {
-                return response()->json(['success' => false, 'message' => 'You can only edit your own public comments'], 403);
-            }
+        // STRICT: Only the owner (user_id must match Auth::id()) can edit
+        if (!Auth::check() || Auth::id() !== $comment->user_id) {
+            return response()->json(['success' => false, 'message' => 'You can only edit your own comments'], 403);
         }
 
         $comment->update(['comment' => $request->comment]);
@@ -124,21 +126,15 @@ class QuotationCommentController extends Controller
     }
 
     /**
-     * Delete a comment
+     * Delete a comment - STRICT OWNERSHIP ONLY
      */
     public function destroy($id)
     {
         $comment = QuotationComment::findOrFail($id);
 
-        // Allow: public user (user_id null), or owner (admin/staff)
-        if (Auth::check()) {
-            if (Auth::id() !== $comment->user_id && $comment->user_id !== null) {
-                return response()->json(['success' => false, 'message' => 'You can only delete your own or public comments'], 403);
-            }
-        } else {
-            if ($comment->user_id !== null) {
-                return response()->json(['success' => false, 'message' => 'You can only delete your own public comments'], 403);
-            }
+        // STRICT: Only the owner (user_id must match Auth::id()) can delete
+        if (!Auth::check() || Auth::id() !== $comment->user_id) {
+            return response()->json(['success' => false, 'message' => 'You can only delete your own comments'], 403);
         }
 
         $comment->delete();
@@ -235,6 +231,7 @@ class QuotationCommentController extends Controller
 
     /**
      * Public customer updates their comment (by public token)
+     * Check: session_token must match comment's session_token
      */
     public function updatePublicComment(Request $request, $token, $id)
     {
@@ -244,12 +241,17 @@ class QuotationCommentController extends Controller
 
         // Verify quotation exists with this token
         $quotation = Quotation::where('public_token', $token)->firstOrFail();
-        
-        // Verify comment belongs to this quotation and is public (user_id = null)
+
+        // Get comment and verify it belongs to this quotation
         $comment = QuotationComment::where('id', $id)
             ->where('quotation_id', $quotation->id)
-            ->where('user_id', null)
             ->firstOrFail();
+
+        // Only allow if session token matches. Accept token from header OR cookie for persistence across reloads
+        $sessionToken = $request->header('X-Session-Token') ?? $request->cookie('publicCommentSessionToken');
+        if (!$sessionToken || $sessionToken !== $comment->session_token) {
+            return response()->json(['success' => false, 'message' => 'You can only edit your own comments'], 403);
+        }
 
         $comment->update(['comment' => $request->comment]);
 
@@ -261,17 +263,23 @@ class QuotationCommentController extends Controller
 
     /**
      * Public customer deletes their comment (by public token)
+     * Check: session_token must match comment's session_token
      */
-    public function destroyPublicComment($token, $id)
+    public function destroyPublicComment(Request $request, $token, $id)
     {
         // Verify quotation exists with this token
         $quotation = Quotation::where('public_token', $token)->firstOrFail();
-        
-        // Verify comment belongs to this quotation and is public (user_id = null)
+
+        // Get comment and verify it belongs to this quotation
         $comment = QuotationComment::where('id', $id)
             ->where('quotation_id', $quotation->id)
-            ->where('user_id', null)
             ->firstOrFail();
+
+        // Only allow if session token matches. Accept token from header OR cookie for persistence across reloads
+        $sessionToken = $request->header('X-Session-Token') ?? $request->cookie('publicCommentSessionToken');
+        if (!$sessionToken || $sessionToken !== $comment->session_token) {
+            return response()->json(['success' => false, 'message' => 'You can only delete your own comments'], 403);
+        }
 
         $comment->delete();
 
@@ -283,6 +291,7 @@ class QuotationCommentController extends Controller
 
     /**
      * Public customer updates their reply (by public token)
+     * Check: session_token must match reply's session_token
      */
     public function updatePublicReply(Request $request, $token, $id)
     {
@@ -292,14 +301,19 @@ class QuotationCommentController extends Controller
 
         // Verify quotation exists with this token
         $quotation = Quotation::where('public_token', $token)->firstOrFail();
-        
-        // Verify reply belongs to this quotation and is public (user_id = null)
+
+        // Get reply and verify it belongs to this quotation
         $reply = QuotationCommentReply::where('id', $id)
-            ->where('user_id', null)
             ->whereHas('parentComment', function($q) use ($quotation) {
                 $q->where('quotation_id', $quotation->id);
             })
             ->firstOrFail();
+
+        // Only allow if session token matches. Accept token from header OR cookie for persistence across reloads
+        $sessionToken = $request->header('X-Session-Token') ?? $request->cookie('publicCommentSessionToken');
+        if (!$sessionToken || $sessionToken !== $reply->session_token) {
+            return response()->json(['success' => false, 'message' => 'You can only edit your own replies'], 403);
+        }
 
         $reply->update(['comment' => $request->comment]);
 
@@ -311,19 +325,25 @@ class QuotationCommentController extends Controller
 
     /**
      * Public customer deletes their reply (by public token)
+     * Check: session_token must match reply's session_token
      */
-    public function destroyPublicReply($token, $id)
+    public function destroyPublicReply(Request $request, $token, $id)
     {
         // Verify quotation exists with this token
         $quotation = Quotation::where('public_token', $token)->firstOrFail();
-        
-        // Verify reply belongs to this quotation and is public (user_id = null)
+
+        // Get reply and verify it belongs to this quotation
         $reply = QuotationCommentReply::where('id', $id)
-            ->where('user_id', null)
             ->whereHas('parentComment', function($q) use ($quotation) {
                 $q->where('quotation_id', $quotation->id);
             })
             ->firstOrFail();
+
+        // Only allow if session token matches. Accept token from header OR cookie for persistence across reloads
+        $sessionToken = $request->header('X-Session-Token') ?? $request->cookie('publicCommentSessionToken');
+        if (!$sessionToken || $sessionToken !== $reply->session_token) {
+            return response()->json(['success' => false, 'message' => 'You can only delete your own replies'], 403);
+        }
 
         $reply->delete();
 
@@ -350,6 +370,9 @@ class QuotationCommentController extends Controller
             ->where('quotation_id', $quotation->id)
             ->firstOrFail();
 
+        // Get session token from request header
+        $sessionToken = $request->header('X-Session-Token') ?? uniqid();
+
         // Create reply with user_id = null (public reply)
         $reply = QuotationCommentReply::create([
             'quotation_comment_id' => $parentComment->id,
@@ -358,12 +381,14 @@ class QuotationCommentController extends Controller
             'user_name'            => $quotation->client->first_name . ' ' . $quotation->client->last_name,
             'comment'              => $request->comment,
             'sender_type'          => 'customer',
+            'session_token'        => $sessionToken,
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Reply added successfully',
-            'reply'   => $reply
+            'reply'   => $reply,
+            'session_token' => $sessionToken
         ]);
     }
 
@@ -386,6 +411,9 @@ class QuotationCommentController extends Controller
             })
             ->firstOrFail();
 
+        // Get session token from request header
+        $sessionToken = $request->header('X-Session-Token') ?? uniqid();
+
         // Create nested reply with user_id = null (public reply)
         $nestedReply = QuotationCommentReply::create([
             'quotation_comment_id' => $parentReply->quotation_comment_id,
@@ -394,17 +422,19 @@ class QuotationCommentController extends Controller
             'user_name'            => $quotation->client->first_name . ' ' . $quotation->client->last_name,
             'comment'              => $request->comment,
             'sender_type'          => 'customer',
+            'session_token'        => $sessionToken,
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Nested reply added successfully',
-            'reply'   => $nestedReply
+            'reply'   => $nestedReply,
+            'session_token' => $sessionToken
         ]);
     }
 
     /**
-     * Update a reply
+     * Update a reply - STRICT OWNERSHIP ONLY
      */
     public function updateReply(Request $request, $id)
     {
@@ -414,17 +444,9 @@ class QuotationCommentController extends Controller
 
         $reply = QuotationCommentReply::findOrFail($id);
 
-        // Check authorization
-        if (Auth::check()) {
-            // Authenticated user (admin/staff) - can edit their own reply OR public replies
-            if (Auth::id() !== $reply->user_id && $reply->user_id !== null) {
-                return response()->json(['success' => false, 'message' => 'You can only edit your own or public replies'], 403);
-            }
-        } else {
-            // Unauthenticated public customer - can only edit if reply has no user_id
-            if ($reply->user_id !== null) {
-                return response()->json(['success' => false, 'message' => 'You can only edit your own public replies'], 403);
-            }
+        // STRICT: Only the owner (user_id must match Auth::id()) can edit
+        if (!Auth::check() || Auth::id() !== $reply->user_id) {
+            return response()->json(['success' => false, 'message' => 'You can only edit your own replies'], 403);
         }
 
         $reply->update(['comment' => $request->comment]);
@@ -436,23 +458,15 @@ class QuotationCommentController extends Controller
     }
 
     /**
-     * Delete a reply
+     * Delete a reply - STRICT OWNERSHIP ONLY
      */
     public function destroyReply($id)
     {
         $reply = QuotationCommentReply::findOrFail($id);
 
-        // Check authorization
-        if (Auth::check()) {
-            // Authenticated user (admin/staff) - can delete their own reply OR public replies
-            if (Auth::id() !== $reply->user_id && $reply->user_id !== null) {
-                return response()->json(['success' => false, 'message' => 'You can only delete your own or public replies'], 403);
-            }
-        } else {
-            // Unauthenticated public customer - can only delete if reply has no user_id
-            if ($reply->user_id !== null) {
-                return response()->json(['success' => false, 'message' => 'You can only delete your own public replies'], 403);
-            }
+        // STRICT: Only the owner (user_id must match Auth::id()) can delete
+        if (!Auth::check() || Auth::id() !== $reply->user_id) {
+            return response()->json(['success' => false, 'message' => 'You can only delete your own replies'], 403);
         }
 
         $reply->delete();

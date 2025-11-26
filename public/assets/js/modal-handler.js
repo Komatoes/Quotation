@@ -10,8 +10,17 @@ class ModalHandler {
     init() {
         // Handle all modal hidden events
         // Run cleanup slightly delayed to avoid racing with Bootstrap's internal DOM updates
+        // Use a slightly longer delay and guard against concurrent 'show' events
         document.addEventListener('hidden.bs.modal', event => {
-            setTimeout(() => this.cleanupModal(event.target), 50);
+            setTimeout(() => {
+                // If another modal is in the process of showing, skip cleanup to avoid
+                // removing backdrops while the new modal is being prepared.
+                if (window.__modalPendingShows && window.__modalPendingShows > 0) {
+                    // leave reconciliation to the global periodic cleanup or the show handler
+                    return;
+                }
+                this.cleanupModal(event.target);
+            }, 180);
         }, false);
 
         // Instrumentation: observe backdrop additions/removals and modal show/hide events
@@ -25,6 +34,18 @@ class ModalHandler {
                     report(evt, e.target && e.target.id ? e.target.id : e.target);
                 }, true);
             });
+
+            // Track pending show operations so cleanup can avoid racing with immediate shows
+            window.__modalPendingShows = window.__modalPendingShows || 0;
+            document.addEventListener('show.bs.modal', function() {
+                window.__modalPendingShows = (window.__modalPendingShows || 0) + 1;
+            }, true);
+            document.addEventListener('shown.bs.modal', function() {
+                // decrement after a short delay to allow show transition to settle
+                setTimeout(() => {
+                    window.__modalPendingShows = Math.max(0, (window.__modalPendingShows || 0) - 1);
+                }, 80);
+            }, true);
 
             // NOTE: removed aggressive show-time cleanup because it can remove
             // Bootstrap's own backdrop before the modal gains the `.show` class.

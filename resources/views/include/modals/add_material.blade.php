@@ -12,8 +12,7 @@
                 <div class="modal-body">
                     <div class="add-material-controls d-flex flex-wrap gap-2 align-items-center mb-3">
                         <input type="text" id="materialSearch" class="form-control me-2" placeholder="Search materials...">
-                        <button type="button" id="openNewMaterialModalBtn" class="btn btn-success"
-                            data-bs-toggle="modal" data-bs-target="#newMaterialModal">
+                        <button type="button" id="openNewMaterialModalBtn" class="btn btn-success">
                             + Add Material
                         </button>
                     </div>
@@ -142,18 +141,57 @@
         initializeListeners() {
             // Prevent adding listeners multiple times
             if (this.listenersBound) return;
+
+            // If essential DOM nodes are not present yet (happens when modal
+            // content was swapped/restored), retry a few times instead of
+            // throwing. This avoids `Cannot read properties of null` errors.
+            if (!this.modalEl || !this.submitBtn) {
+                this._initRetries = (this._initRetries || 0) + 1;
+                if (this._initRetries > 10) {
+                    console.error('AddMaterialtoQuotation: required elements missing after retries', {
+                        modalEl: this.modalEl,
+                        submitBtn: this.submitBtn
+                    });
+                    return;
+                }
+                // Try again shortly — small backoff to allow DOM restore to complete
+                setTimeout(() => this.initializeListeners(), 120);
+                return;
+            }
+
+            // Now bind handlers
             this.listenersBound = true;
 
+            // Store bound handlers so they can be removed in dispose()
+            this._onShownBound = () => this.onModalShown();
+            this._onSubmitBound = (e) => { e.preventDefault(); this.addMaterials(); };
+
             // Load materials when modal is shown
-            this.modalEl.addEventListener('shown.bs.modal', () => {
-                this.onModalShown();
-            });
+            this.modalEl.addEventListener('shown.bs.modal', this._onShownBound);
 
             // Submit button handler
-            this.submitBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.addMaterials();
-            });
+            this.submitBtn.addEventListener('click', this._onSubmitBound);
+        }
+
+        /**
+         * Remove all listeners added by this instance. Call before discarding instance
+         * to avoid duplicate handlers causing duplicate show/hidden events.
+         */
+        dispose() {
+            try {
+                if (this._onShownBound && this.modalEl) {
+                    this.modalEl.removeEventListener('shown.bs.modal', this._onShownBound);
+                }
+                if (this._onSubmitBound && this.submitBtn) {
+                    this.submitBtn.removeEventListener('click', this._onSubmitBound);
+                }
+            } catch (err) {
+                console.error('Error disposing AddMaterialtoQuotation handlers', err);
+            }
+            console.log('[SWAP-TRACE] AddMaterialtoQuotation.dispose() called', { time: Date.now() });
+            this.listenersBound = false;
+            this._onShownBound = null;
+            this._onSubmitBound = null;
         }
 
         onModalShown() {
@@ -258,7 +296,92 @@
                     window.addMaterialQuotation = new AddMaterialtoQuotation();
                 }
             });
+            // NOTE: intentionally do NOT run per-modal hidden cleanup here.
+            // Centralized cleanup in `public/assets/js/modal-handler.js` handles
+            // safe removal of extra backdrops and the `modal-open` class.
         }
+    }
+
+    // Programmatic opener for nested New Material modal to avoid Bootstrap's
+    // automatic behaviors that can hide the parent modal in some environments.
+    // Idempotent initializer for the programmatic "+ Add Material" opener.
+    window.initAddMaterialSwap = function() {
+        const btn = document.getElementById('openNewMaterialModalBtn');
+        const modalEl = document.getElementById('addMatModal');
+        const quotationId = "{{ $quotation->id }}";
+        if (!btn || !modalEl) return;
+
+        // Remove any previous handler to avoid duplicate bindings
+        try {
+            if (btn.__openNewMaterialHandler) {
+                btn.removeEventListener('click', btn.__openNewMaterialHandler);
+                btn.__openNewMaterialHandler = null;
+            }
+        } catch (err) {
+            // ignore
+        }
+
+        const handler = function(e) {
+            e.preventDefault();
+
+            console.log('[SWAP-TRACE] +Add Material clicked', {
+                time: Date.now(),
+                modalBackdropCount: document.querySelectorAll('.modal-backdrop').length,
+                shownModals: document.querySelectorAll('.modal.show').length,
+                bodyHasModalOpen: document.body.classList.contains('modal-open')
+            });
+
+            const tmpl = document.getElementById('tmpl-new-material');
+            if (!tmpl) {
+                console.error('Template #tmpl-new-material not found when attempting to open New Material form');
+                return;
+            }
+
+            // Dispose existing AddMaterial instance (remove its listeners) before swapping
+            if (window.addMaterialQuotation && typeof window.addMaterialQuotation.dispose === 'function') {
+                try {
+                    window.addMaterialQuotation.dispose();
+                } catch (err) {
+                    console.error('Error disposing previous AddMaterial instance', err);
+                }
+                window.addMaterialQuotation = null;
+            }
+
+            // Save original content so we can restore later
+            if (!modalEl.__originalContent) {
+                modalEl.__originalContent = modalEl.querySelector('.modal-content').innerHTML;
+            }
+
+            // Clone template and swap into modal
+            const clone = tmpl.content.firstElementChild.cloneNode(true);
+            const contentHolder = modalEl.querySelector('.modal-content');
+            contentHolder.innerHTML = '';
+            contentHolder.appendChild(clone);
+
+            console.log('[SWAP-TRACE] Swapped new material template into addMatModal', {
+                time: Date.now(),
+                backdropCountAfterSwap: document.querySelectorAll('.modal-backdrop').length,
+                shownModalsAfterSwap: document.querySelectorAll('.modal.show').length,
+                bodyHasModalOpenAfterSwap: document.body.classList.contains('modal-open'),
+                contentHTMLSize: contentHolder.innerHTML.length
+            });
+
+            // Initialize the new material form inside the swapped content
+            const formEl = contentHolder.querySelector('form[data-swap-new-material]');
+            if (window.initNewMaterialForm) {
+                window.initNewMaterialForm(formEl, modalEl, quotationId);
+            }
+        };
+
+        btn.addEventListener('click', handler);
+        btn.__openNewMaterialHandler = handler;
+    };
+
+    // Initialize immediately
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', window.initAddMaterialSwap);
+    } else {
+        window.initAddMaterialSwap();
     }
 </script>
 <style>

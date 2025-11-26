@@ -318,8 +318,8 @@
 
 
 
-            {{-- 💬 Threaded Comments Section --}}
-            @include('components.threaded-comments', [
+            {{-- 💬 Threaded Comments Section (admin/staff) --}}
+            @include('components.threaded-comments-admin', [
                 'comments' => $quotation->comments,
                 'quotationId' => $quotation->id,
             ])
