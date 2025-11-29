@@ -39,6 +39,11 @@
                 </p>
                 <p><strong>Contact:</strong> <span id="clientContact">{{ $quotation->client->contact_no }}</span></p>
                 <p><strong>Address:</strong> <span id="clientAddress">{{ $quotation->client->address }}</span></p>
+                @if (!empty($quotation->description))
+                    <p class="text-muted mb-2"><strong>Description:</strong>
+                        {!! nl2br(e($quotation->description)) !!}
+                    </p>
+                @endif
 
                 @php
                     $qStatus = strtolower($quotation->status->status_name ?? '');
@@ -143,13 +148,13 @@
                 </div>
 
                 <!-- <label for="progress-input"><b>Set Progress:</b></label>
-                            <input type="range" id="progress-input" class="form-range mb-3" min="0" max="100" step="5"
-                            value="{{ $quotation->progress ?? 0 }}" oninput="updateProgress(this.value)">
+                                <input type="range" id="progress-input" class="form-range mb-3" min="0" max="100" step="5"
+                                value="{{ $quotation->progress ?? 0 }}" oninput="updateProgress(this.value)">
 
-                            <label for="progress-report"><b>Progress Report:</b></label>
-                            <textarea id="progress-report" class="form-control mb-2" rows="3">{{ $quotation->latest_progress_report ?? '' }}</textarea>
+                                <label for="progress-report"><b>Progress Report:</b></label>
+                                <textarea id="progress-report" class="form-control mb-2" rows="3">{{ $quotation->latest_progress_report ?? '' }}</textarea>
 
-                            <button class="btn btn-success mb-3" onclick="saveProgress({{ $quotation->id }})">Save Progress</button> -->
+                                <button class="btn btn-success mb-3" onclick="saveProgress({{ $quotation->id }})">Save Progress</button> -->
 
 
 

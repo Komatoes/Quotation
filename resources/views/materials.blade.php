@@ -52,13 +52,13 @@
         <form class="add-new-record pt-0 row g-2" id="form-add-material">
             <div class="col-sm-12 form-control-validation">
                 <label class="form-label" for="materialName">Material Name</label>
-                <input type="text" id="materialName" class="form-control" name="name" placeholder="Cement" required />
+                <input type="text" id="materialName" class="form-control" name="name" placeholder="Material Name" required />
             </div>
 
             <div class="col-sm-12 form-control-validation">
                 <label class="form-label" for="materialDescription">Description</label>
                 <textarea id="materialDescription" name="description" class="form-control" rows="2"
-                    placeholder="Optional description"></textarea>
+                    placeholder="Description"></textarea>
             </div>
 
             <div class="col-sm-6 form-control-validation">
@@ -69,7 +69,7 @@
 
             <div class="col-sm-12 form-control-validation">
                 <label class="form-label" for="materialPrice">Unit Price</label>
-                <input type="number" id="materialPrice" name="unit_price" class="form-control" placeholder="250.00"
+                <input type="number" id="materialPrice" name="unit_price" class="form-control" placeholder="₱0.00"
                     step="0.01" />
             </div>
 
@@ -216,8 +216,27 @@ class MaterialHandler {
         fetch('/materials/list')
             .then(res => res.json())
             .then(data => {
-                this.materials = data;
-                this.filtered = data;
+                // Ensure materials are sorted alphabetically by name (case-insensitive)
+                // Sort with numbers first, then letters (case-insensitive). Symbols go after.
+                const nameCompare = (a, b) => {
+                    const sa = (a.name || '').trim();
+                    const sb = (b.name || '').trim();
+                    const na = sa.toLowerCase();
+                    const nb = sb.toLowerCase();
+
+                    const isDigit = s => /^\d/.test(s);
+                    const isLetter = s => /^[a-z]/.test(s);
+
+                    const ga = isDigit(na) ? 0 : (isLetter(na) ? 1 : 2);
+                    const gb = isDigit(nb) ? 0 : (isLetter(nb) ? 1 : 2);
+                    if (ga !== gb) return ga - gb;
+
+                    // Same group: use localeCompare with numeric option for natural number ordering
+                    return na.localeCompare(nb, undefined, { numeric: true, sensitivity: 'base' });
+                };
+
+                this.materials = (data || []).slice().sort(nameCompare);
+                this.filtered = this.materials.slice();
                 this.currentPage = 1;
                 this.renderTable();
                 this.renderPagination();
@@ -235,6 +254,21 @@ class MaterialHandler {
             (m.description || '').toLowerCase().includes(query) ||
             (m.unit || '').toLowerCase().includes(query)
         );
+        // Keep filtered results sorted with the same rules (numbers first, then letters)
+        this.filtered.sort((a, b) => {
+            const sa = (a.name || '').trim();
+            const sb = (b.name || '').trim();
+            const na = sa.toLowerCase();
+            const nb = sb.toLowerCase();
+
+            const isDigit = s => /^\d/.test(s);
+            const isLetter = s => /^[a-z]/.test(s);
+
+            const ga = isDigit(na) ? 0 : (isLetter(na) ? 1 : 2);
+            const gb = isDigit(nb) ? 0 : (isLetter(nb) ? 1 : 2);
+            if (ga !== gb) return ga - gb;
+            return na.localeCompare(nb, undefined, { numeric: true, sensitivity: 'base' });
+        });
         this.currentPage = 1;
         this.renderTable();
         this.renderPagination();

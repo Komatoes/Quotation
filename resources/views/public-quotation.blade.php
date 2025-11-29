@@ -1,4 +1,3 @@
-
 @extends('layouts.public')
 
 @section('content')
@@ -29,10 +28,35 @@
         <!-- Quotation Info -->
         <div class="card mb-4">
             <div class="card-body">
-                <h3 class="mb-3">{{ $quotation->subject }}</h3>
-                <p><strong>Customer:</strong> <span id="clientName">{{ $quotation->client->first_name }} {{ $quotation->client->last_name }}</span></p>
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <h3 class="mb-0">{{ $quotation->subject }}</h3>
+                    @php
+                        // Prefer a public-token export route for public pages; fall back to the ID-based route
+                        $exportRoute = null;
+                        if (!empty($quotation->public_token)) {
+                            // expects a route named `quotations.export.public` that accepts ['token' => $token]
+                            try {
+                                $exportRoute = route('quotations.export.public', ['token' => $quotation->public_token]);
+                            } catch (\Exception $e) {
+                                // route may not exist; fall back below
+                                $exportRoute = null;
+                            }
+                        }
+                        if (empty($exportRoute)) {
+                            $exportRoute = route('quotations.export', ['id' => $quotation->id]);
+                        }
+                    @endphp
+
+                </div>
+                <p><strong>Customer:</strong> <span id="clientName">{{ $quotation->client->first_name }}
+                        {{ $quotation->client->last_name }}</span></p>
                 <p><strong>Contact:</strong> <span id="clientContact">{{ $quotation->client->contact_no }}</span></p>
                 <p><strong>Address:</strong> <span id="clientAddress">{{ $quotation->client->address }}</span></p>
+                <p><strong>Description:</strong> <span
+                        id="quotationDescription">{{ $quotation->description ?? 'N/A' }}</span></p>
+
+
+
 
                 @php
                     $qStatus = strtolower($quotation->status->status_name ?? '');
@@ -52,7 +76,8 @@
                 @endphp
 
                 <div class="mt-3">
-                    <span class="badge {{ $badgeClass }} mb-3 d-inline-flex align-items-center" id="quotation-status-badge">
+                    <span class="badge {{ $badgeClass }} mb-3 d-inline-flex align-items-center"
+                        id="quotation-status-badge">
                         {{ $badgeText }}
                     </span>
                 </div>
@@ -62,6 +87,9 @@
                         <i class="fa-solid fa-check-circle me-1"></i> Approve Quotation
                     </button>
                 @endif
+                    <a href="{{ $exportRoute }}" class="btn btn-info btn-sm w-auto me-2" target="_blank" rel="noopener">
+                        <i class="fa-solid fa-file-word me-1"></i> Export as DOC
+                    </a>
             </div>
         </div>
 
@@ -173,36 +201,37 @@
         @endif
 
         <!-- Threaded Comments Section (Always Visible) -->
-    @include('components.threaded-comments', [
-        'comments' => $quotation->comments,
-        'quotationId' => $quotation->id,
-        'publicToken' => $quotation->public_token,
-        'commentEndpoint' => route('quotation.comment.submit', $quotation->public_token),
-        'commentsEndpoint' => route('quotation.public.comments', $quotation->public_token)
-    ])
+        @include('components.threaded-comments', [
+            'comments' => $quotation->comments,
+            'quotationId' => $quotation->id,
+            'publicToken' => $quotation->public_token,
+            'commentEndpoint' => route('quotation.comment.submit', $quotation->public_token),
+            'commentsEndpoint' => route('quotation.public.comments', $quotation->public_token),
+        ])
 
-            <!-- Revision History Button and Modal -->
-            <div class="mt-3 mb-4 text-end">
-                <button type="button" class="btn btn-outline-secondary" id="viewRevisionsBtn" data-id="{{ $quotation->id }}">
-                    <i class="bi bi-clock-history me-1"></i> View Revisions
-                </button>
-            </div>
+        <!-- Revision History Button and Modal -->
+        <div class="mt-3 mb-4 text-end">
+            <button type="button" class="btn btn-outline-secondary" id="viewRevisionsBtn" data-id="{{ $quotation->id }}">
+                <i class="bi bi-clock-history me-1"></i> View Revisions
+            </button>
+        </div>
 
-            <div class="modal fade" id="revisionHistoryModal" tabindex="-1" aria-labelledby="revisionHistoryLabel" aria-hidden="true">
-                <div class="modal-dialog modal-lg modal-dialog-scrollable">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="revisionHistoryLabel">Revision History</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <ul class="list-group" id="revisionList">
-                                <!-- Past revisions will be loaded here dynamically -->
-                            </ul>
-                        </div>
+        <div class="modal fade" id="revisionHistoryModal" tabindex="-1" aria-labelledby="revisionHistoryLabel"
+            aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="revisionHistoryLabel">Revision History</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <ul class="list-group" id="revisionList">
+                            <!-- Past revisions will be loaded here dynamically -->
+                        </ul>
                     </div>
                 </div>
             </div>
+        </div>
     </div>
 
     {{-- ✅ JS Section --}}
@@ -250,29 +279,30 @@
                         .catch(() => {
                             Swal.fire('Error', 'Could not approve quotation', 'error');
                             approveBtn.disabled = false;
-                            approveBtn.innerHTML = '<i class="fa-solid fa-check-circle me-1"></i> Approve Quotation';
+                            approveBtn.innerHTML =
+                                '<i class="fa-solid fa-check-circle me-1"></i> Approve Quotation';
                         });
                 });
             }
 
-                // Revision History Button
-                const viewRevisionsBtn = document.getElementById('viewRevisionsBtn');
-                if (viewRevisionsBtn) {
-                    viewRevisionsBtn.addEventListener('click', function() {
-                        const id = this.dataset.id;
-                        fetch(`/quotations/${id}/revisions-json`)
-                            .then(res => res.json())
-                            .then(data => {
-                                const container = document.getElementById('revisionList');
-                                container.innerHTML = '';
-                                if (data.length === 0) {
-                                    container.innerHTML = '<p>No past revisions found.</p>';
-                                    return;
-                                }
-                                data.forEach((rev, index) => {
-                                    const div = document.createElement('div');
-                                    div.className = 'card mb-3';
-                                    div.innerHTML = `
+            // Revision History Button
+            const viewRevisionsBtn = document.getElementById('viewRevisionsBtn');
+            if (viewRevisionsBtn) {
+                viewRevisionsBtn.addEventListener('click', function() {
+                    const id = this.dataset.id;
+                    fetch(`/quotations/${id}/revisions-json`)
+                        .then(res => res.json())
+                        .then(data => {
+                            const container = document.getElementById('revisionList');
+                            container.innerHTML = '';
+                            if (data.length === 0) {
+                                container.innerHTML = '<p>No past revisions found.</p>';
+                                return;
+                            }
+                            data.forEach((rev, index) => {
+                                const div = document.createElement('div');
+                                div.className = 'card mb-3';
+                                div.innerHTML = `
                                         <div class="card-header d-flex justify-content-between align-items-center">
                                             <strong>Revision v${index + 1}</strong> - ${new Date(rev.created_at).toLocaleDateString()}
                                             ${rev.reason ? `<small class='text-muted'>(${rev.reason})</small>` : ''}
@@ -295,25 +325,25 @@
                                                 </thead>
                                                 <tbody>
                                                     ${rev.data.materials.map(mat => `
-                                                        <tr>
-                                                            <td>${mat.name}</td>
-                                                            <td>${mat.unit}</td>
-                                                            <td>₱${parseFloat(mat.unit_price).toFixed(2)}</td>
-                                                            <td>${mat.quantity}</td>
-                                                            <td>₱${(parseFloat(mat.unit_price) * mat.quantity).toFixed(2)}</td>
-                                                        </tr>
-                                                    `).join('')}
+                                                                <tr>
+                                                                    <td>${mat.name}</td>
+                                                                    <td>${mat.unit}</td>
+                                                                    <td>₱${parseFloat(mat.unit_price).toFixed(2)}</td>
+                                                                    <td>${mat.quantity}</td>
+                                                                    <td>₱${(parseFloat(mat.unit_price) * mat.quantity).toFixed(2)}</td>
+                                                                </tr>
+                                                            `).join('')}
                                                 </tbody>
                                             </table>
                                         </div>
                                     `;
-                                    container.appendChild(div);
-                                });
-                                new bootstrap.Modal(document.getElementById('revisionHistoryModal')).show();
-                            })
-                            .catch(err => console.error(err));
-                    });
-                }
+                                container.appendChild(div);
+                            });
+                            new bootstrap.Modal(document.getElementById('revisionHistoryModal')).show();
+                        })
+                        .catch(err => console.error(err));
+                });
+            }
         });
     </script>
 

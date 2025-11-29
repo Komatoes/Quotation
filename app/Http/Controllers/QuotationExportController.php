@@ -36,6 +36,7 @@ class QuotationExportController extends Controller
         // Quotation details
         $section->addText("Subject: {$quotation->subject}");
         $section->addText("Date: " . $quotation->created_at->format('F d, Y'));
+        $section->addText("Description: {$quotation->description}");
         $section->addTextBreak(1);
 
         // Client Info
@@ -115,5 +116,15 @@ class QuotationExportController extends Controller
         }
 
         return response()->download($path)->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Export a quotation by its public token (for public links).
+     * Delegates to the existing export method after resolving the quotation id.
+     */
+    public function exportByToken($token)
+    {
+        $quotation = Quotation::where('public_token', $token)->firstOrFail();
+        return $this->export($quotation->id);
     }
 }

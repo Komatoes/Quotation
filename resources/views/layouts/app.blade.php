@@ -158,27 +158,27 @@
                 <!-- Quotation Info -->
                 <div class="col-sm-12">
                     <label class="form-label">Subject</label>
-                    <input type="text" name="subject" class="form-control" placeholder="Renovation Project" required>
+                    <input type="text" name="subject" class="form-control" placeholder="Project Name" required>
                 </div>
 
                 <div class="col-sm-12">
                     <label class="form-label">Description</label>
-                    <textarea name="description" class="form-control" rows="3" placeholder="Details about the quotation"></textarea>
+                    <textarea name="description" class="form-control" rows="3" placeholder="Quoatation Description"></textarea>
                 </div>
 
                 <div class="col-sm-6">
                     <label class="form-label">Client First Name</label>
-                    <input type="text" name="client_first_name" class="form-control" placeholder="John" required>
+                    <input type="text" name="client_first_name" class="form-control" placeholder="First Name" required>
                 </div>
 
                 <div class="col-sm-6">
                     <label class="form-label">Client Last Name</label>
-                    <input type="text" name="client_last_name" class="form-control" placeholder="Doe" required>
+                    <input type="text" name="client_last_name" class="form-control" placeholder="Last Name" required>
                 </div>
 
                 <div class="col-sm-6">
                     <label class="form-label">Contact No</label>
-                    <input type="text" name="client_contact_no" class="form-control" placeholder="09123456789"
+                    <input type="text" name="client_contact_no" class="form-control" placeholder="Phone Number"
                         required>
                 </div>
 

@@ -211,7 +211,7 @@
                     <input type="text" name="last_name" placeholder="lastname" required>
                 </div>
                 <div class="field-wrapper">
-                    <input type="text" name="phone_number" placeholder="phone" required>
+                    <input type="text" name="phone_number" placeholder="phone number" required>
                 </div>
                 <div class="field-wrapper">
                     <input type="submit" value="Access Quotation">

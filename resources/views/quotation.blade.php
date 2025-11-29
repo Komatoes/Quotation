@@ -52,6 +52,11 @@
                     </p>
                     <p><strong>Contact:</strong> <span id="clientContact">{{ $client->contact_no }}</span></p>
                     <p><strong>Address:</strong> <span id="clientAddress">{{ $client->address }}</span></p>
+                    @if (!empty($quotation->description))
+                        <p class="text-muted mb-2"><strong>Description:</strong>
+                            {!! nl2br(e($quotation->description)) !!}
+                        </p>
+                    @endif
 
                     @php
                         $qStatus = strtolower($quotation->status->status_name ?? '');
@@ -236,8 +241,8 @@
                                         <td colspan="2">
                                             @if ($canEditFees)
                                                 <input type="number" class="form-control text-end fee-input"
-                                                    id="deliveryFee" value="{{ $quotation->delivery_fee }}" step="0.01"
-                                                    data-field="delivery_fee"
+                                                    id="deliveryFee" value="{{ $quotation->delivery_fee }}"
+                                                    step="0.01" data-field="delivery_fee"
                                                     onfocus="if(this.value == '0.00') this.value = ''">
                                             @else
                                                 <span>₱{{ number_format($quotation->delivery_fee, 2) }}</span>
@@ -280,23 +285,24 @@
                 <!-- Primary Actions: Approve, Save Draft, Reject, Export -->
                 <div class="row mt-3">
                     <div class="col-12 d-flex flex-wrap gap-2 justify-content-end">
-                            @if (!$isRejected)
-                                <button type="button" class="btn btn-success" id="approveBtn" data-quot="{{ $quotation->id }}"
-                                    @if (!$quotation->customer_approved) disabled @endif>
-                                    <i class="fa-solid fa-check-circle me-1"></i> Approve
-                                </button>
-                            @endif
-
-                            <button type="button" class="btn btn-primary" id="saveDraftBtn"
-                                data-quot="{{ $quotation->id }}">
-                                <i class="fa-solid fa-floppy-disk me-1"></i> Save Draft
+                        @if (!$isRejected)
+                            <button type="button" class="btn btn-success" id="approveBtn"
+                                data-quot="{{ $quotation->id }}" @if (!$quotation->customer_approved) disabled @endif>
+                                <i class="fa-solid fa-check-circle me-1"></i> Approve
                             </button>
+                        @endif
 
-                            @if (!$isRejected)
-                                <button type="button" class="btn btn-danger" id="rejectBtn" data-quot="{{ $quotation->id }}">
-                                    <i class="fa-solid fa-ban me-1"></i> Reject
-                                </button>
-                            @endif
+                        <button type="button" class="btn btn-primary" id="saveDraftBtn"
+                            data-quot="{{ $quotation->id }}">
+                            <i class="fa-solid fa-floppy-disk me-1"></i> Save Draft
+                        </button>
+
+                        @if (!$isRejected)
+                            <button type="button" class="btn btn-danger" id="rejectBtn"
+                                data-quot="{{ $quotation->id }}">
+                                <i class="fa-solid fa-ban me-1"></i> Reject
+                            </button>
+                        @endif
                         <a href="{{ route('quotations.export', ['id' => $quotation->id]) }}"
                             class="btn btn-info d-flex align-items-center">
                             <i class="fa-solid fa-file-word me-1"></i> Export to DOC
@@ -857,11 +863,11 @@
                             <td class="line-total">₱${parseFloat(mat.line_total).toFixed(2)}</td>
                             <td class="text-center">
                                 ${!readonly ? `
-                                            <a href="#" class="text-danger delete-material" 
-                                                data-id="${mat.pivot_id}" data-quot="${quotationId}">
-                                                <i class="fa-solid fa-trash"></i>
-                                            </a>
-                                        ` : ''}
+                                                <a href="#" class="text-danger delete-material" 
+                                                    data-id="${mat.pivot_id}" data-quot="${quotationId}">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </a>
+                                            ` : ''}
                             </td>
                         </tr>
                     `;
@@ -1089,14 +1095,14 @@
                             </thead>
                             <tbody>
                                 ${rev.data.materials.map(mat => `
-                                                                                                                                                                                                                        <tr>
-                                                                                                                                                                                                                            <td>${mat.name}</td>
-                                                                                                                                                                                                                            <td>${mat.unit}</td>
-                                                                                                                                                                                                                            <td>₱${parseFloat(mat.unit_price).toFixed(2)}</td>
-                                                                                                                                                                                                                            <td>${mat.quantity}</td>
-                                                                                                                                                                                                                            <td>₱${(parseFloat(mat.unit_price) * mat.quantity).toFixed(2)}</td>
-                                                                                                                                                                                                                        </tr>
-                                                                                                                                                                                                                    `).join('')}
+                                                                                                                                                                                                                            <tr>
+                                                                                                                                                                                                                                <td>${mat.name}</td>
+                                                                                                                                                                                                                                <td>${mat.unit}</td>
+                                                                                                                                                                                                                                <td>₱${parseFloat(mat.unit_price).toFixed(2)}</td>
+                                                                                                                                                                                                                                <td>${mat.quantity}</td>
+                                                                                                                                                                                                                                <td>₱${(parseFloat(mat.unit_price) * mat.quantity).toFixed(2)}</td>
+                                                                                                                                                                                                                            </tr>
+                                                                                                                                                                                                                        `).join('')}
                             </tbody>
                         </table>
                     </div>
@@ -1139,8 +1145,10 @@
                 };
 
                 // Client-side sanitization and validation to avoid sending null/empty fields
-                const sanitize = (s, max = 1000) => String(s || '').replace(/[\x00-\x1F\x7F<>]/g, '').slice(0, max).trim();
-                const sanitizeContact = (s) => String(s || '').replace(/[^0-9+\-()\s]/g, '').slice(0, 40).trim();
+                const sanitize = (s, max = 1000) => String(s || '').replace(/[\x00-\x1F\x7F<>]/g, '')
+                    .slice(0, max).trim();
+                const sanitizeContact = (s) => String(s || '').replace(/[^0-9+\-()\s]/g, '').slice(0,
+                    40).trim();
 
                 payload.first_name = sanitize(payload.first_name, 100);
                 payload.last_name = sanitize(payload.last_name, 100);
@@ -1192,7 +1200,7 @@
                         // Get fresh modal instance and hide it
                         const modal = bootstrap.Modal.getInstance(modalEl);
                         if (modal) modal.hide();
-                        
+
                         Swal.fire({
                             toast: true,
                             position: 'top-end',
@@ -1251,7 +1259,7 @@
             // Debounce to ensure all modals have finished their hide transitions
             setTimeout(() => {
                 const openModals = document.querySelectorAll('.modal.show');
-                
+
                 // Only remove modal-open class if NO modals are open
                 if (openModals.length === 0) {
                     document.body.classList.remove('modal-open');

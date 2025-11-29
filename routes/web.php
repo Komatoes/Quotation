@@ -55,6 +55,9 @@ Route::prefix('quotation/public')->group(function () {
     // ✅ Customer Approves Quotation
     Route::post('/{token}/customer-approve', [QuotationCommentController::class, 'customerApprove'])
         ->name('quotation.customer.approve');
+    
+    // Public export (DOC) for a quotation using token (no auth)
+    Route::get('/{token}/export', [QuotationExportController::class, 'exportByToken'])->name('quotations.export.public');
 });
 
 // ---------------------------------------------------------------------------
