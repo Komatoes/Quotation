@@ -15,7 +15,13 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
+        // Spatie Backup: schedule backup and cleanup
+        // Note: requires `spatie/laravel-backup` to be installed via composer
+        // Run full backup daily at 02:00
+        $schedule->command('backup:run')->dailyAt('02:00')->withoutOverlapping();
+
+        // Run cleanup daily at 03:00 to prune old backups
+        $schedule->command('backup:clean')->dailyAt('03:00')->withoutOverlapping();
     }
 
     /**

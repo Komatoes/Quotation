@@ -44,8 +44,30 @@
                                 $qStatus === 'rejected' ||
                                 ($quotation->service_approved && $qStatus === 'ongoing')
                             );
+
+                            // Detect staff role robustly to hide admin actions on staff accounts
+                            $isStaff = false;
+                            if (Auth::check()) {
+                                $user = Auth::user();
+                                if (method_exists($user, 'hasRole')) {
+                                    try {
+                                        $isStaff = (bool) $user->hasRole('staff');
+                                    } catch (\Throwable $e) {
+                                        $isStaff = false;
+                                    }
+                                } elseif (isset($user->role)) {
+                                    if (is_string($user->role)) {
+                                        $isStaff = strtolower($user->role) === 'staff';
+                                    } elseif (is_object($user->role) && isset($user->role->name)) {
+                                        $isStaff = strtolower($user->role->name) === 'staff';
+                                    }
+                                } elseif (isset($user->role_name)) {
+                                    $isStaff = strtolower($user->role_name) === 'staff';
+                                }
+                            }
                         @endphp
-                        @if ($canEditClient)
+
+                        @if ($canEditClient && !$isStaff)
                             <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="editClientBtn">Edit
                                 Client</button>
                         @endif
@@ -285,7 +307,7 @@
                 <!-- Primary Actions: Approve, Save Draft, Reject, Export -->
                 <div class="row mt-3">
                     <div class="col-12 d-flex flex-wrap gap-2 justify-content-end">
-                        @if (!$isRejected)
+                        @if (!$isRejected && !$isStaff)
                             <button type="button" class="btn btn-success" id="approveBtn"
                                 data-quot="{{ $quotation->id }}" @if (!$quotation->customer_approved) disabled @endif>
                                 <i class="fa-solid fa-check-circle me-1"></i> Approve
@@ -297,19 +319,22 @@
                             <i class="fa-solid fa-floppy-disk me-1"></i> Save Draft
                         </button>
 
-                        @if (!$isRejected)
+                        @if (!$isRejected && !$isStaff)
                             <button type="button" class="btn btn-danger" id="rejectBtn"
                                 data-quot="{{ $quotation->id }}">
                                 <i class="fa-solid fa-ban me-1"></i> Reject
                             </button>
                         @endif
-                        <a href="{{ route('quotations.export', ['id' => $quotation->id]) }}"
-                            class="btn btn-info d-flex align-items-center">
-                            <i class="fa-solid fa-file-word me-1"></i> Export to DOC
-                        </a>
+
+                        @if (!$isStaff)
+                            <a href="{{ route('quotations.export', ['id' => $quotation->id]) }}"
+                                class="btn btn-info d-flex align-items-center">
+                                <i class="fa-solid fa-file-word me-1"></i> Export to DOC
+                            </a>
+                        @endif
                     </div>
                 </div>
-            @elseif ($showExport)
+            @elseif ($showExport && !$isStaff)
                 <!-- Limited Actions: Export only (for completed, rejected, or ongoing projects) -->
                 <div class="row mt-3">
                     <div class="col-12 d-flex flex-wrap gap-2 justify-content-end">
