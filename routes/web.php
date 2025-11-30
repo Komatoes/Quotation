@@ -11,6 +11,7 @@ use App\Http\Controllers\QuotationExportController;
 use App\Http\Controllers\QuotationCommentController;
 use App\Http\Controllers\QuotationCommentPublicController;
 use App\Http\Controllers\QuotationCommentAdminController;
+use App\Http\Controllers\BackupManagementController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 
@@ -196,3 +197,12 @@ Route::middleware('auth')->get('/test-permissions', function () {
 // ---------------------------------------------------------------------------
 // ADMIN ONLY ROUTES
 // ---------------------------------------------------------------------------
+
+Route::middleware(['auth'])->prefix('admin/backup')->group(function () {
+    Route::get('/', [BackupManagementController::class, 'index'])->name('admin.backup.index');
+    Route::post('/create', [BackupManagementController::class, 'create'])->name('admin.backup.create');
+    Route::get('/download/{filename}', [BackupManagementController::class, 'download'])->name('admin.backup.download');
+    Route::post('/delete', [BackupManagementController::class, 'delete'])->name('admin.backup.delete');
+    Route::post('/restore', [BackupManagementController::class, 'restore'])->name('admin.backup.restore');
+});
+

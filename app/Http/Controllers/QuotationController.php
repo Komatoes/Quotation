@@ -344,7 +344,7 @@ class QuotationController extends Controller
         $quotation = \App\Models\Quotation::create([
             'subject'      => $validated['subject'],
             'description'  => $validated['description'],
-            'employee_id'  => 1, // or auth()->id()
+            'employee_id'  => auth()->id(), // Use authenticated user
             'client_id'    => $client->id,
             'status_id'    => 1,
             'labor_fee'    => $validated['labor_fee'] ?? 0,

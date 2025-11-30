@@ -57,6 +57,21 @@
             <div>Material List</div>
         </a>
     </li>
+
+    <!-- Admin Section: Backup Management -->
+    @if(auth()->user() && (auth()->user()->hasRole('admin') ?? false) || (auth()->user()->role ?? null) === 'admin' || (auth()->user()->role_name ?? null) === 'admin')
+    <li class="menu-header small" style="margin-top: 20px; margin-bottom: 10px; padding: 5px 15px;">
+        <span style="color: rgba(255, 255, 255, 0.5); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">
+            Administration
+        </span>
+    </li>
+    <li class="menu-item">
+        <a href="{{ route('admin.backup.index') }}" class="menu-link">
+            <i class="fa-solid fa-database menu-icon"></i>
+            <div>Backup & Restore</div>
+        </a>
+    </li>
+    @endif
 </ul>
 
 <!-- Sign Out -->

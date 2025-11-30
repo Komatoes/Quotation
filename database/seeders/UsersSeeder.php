@@ -10,13 +10,17 @@ class UsersSeeder extends Seeder
 {
     public function run()
     {
+        // Industry-standard password (12 chars: uppercase, lowercase, numbers, special chars)
+        $password = 'SecurePass@2025!Qtn';
+
         // Create or update admin account
         $admin = User::updateOrCreate(
-            ['email' => 'admin@example.com'],
+            ['email' => 'jomilo.lano@quotation.app'],
             [
-                'name' => 'Admin User',
-                'username' => 'admin',
-                'password' => Hash::make('password'),
+                'name' => 'Jomilo',
+                'last_name' => 'Lano',
+                'username' => 'jomilo',
+                'password' => Hash::make($password),
             ]
         );
         if (! $admin->hasRole('admin')) {
@@ -25,11 +29,12 @@ class UsersSeeder extends Seeder
 
         // Create or update staff account
         $staff = User::updateOrCreate(
-            ['email' => 'staff@example.com'],
+            ['email' => 'redcrislan.toralde@quotation.app'],
             [
-                'name' => 'Staff User',
-                'username' => 'staff',
-                'password' => Hash::make('password'),
+                'name' => 'Redcrislan',
+                'last_name' => 'Toralde',
+                'username' => 'redcrislan',
+                'password' => Hash::make($password),
             ]
         );
         if (! $staff->hasRole('staff')) {
