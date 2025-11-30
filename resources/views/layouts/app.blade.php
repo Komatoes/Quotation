@@ -178,7 +178,7 @@
 
                 <div class="col-sm-6">
                     <label class="form-label">Contact No</label>
-                    <input type="text" name="client_contact_no" class="form-control" placeholder="Phone Number"
+                    <input type="number" name="client_contact_no" class="form-control" placeholder="Phone Number"
                         required>
                 </div>
 
