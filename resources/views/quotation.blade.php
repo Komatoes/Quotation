@@ -2,6 +2,24 @@
 @include('include.head')
 
 @section('content')
+    @php
+        // Detect quotation type: Regular Quotation vs Additional Quotation
+        $isAdditional = isset($additionalQuotation) && !isset($quotation);
+        $quotation = $isAdditional ? $additionalQuotation : ($quotation ?? null);
+        $quotationType = $isAdditional ? 'additional' : 'regular';
+        
+        // Get client info based on quotation type
+        if ($isAdditional) {
+            $client = $quotation->parentQuotation->client;
+            $parentQuotationId = $quotation->parent_quotation_id;
+            $quotationId = $quotation->id;
+        } else {
+            $client = $quotation->client;
+            $parentQuotationId = null;
+            $quotationId = $quotation->id;
+        }
+    @endphp
+
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="{{ asset('assets/css/quotation-styles.css') }}" rel="stylesheet">
     <div class="content-wrapper">
@@ -13,18 +31,37 @@
                 <div class="card-body text-center bg-light rounded shadow-sm">
                     @php
                         $qStatus = strtolower($quotation->status->status_name ?? '');
-                        if ($qStatus === 'completed') {
-                            $headerText = 'Project Completed';
-                            $headerClass = 'text-success';
-                        } elseif ($qStatus === 'rejected') {
-                            $headerText = 'Quotation Rejected';
-                            $headerClass = 'text-danger';
-                        } elseif ($quotation->provider_approved) {
-                            $headerText = 'Ongoing Project';
-                            $headerClass = 'text-primary';
+                        
+                        if ($isAdditional) {
+                            // Additional Quotation header logic
+                            if ($qStatus === 'completed') {
+                                $headerText = 'Additional Quotation - Completed';
+                                $headerClass = 'text-success';
+                            } elseif ($qStatus === 'rejected') {
+                                $headerText = 'Additional Quotation - Rejected';
+                                $headerClass = 'text-danger';
+                            } elseif ($quotation->progress >= 100) {
+                                $headerText = 'Additional Quotation - Approved & Attached';
+                                $headerClass = 'text-success';
+                            } else {
+                                $headerText = 'Creating Additional Quotation';
+                                $headerClass = 'text-dark';
+                            }
                         } else {
-                            $headerText = 'Creating Quotation';
-                            $headerClass = 'text-dark';
+                            // Regular Quotation header logic
+                            if ($qStatus === 'completed') {
+                                $headerText = 'Project Completed';
+                                $headerClass = 'text-success';
+                            } elseif ($qStatus === 'rejected') {
+                                $headerText = 'Quotation Rejected';
+                                $headerClass = 'text-danger';
+                            } elseif ($quotation->provider_approved) {
+                                $headerText = 'Ongoing Project';
+                                $headerClass = 'text-primary';
+                            } else {
+                                $headerText = 'Creating Quotation';
+                                $headerClass = 'text-dark';
+                            }
                         }
                     @endphp
                     <h1 class="h3 mb-0 {{ $headerClass }}">{{ $headerText }}</h1>
@@ -35,15 +72,30 @@
             <div class="card mb-4">
                 <div class="card-body">
                     <h3 class="mb-3">{{ $quotation->subject }}</h3>
+                    
+                    @if ($isAdditional)
+                        <p><strong>Parent Quotation:</strong> {{ $quotation->parentQuotation->subject }}
+                            (ID: {{ $quotation->parent_quotation_id }})
+                        </p>
+                    @endif
+                    
                     <p><strong>Customer:</strong> <span id="clientName">{{ $client->first_name }}
                             {{ $client->last_name }}</span>
                         @php
                             $qStatus = strtolower($quotation->status->status_name ?? '');
-                            $canEditClient = !(
-                                $qStatus === 'completed' ||
-                                $qStatus === 'rejected' ||
-                                ($quotation->service_approved && $qStatus === 'ongoing')
-                            );
+                            if ($isAdditional) {
+                                $canEditClient = !(
+                                    $qStatus === 'completed' ||
+                                    $qStatus === 'rejected' ||
+                                    ($quotation->progress >= 100 && $quotation->customer_approved)
+                                );
+                            } else {
+                                $canEditClient = !(
+                                    $qStatus === 'completed' ||
+                                    $qStatus === 'rejected' ||
+                                    ($quotation->service_approved && $qStatus === 'ongoing')
+                                );
+                            }
 
                             // Detect staff role robustly to hide admin actions on staff accounts
                             $isStaff = false;
@@ -82,27 +134,76 @@
 
                     @php
                         $qStatus = strtolower($quotation->status->status_name ?? '');
-                        if ($qStatus === 'completed') {
-                            $badgeText = 'Project has been completed';
-                            $badgeClass = 'bg-success';
-                        } elseif ($qStatus === 'rejected') {
-                            $badgeText = 'Quotation is rejected';
-                            $badgeClass = 'bg-danger';
-                        } elseif ($quotation->customer_approved) {
-                            $badgeText = 'Approved by Client';
-                            $badgeClass = 'bg-success';
+                        if ($isAdditional) {
+                            // Additional Quotation badge logic
+                            if ($qStatus === 'completed') {
+                                $badgeText = 'Additional Quotation Completed';
+                                $badgeClass = 'bg-success';
+                            } elseif ($qStatus === 'rejected') {
+                                $badgeText = 'Additional Quotation Rejected';
+                                $badgeClass = 'bg-danger';
+                            } elseif ($quotation->progress >= 100) {
+                                $badgeText = 'Approved & Attached to Parent';
+                                $badgeClass = 'bg-success';
+                            } elseif ($quotation->customer_approved) {
+                                $badgeText = 'Approved by Client (Pending Attachment)';
+                                $badgeClass = 'bg-success';
+                            } else {
+                                $badgeText = 'Draft - Awaiting Approval';
+                                $badgeClass = 'bg-warning text-dark';
+                            }
                         } else {
-                            $badgeText = 'Awaiting Client Approval';
-                            $badgeClass = 'bg-warning text-dark';
+                            // Regular Quotation badge logic
+                            if ($qStatus === 'completed') {
+                                $badgeText = 'Project has been completed';
+                                $badgeClass = 'bg-success';
+                            } elseif ($qStatus === 'rejected') {
+                                $badgeText = 'Quotation is rejected';
+                                $badgeClass = 'bg-danger';
+                            } elseif ($quotation->customer_approved) {
+                                $badgeText = 'Approved by Client';
+                                $badgeClass = 'bg-success';
+                            } else {
+                                $badgeText = 'Awaiting Client Approval';
+                                $badgeClass = 'bg-warning text-dark';
+                            }
                         }
                     @endphp
 
                     <div class="mt-3">
-                        <span class="badge {{ $badgeClass }} mb-3 d-inline-flex align-items-center"
+                        <p> <strong> Status: </strong> <span class="badge {{ $badgeClass }} mb-3 d-inline-flex align-items-center"
                             id="quotation-status-badge">
                             {{ $badgeText }}
-                        </span>
+                        </span></p>
                     </div>
+
+                    @if (!$isAdditional)
+                        @php
+                            // Show contract details only for regular quotations and only if approved
+                            $isApproved = $quotation->status_id >= 2; // 2 = approved
+                        @endphp
+
+                        @if ($isApproved && $quotation->contract_subject)
+                            <div class="mt-4 pt-3 border-top">
+                                <h5 class="mb-3">Contract Details</h5>
+                                <p><strong>Contract Subject:</strong> <span>{{ $quotation->contract_subject }}</span></p>
+                                @if ($quotation->project_start_date)
+                                    <p><strong>Project Start Date:</strong> <span>{{ \Carbon\Carbon::parse($quotation->project_start_date)->format('M d, Y') }}</span></p>
+                                @endif
+                                @if ($quotation->project_end_date)
+                                    <p><strong>Project End Date:</strong> <span>{{ \Carbon\Carbon::parse($quotation->project_end_date)->format('M d, Y') }}</span></p>
+                                @endif
+                                <p>
+                                    <strong>Contract Status:</strong> 
+                                    @if ($quotation->with_contract)
+                                        <span class="badge bg-success">With Contract</span>
+                                    @else
+                                        <span class="badge bg-secondary">Without Contract</span>
+                                    @endif
+                                </p>
+                            </div>
+                        @endif
+                    @endif
                 </div>
             </div>
 
@@ -118,17 +219,23 @@
                                 <div class="d-flex flex-wrap gap-2 justify-content-end">
                                     @php
                                         $qStatus = strtolower($quotation->status->status_name ?? '');
+                                        
+                                        // For additional quotations, check if customer_approved or status >= 2 (approved)
+                                        $isApprovedAdditional = $isAdditional && ($quotation->customer_approved || $quotation->status_id >= 2);
+                                        
                                         $canAddMaterial =
                                             empty($readonly) &&
                                             $qStatus !== 'completed' &&
                                             $qStatus !== 'rejected' &&
-                                            !($quotation->service_approved && $qStatus === 'ongoing');
+                                            !($quotation->service_approved && $qStatus === 'ongoing') &&
+                                            !$isApprovedAdditional;
                                         $canCreateRevision =
                                             empty($readonly) &&
                                             Auth::user()->can('create_revision') &&
                                             $qStatus !== 'completed' &&
                                             $qStatus !== 'rejected' &&
-                                            !($quotation->service_approved && $qStatus === 'ongoing');
+                                            !($quotation->service_approved && $qStatus === 'ongoing') &&
+                                            !$isApprovedAdditional;
                                     @endphp
 
                                     @if ($canAddMaterial)
@@ -145,6 +252,15 @@
                                         <span class="d-none d-sm-inline">Generate Link</span>
                                         <span class="d-sm-none">Link</span>
                                     </button>
+
+                                    @if (!$isAdditional)
+                                        <button type="button" class="btn btn-sm btn-outline-info" id="viewAdditionalQtnBtn"
+                                            data-parent-id="{{ $quotation->id }}">
+                                            <i class="fa-solid fa-list me-1"></i>
+                                            <span class="d-none d-sm-inline">Additional Quotations</span>
+                                            <span class="d-sm-none">Additional</span>
+                                        </button>
+                                    @endif
 
                                     @if (Auth::user()->can('view_revision_history'))
                                         <button type="button" class="btn btn-sm btn-outline-info" id="viewRevisionsBtn"
@@ -174,7 +290,7 @@
                                     <th>Material</th>
                                     <th>Estimated Quantity</th>
                                     <th>Price/Unit</th>
-                                    <th>Total</th>
+                                    <th class="text-end">Total</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
@@ -183,7 +299,7 @@
                                     <tr>
                                         <td>{{ $mat->name }}</td>
                                         <td>
-                                            @if (empty($readonly))
+                                            @if (empty($readonly) && !$isApprovedAdditional)
                                                 <input type="number" class="form-control update-quantity"
                                                     data-pivot="{{ $mat->pivot->id }}" data-quot="{{ $quotation->id }}"
                                                     value="{{ $mat->pivot->quantity }}" min="1"
@@ -195,12 +311,11 @@
                                         </td>
                                         <td>
                                             @if (Auth::user()->can('view_prices'))
-                                                @if ($qStatus === 'draft' && empty($readonly))
-                                                    <input type="number" class="form-control update-price"
+                                                @if ($qStatus === 'draft' && empty($readonly) && !$isApprovedAdditional)
+                                                    <input type="text" class="form-control update-price text-end"
                                                         data-pivot="{{ $mat->pivot->id }}"
                                                         data-material="{{ $mat->id }}"
-                                                        value="{{ number_format($mat->pivot->unit_cost ?? $mat->unit_price, 2, '.', '') }}"
-                                                        min="0" step="0.01"
+                                                        value="{{ number_format($mat->pivot->unit_cost ?? $mat->unit_price, 2) }}"
                                                         style="width: 100px; display:inline-block;">
                                                 @else
                                                     ₱{{ number_format($mat->pivot->unit_cost, 2) }}
@@ -209,7 +324,7 @@
                                                 <span class="badge bg-secondary">Hidden</span>
                                             @endif
                                         </td>
-                                        <td class="line-total">
+                                        <td class="line-total text-end">
                                             @if (Auth::user()->can('view_prices'))
                                                 ₱{{ number_format(($mat->pivot->unit_cost ?? $mat->unit_price) * $mat->pivot->quantity, 2) }}
                                             @else
@@ -223,7 +338,8 @@
                                                     empty($readonly) &&
                                                     $qStatus !== 'completed' &&
                                                     $qStatus !== 'rejected' &&
-                                                    !($quotation->service_approved && $qStatus === 'ongoing');
+                                                    !($quotation->service_approved && $qStatus === 'ongoing') &&
+                                                    !$isApprovedAdditional;
                                             @endphp
                                             @if ($canDeleteMaterial)
                                                 <a href="#" class="text-danger delete-material"
@@ -243,29 +359,50 @@
                                             empty($readonly) &&
                                             $qStatus !== 'completed' &&
                                             $qStatus !== 'rejected' &&
-                                            !($quotation->service_approved && $qStatus === 'ongoing');
+                                            !($quotation->service_approved && $qStatus === 'ongoing') &&
+                                            !$isApprovedAdditional;
                                     @endphp
                                     <tr>
+                                        <td colspan="3" class="text-end fw-bold">Total Material Cost:</td>
+                                        <td class="text-end fw-bold">₱{{ number_format($materials->sum(fn($m) => ($m->pivot->unit_cost ?? $m->unit_price) * $m->pivot->quantity), 2) }}</td>
+                                    </tr>
+                                    <tr>
                                         <td colspan="3" class="text-end fw-bold">Labor Fee:</td>
-                                        <td colspan="2">
+                                        <td>
                                             @if ($canEditFees)
-                                                <input type="number" class="form-control text-end fee-input" id="laborFee"
-                                                    value="{{ $quotation->labor_fee }}" step="0.01"
-                                                    data-field="labor_fee"
-                                                    onfocus="if(this.value == '0.00') this.value = ''">
+                                                <div class="input-group">
+                                                    <span class="input-group-text">₱</span>
+                                                    <input type="number" class="form-control text-end fee-input labor-fee-display" 
+                                                        id="laborFee"
+                                                        placeholder="0.00"
+                                                        data-field="labor_fee"
+                                                        data-validate="price"
+                                                        value="{{ $quotation->labor_fee }}"
+                                                        step="0.01"
+                                                        min="0"
+                                                        style="font-family: inherit;">
+                                                </div>
                                             @else
                                                 <span>₱{{ number_format($quotation->labor_fee, 2) }}</span>
                                             @endif
                                         </td>
                                     </tr>
                                     <tr>
-                                        <td colspan="3" class="text-end fw-bold">Delivery/Hauling Fee:</td>
-                                        <td colspan="2">
+                                        <td colspan="3" class="text-end fw-bold">Delivery Fee:</td>
+                                        <td>
                                             @if ($canEditFees)
-                                                <input type="number" class="form-control text-end fee-input"
-                                                    id="deliveryFee" value="{{ $quotation->delivery_fee }}"
-                                                    step="0.01" data-field="delivery_fee"
-                                                    onfocus="if(this.value == '0.00') this.value = ''">
+                                                <div class="input-group">
+                                                    <span class="input-group-text">₱</span>
+                                                    <input type="number" class="form-control text-end fee-input delivery-fee-display" 
+                                                        id="deliveryFee" 
+                                                        placeholder="0.00"
+                                                        data-field="delivery_fee"
+                                                        data-validate="price"
+                                                        value="{{ $quotation->delivery_fee }}"
+                                                        step="0.01"
+                                                        min="0"
+                                                        style="font-family: inherit;">
+                                                </div>
                                             @else
                                                 <span>₱{{ number_format($quotation->delivery_fee, 2) }}</span>
                                             @endif
@@ -274,9 +411,11 @@
                                 @endif
                                 <tr>
                                     <td colspan="3" class="text-end fw-bold">Grand Total:</td>
-                                    <td colspan="2" class="fw-bold text-danger" id="grandTotal">
+                                    <td class="fw-bold text-primary fs-5 text-end" id="grandTotal">
                                         @if (Auth::user()->can('view_prices'))
-                                            ₱{{ number_format($materials->sum(fn($m) => ($m->pivot->unit_cost ?? $m->unit_price) * $m->pivot->quantity) + $quotation->labor_fee + $quotation->delivery_fee, 2) }}
+                                            <span id="grandTotalValue" class="grand-total-display">
+                                                ₱<span id="grandTotalAmount">{{ number_format($materials->sum(fn($m) => ($m->pivot->unit_cost ?? $m->unit_price) * $m->pivot->quantity) + $quotation->labor_fee + $quotation->delivery_fee, 2) }}</span>
+                                            </span>
                                         @else
                                             <span class="badge bg-secondary">Hidden</span>
                                         @endif
@@ -296,8 +435,8 @@
                 $isOngoing = $quotation->service_approved && $qStatus === 'ongoing';
 
                 // Show primary action buttons only if not readonly and not in completed/ongoing state
-                // (Allow Save Draft even when the quotation is 'rejected')
-                $showPrimaryActions = empty($readonly) && !$isCompleted && !$isOngoing;
+                // For additional quotations, also hide if customer_approved or status >= 2 (approved)
+                $showPrimaryActions = empty($readonly) && !$isCompleted && !$isOngoing && !$isApprovedAdditional;
 
                 // Show export button for all states (except readonly)
                 $showExport = empty($readonly) || $isCompleted || $isRejected || $isOngoing;
@@ -308,10 +447,20 @@
                 <div class="row mt-3">
                     <div class="col-12 d-flex flex-wrap gap-2 justify-content-end">
                         @if (!$isRejected && !$isStaff)
-                            <button type="button" class="btn btn-success" id="approveBtn"
-                                data-quot="{{ $quotation->id }}" @if (!$quotation->customer_approved) disabled @endif>
-                                <i class="fa-solid fa-check-circle me-1"></i> Approve
-                            </button>
+                            @if ($isAdditional)
+                                {{-- Additional quotations: No modal toggle, handled by JavaScript --}}
+                                <button type="button" class="btn btn-success" id="approveBtn"
+                                    data-quot="{{ $quotation->id }}" @if (!$quotation->customer_approved) disabled @endif>
+                                    <i class="fa-solid fa-check-circle me-1"></i> Approve
+                                </button>
+                            @else
+                                {{-- Regular quotations: Show contract form modal --}}
+                                <button type="button" class="btn btn-success" id="approveBtn"
+                                    data-bs-toggle="modal" data-bs-target="#approveModal"
+                                    data-quot="{{ $quotation->id }}" @if (!$quotation->customer_approved) disabled @endif>
+                                    <i class="fa-solid fa-check-circle me-1"></i> Approve
+                                </button>
+                            @endif
                         @endif
 
                         <button type="button" class="btn btn-primary" id="saveDraftBtn"
@@ -327,10 +476,17 @@
                         @endif
 
                         @if (!$isStaff)
-                            <a href="{{ route('quotations.export', ['id' => $quotation->id]) }}"
-                                class="btn btn-info d-flex align-items-center">
-                                <i class="fa-solid fa-file-word me-1"></i> Export to DOC
-                            </a>
+                            @if ($isAdditional)
+                                <a href="{{ route('additional-quotations.export', ['id' => $quotation->id]) }}"
+                                    class="btn btn-info d-flex align-items-center">
+                                    <i class="fa-solid fa-file-word me-1"></i> Export to DOC
+                                </a>
+                            @else
+                                <a href="{{ route('quotations.export', ['id' => $quotation->id]) }}"
+                                    class="btn btn-info d-flex align-items-center">
+                                    <i class="fa-solid fa-file-word me-1"></i> Export to DOC
+                                </a>
+                            @endif
                         @endif
                     </div>
                 </div>
@@ -338,10 +494,17 @@
                 <!-- Limited Actions: Export only (for completed, rejected, or ongoing projects) -->
                 <div class="row mt-3">
                     <div class="col-12 d-flex flex-wrap gap-2 justify-content-end">
-                        <a href="{{ route('quotations.export', ['id' => $quotation->id]) }}"
-                            class="btn btn-info d-flex align-items-center">
-                            <i class="fa-solid fa-file-word me-1"></i> Export to DOC
-                        </a>
+                        @if ($isAdditional)
+                            <a href="{{ route('additional-quotations.export', ['id' => $quotation->id]) }}"
+                                class="btn btn-info d-flex align-items-center">
+                                <i class="fa-solid fa-file-word me-1"></i> Export to DOC
+                            </a>
+                        @else
+                            <a href="{{ route('quotations.export', ['id' => $quotation->id]) }}"
+                                class="btn btn-info d-flex align-items-center">
+                                <i class="fa-solid fa-file-word me-1"></i> Export to DOC
+                            </a>
+                        @endif
                     </div>
                 </div>
             @endif
@@ -419,12 +582,359 @@
                 </div>
             </div>
 
+            <!-- Approve Quotation Modal -->
+            <div class="modal fade" id="approveModal" tabindex="-1" aria-labelledby="approveModalLabel"
+                aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="approveModalLabel">Approve Quotation</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                aria-label="Close"></button>
+                        </div>
+                        <form id="approveForm">
+                            <div class="modal-body">
+                                <div class="alert alert-info" role="alert">
+                                    <i class="fa-solid fa-info-circle me-2"></i>
+                                    <strong>Note:</strong> All fields are required to approve this quotation. You must confirm the contract is in place.
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="contractSubject" class="form-label">
+                                        Contract Subject <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="text" class="form-control" id="contractSubject" 
+                                        name="contract_subject" placeholder="Enter contract subject" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="projectStartDate" class="form-label">
+                                        Project Start Date <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="date" class="form-control" id="projectStartDate" 
+                                        name="project_start_date" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="projectEndDate" class="form-label">
+                                        Project End Date <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="date" class="form-control" id="projectEndDate" 
+                                        name="project_end_date" required>
+                                </div>
+
+                                <div class="form-check mb-3 border border-primary border-3 p-3 rounded">
+                                    <input class="form-check-input" type="checkbox" id="withContract" 
+                                        name="with_contract" value="1" style="width: 1.5em; height: 1.5em;">
+                                    <label class="form-check-label ms-2" for="withContract">
+                                        <strong>I confirm this quotation is backed by a valid contract</strong>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fa-solid fa-check-circle me-1"></i> Approve
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ✅ NEW: Reject Quotation Modal -->
+            <div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel"
+                aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="rejectModalLabel">Reject Quotation</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                aria-label="Close"></button>
+                        </div>
+                        <form id="rejectForm">
+                            <div class="modal-body">
+                                <div class="alert alert-warning" role="alert">
+                                    <i class="fa-solid fa-exclamation-triangle me-2"></i>
+                                    <strong>Warning:</strong> Rejecting a quotation will mark it as rejected. You must provide a reason.
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="rejectionReason" class="form-label">
+                                        Rejection Reason <span class="text-danger">*</span>
+                                    </label>
+                                    <textarea class="form-control" id="rejectionReason" 
+                                        name="rejection_reason" rows="3"
+                                        placeholder="Enter your rejection reason..." required></textarea>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Quick Select Reason</label>
+                                    <div class="btn-group d-flex flex-wrap gap-2" role="group" style="gap: 0.5rem !important;">
+                                        <button type="button" class="btn btn-outline-danger btn-sm common-reason-btn" 
+                                            data-reason="Client budget exceeded - quotation too expensive">
+                                            <i class="fa-solid fa-money-bill me-1"></i> Budget Issue
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger btn-sm common-reason-btn" 
+                                            data-reason="Client decided to go with another vendor">
+                                            <i class="fa-solid fa-building me-1"></i> Other Vendor
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger btn-sm common-reason-btn" 
+                                            data-reason="Materials not available or out of stock">
+                                            <i class="fa-solid fa-box me-1"></i> No Stock
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger btn-sm common-reason-btn" 
+                                            data-reason="Timeline does not meet client requirements">
+                                            <i class="fa-solid fa-calendar me-1"></i> Timeline Issue
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger btn-sm common-reason-btn" 
+                                            data-reason="Client canceled the project">
+                                            <i class="fa-solid fa-ban me-1"></i> Project Canceled
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger btn-sm common-reason-btn" 
+                                            data-reason="Specifications do not match client requirements">
+                                            <i class="fa-solid fa-list-check me-1"></i> Specs Mismatch
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="alert alert-info small" role="alert">
+                                    <i class="fa-solid fa-info-circle me-2"></i>
+                                    Click any quick reason button above, or type your own reason in the text area above.
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-danger">
+                                    <i class="fa-solid fa-times-circle me-1"></i> Reject Quotation
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
     <!-- ---------------- Scripts ---------------- -->
 
     <script>
+        /**
+         * Format a number with thousand separators (commas)
+         * Example: 123456.78 => "123,456.78"
+         */
+        function formatNumberWithCommas(value) {
+            if (value === null || value === undefined) return '0.00';
+            const num = parseFloat(value);
+            if (isNaN(num)) return '0.00';
+            // Format number with 2 decimal places, then add commas
+            const formatted = num.toFixed(2);
+            return formatted.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+
+        /**
+         * Update grand total display with proper comma formatting
+         * Example: updateGrandTotalDisplay(123456.50) => ₱123,456.50
+         */
+        function updateGrandTotalDisplay(amount) {
+            // Prefer updating the inner amount span if present so we don't strip
+            // surrounding markup / classes. Fall back to replacing the cell text.
+            const grandTotalAmountEl = document.getElementById('grandTotalAmount');
+            if (grandTotalAmountEl) {
+                grandTotalAmountEl.textContent = formatNumberWithCommas(amount);
+                // Ensure parent shows currency prefix if needed
+                const parent = grandTotalAmountEl.closest('#grandTotal');
+                if (parent) {
+                    // parent may already contain the currency symbol in markup; keep it.
+                    // if not, ensure the visible text is correct by leaving structure intact.
+                }
+                return;
+            }
+
+            const grandTotalEl = document.getElementById("grandTotal");
+            if (grandTotalEl) {
+                grandTotalEl.textContent = "₱" + formatNumberWithCommas(amount);
+            }
+        }
+
+        /**
+         * Compute grand total on the client by summing all visible line totals
+         * and fee inputs. Useful when server responses don't include grand_total.
+         * Handles both editable inputs (.fee-input) and display-only spans (when disabled).
+         */
+        function computeAndUpdateGrandTotal() {
+            let materialsTotal = 0;
+            document.querySelectorAll('.line-total').forEach(el => {
+                try {
+                    const txt = el.textContent || '';
+                    // remove currency symbol and commas
+                    const raw = txt.replace(/[^0-9.\-]/g, '');
+                    const v = parseFloat(raw);
+                    if (!isNaN(v)) materialsTotal += v;
+                } catch (e) { /* ignore malformed cells */ }
+            });
+
+            let feesTotal = 0;
+            // Try to read from editable fee inputs first
+            document.querySelectorAll('.fee-input').forEach(inp => {
+                try {
+                    const val = inp.value || '0';
+                    const raw = val.toString().replace(/,/g, '').replace(/[^0-9.\-]/g, '');
+                    const v = parseFloat(raw);
+                    if (!isNaN(v)) feesTotal += v;
+                } catch (e) { /* ignore malformed inputs */ }
+            });
+
+            // If no fee inputs found (disabled state), read from labor and delivery fee display spans
+            if (feesTotal === 0) {
+                // Labor fee: look for the text after "Labor Fee:" label
+                const laborFeeSpans = document.querySelectorAll('tfoot tr');
+                laborFeeSpans.forEach(tr => {
+                    const tdText = tr.querySelector('td:first-child')?.textContent || '';
+                    if (tdText.includes('Labor Fee')) {
+                        const priceSpan = tr.querySelector('td:nth-child(4) span');
+                        if (priceSpan) {
+                            const raw = priceSpan.textContent.replace(/[^0-9.\-]/g, '');
+                            const v = parseFloat(raw);
+                            if (!isNaN(v)) feesTotal += v;
+                        }
+                    }
+                });
+
+                // Delivery fee: look for the text after "Delivery/Hauling Fee:" label
+                laborFeeSpans.forEach(tr => {
+                    const tdText = tr.querySelector('td:first-child')?.textContent || '';
+                    if (tdText.includes('Delivery') || tdText.includes('Hauling')) {
+                        const priceSpan = tr.querySelector('td:nth-child(4) span');
+                        if (priceSpan) {
+                            const raw = priceSpan.textContent.replace(/[^0-9.\-]/g, '');
+                            const v = parseFloat(raw);
+                            if (!isNaN(v)) feesTotal += v;
+                        }
+                    }
+                });
+            }
+
+            const grand = materialsTotal + feesTotal;
+            updateGrandTotalDisplay(grand);
+            return grand;
+        }
+
+        /**
+         * Bind formatting behavior to editable price inputs (.update-price)
+         * - on focus: remove commas so user can type raw number
+         * - on blur: format with commas
+         */
+        function bindPriceInputs(quotationType = 'regular') {
+            document.querySelectorAll('.update-price').forEach(input => {
+                if (input.dataset.priceBound) return;
+                input.dataset.priceBound = 'true';
+
+                input.addEventListener('focus', (e) => {
+                    const v = e.target.value || '';
+                    e.target.value = v.toString().replace(/,/g, '').trim();
+                });
+
+                input.addEventListener('blur', (e) => {
+                    if (e.target.value === '') {
+                        e.target.value = '0.00';
+                    }
+                    try {
+                        e.target.value = formatNumberWithCommas(e.target.value);
+                    } catch (err) {
+                        console.error('Format price error', err);
+                    }
+                });
+
+                // Attach change handler to send updated unit price to the server
+                // and update the line total + grand total immediately.
+                if (!input.dataset.priceChangeBound) {
+                    input.dataset.priceChangeBound = 'true';
+                    input.addEventListener('change', async function() {
+                        // Read raw numeric value (strip commas)
+                        const raw = this.value ? this.value.toString().replace(/,/g, '') : '';
+                        const newPrice = parseFloat(raw);
+                        const pivotId = this.dataset.pivot;
+                        const materialId = this.dataset.material;
+
+                        if (isNaN(newPrice) || newPrice < 0) {
+                            Swal.fire('Invalid Price', 'Please enter a valid price.', 'warning');
+                            // Reformat back to previous or 0.00
+                            try { this.value = formatNumberWithCommas(this.value || 0); } catch (e) {}
+                            return;
+                        }
+
+                        this.disabled = true;
+                        this.classList.add('is-loading');
+
+                        try {
+                            const endpoint = quotationType === 'additional' 
+                                ? `/additional-quotation-materials/${pivotId}/update-price`
+                                : `/quotation-materials/${pivotId}/update-unit-cost`;
+                            
+                            const pivotRes = await fetch(endpoint, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                    'Accept': 'application/json'
+                                },
+                                body: JSON.stringify({ unit_cost: newPrice })
+                            });
+
+                            let pivotData;
+                            try {
+                                if (pivotRes.headers.get('content-type')?.includes('application/json')) {
+                                    pivotData = await pivotRes.json();
+                                } else {
+                                    throw new Error('Pivot response not JSON');
+                                }
+                            } catch (e) {
+                                console.error('Pivot price response error:', e);
+                                Swal.fire('Error', 'Pivot price response not JSON.', 'error');
+                                this.disabled = false;
+                                this.classList.remove('is-loading');
+                                return;
+                            }
+
+                            if (pivotRes.ok && pivotData.success) {
+                                // Update the line total for this row
+                                const row = this.closest('tr');
+                                if (row) {
+                                    const quantity = parseFloat(row.querySelector('.update-quantity')?.value || 0);
+                                    const lineTotal = newPrice * (isNaN(quantity) ? 0 : quantity);
+                                    const lineEl = row.querySelector('.line-total');
+                                    if (lineEl) lineEl.textContent = `₱${formatNumberWithCommas(lineTotal)}`;
+                                }
+
+                                // Update grand total (use central updater). If server didn't
+                                // include grand_total, compute it from the DOM as a fallback.
+                                if (pivotData.grand_total !== undefined) {
+                                    updateGrandTotalDisplay(pivotData.grand_total);
+                                } else {
+                                    computeAndUpdateGrandTotal();
+                                }
+
+                                // Format and show the new price in the input
+                                try { this.value = formatNumberWithCommas(newPrice); } catch (e) {}
+                                Toast('Price updated!');
+                            } else {
+                                console.error('Pivot update failed:', { pivotRes, pivotData });
+                                Swal.fire('Error', 'Failed to update price.', 'error');
+                            }
+                        } catch (err) {
+                            console.error('Unexpected error:', err);
+                            Swal.fire('Error', 'Something went wrong: ' + (err.message || err), 'error');
+                        }
+
+                        this.disabled = false;
+                        this.classList.remove('is-loading');
+                    });
+                }
+            });
+        }
+
         function appendMaterialsToTable(materials) {
             const tbody = document.querySelector("table tbody");
             materials.forEach(mat => {
@@ -436,8 +946,8 @@
                     value="${mat.quantity}" min="1" style="width: 80px; display:inline-block;">
                 <span>${mat.unit}</span>
             </td>
-            <td>₱${parseFloat(mat.unit_price).toFixed(2)}</td>
-            <td class="line-total">₱${parseFloat(mat.line_total).toFixed(2)}</td>
+            <td>₱${formatNumberWithCommas(mat.unit_price)}</td>
+            <td class="line-total text-end">₱${formatNumberWithCommas(mat.line_total)}</td>
             <td class="text-center">
                 <a href="#" class="text-danger delete-material" data-id="${mat.pivot_id}" data-quot="{{ $quotation->id }}">
                     <i class="fa-solid fa-trash"></i>
@@ -448,8 +958,12 @@
             });
 
             // Rebind events for new quantity inputs and delete links
-            new QuantityUpdater(".update-quantity");
-            new DeleteMaterialFromQuotation(".delete-material");
+            new QuantityUpdater(".update-quantity", "{{ $quotationType ?? 'regular' }}");
+            new DeleteMaterialFromQuotation(".delete-material", "{{ $quotationType ?? 'regular' }}");
+            // Bind price input formatting for new rows
+            bindPriceInputs("{{ $quotationType ?? 'regular' }}");
+            // Ensure grand total reflects newly appended materials
+            computeAndUpdateGrandTotal();
         }
     </script>
 
@@ -457,8 +971,9 @@
     <!-- Delete Material from Quotation -->
     <script>
         class DeleteMaterialFromQuotation {
-            constructor(selector) {
+            constructor(selector, quotationType = 'regular') {
                 this.selector = selector;
+                this.quotationType = quotationType;
                 this.bindEvents();
             }
             bindEvents() {
@@ -481,7 +996,11 @@
                 });
                 if (!confirm.isConfirmed) return;
                 try {
-                    const res = await fetch(`/quotation-materials/${pivotId}`, {
+                    const endpoint = this.quotationType === 'additional' 
+                        ? `/additional-quotation-materials/${pivotId}`
+                        : `/quotation-materials/${pivotId}`;
+                    
+                    const res = await fetch(endpoint, {
                         method: "DELETE",
                         headers: {
                             "X-CSRF-TOKEN": '{{ csrf_token() }}',
@@ -494,8 +1013,9 @@
                         Toast(data.message || 'Deleted!');
                         if (rowEl) rowEl.remove();
                         if (data.grand_total !== undefined) {
-                            document.getElementById("grandTotal").textContent =
-                                "₱" + parseFloat(data.grand_total).toFixed(2);
+                            updateGrandTotalDisplay(data.grand_total);
+                        } else {
+                            computeAndUpdateGrandTotal();
                         }
                     } else {
                         Swal.fire("Error", data.message || "Failed to delete", "error");
@@ -506,13 +1026,14 @@
                 }
             }
         }
-        new DeleteMaterialFromQuotation(".delete-material");
+        new DeleteMaterialFromQuotation(".delete-material", "{{ $quotationType ?? 'regular' }}");
     </script>
 
     <script>
         class QuantityUpdater {
-            constructor(selector) {
+            constructor(selector, quotationType = 'regular') {
                 this.selector = selector;
+                this.quotationType = quotationType;
                 this.debounceTimers = new Map(); // per-input debounce
                 this.init();
             }
@@ -549,7 +1070,11 @@
                     quotId = input.dataset.quot;
 
                 try {
-                    const res = await fetch(`/quotation-materials/update-quantity`, {
+                    const endpoint = this.quotationType === 'additional' 
+                        ? `/additional-quotation-materials/${pivotId}/update-quantity`
+                        : `/quotation-materials/update-quantity`;
+
+                    const res = await fetch(endpoint, {
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json",
@@ -570,16 +1095,15 @@
                         if (row) {
                             const lineTotal = row.querySelector(".line-total");
                             if (lineTotal) {
-                                lineTotal.textContent = `₱${parseFloat(data.line_total).toFixed(2)}`;
+                                lineTotal.textContent = `₱${formatNumberWithCommas(data.line_total)}`;
                             }
                         }
 
                         // Update grand total
                         if (data.grand_total !== undefined) {
-                            const grandTotalEl = document.getElementById("grandTotal");
-                            if (grandTotalEl) {
-                                grandTotalEl.textContent = `₱${parseFloat(data.grand_total).toFixed(2)}`;
-                            }
+                            updateGrandTotalDisplay(data.grand_total);
+                        } else {
+                            computeAndUpdateGrandTotal();
                         }
 
                         // Show success toast
@@ -598,7 +1122,7 @@
         }
 
         // Initialize
-        new QuantityUpdater(".update-quantity");
+        new QuantityUpdater(".update-quantity", "{{ $quotationType ?? 'regular' }}");
     </script>
 
 
@@ -606,10 +1130,11 @@
     <!-- Update Fees -->
     <script>
         class FeeUpdater {
-            constructor(selector, quotationId, csrfToken) {
+            constructor(selector, quotationId, csrfToken, quotationType = 'regular') {
                 this.selector = selector;
                 this.quotationId = quotationId;
                 this.csrfToken = csrfToken;
+                this.quotationType = quotationType;
                 this.debounceTimer = null;
 
                 document.querySelectorAll(this.selector).forEach(input => {
@@ -650,12 +1175,18 @@
                 this.debounceTimer = setTimeout(async () => {
                     try {
                         console.log('Sending Fee Update Request:', {
-                            url: `/quotations/${this.quotationId}/update-fee`,
+                            url: this.quotationType === 'additional' 
+                                ? `/additional-quotations/${this.quotationId}/update-fee`
+                                : `/quotations/${this.quotationId}/update-fee`,
                             field,
                             value
                         });
 
-                        const res = await fetch(`/quotations/${this.quotationId}/update-fee`, {
+                        const endpoint = this.quotationType === 'additional' 
+                            ? `/additional-quotations/${this.quotationId}/update-fee`
+                            : `/quotations/${this.quotationId}/update-fee`;
+
+                        const res = await fetch(endpoint, {
                             method: "POST",
                             headers: {
                                 "Content-Type": "application/json",
@@ -683,14 +1214,15 @@
                                 value
                             });
 
-                            // ✅ Update grand total UI
-                            if (document.getElementById("grandTotal")) {
-                                document.getElementById("grandTotal").textContent =
-                                    "₱" + parseFloat(data.grand_total).toFixed(2);
+                            // ✅ Update grand total UI (fallback to client compute if missing)
+                            if (data.grand_total !== undefined) {
+                                updateGrandTotalDisplay(data.grand_total);
+                            } else {
+                                computeAndUpdateGrandTotal();
                             }
 
-                            // Store the updated fee value in the input
-                            input.value = parseFloat(value).toFixed(2);
+                            // Store the updated fee value in the input (formatted with commas)
+                            input.value = formatNumberWithCommas(value);
 
                             // SUCCESS -> toast
                             Toast(data.message || 'Fee updated!');
@@ -710,8 +1242,9 @@
         if (!window.feeUpdater) {
             window.feeUpdater = new FeeUpdater(
                 ".fee-input",
-                "{{ $quotation->id ?? '' }}",
-                "{{ csrf_token() }}"
+                "{{ $quotationId ?? '' }}",
+                "{{ csrf_token() }}",
+                "{{ $quotationType ?? 'regular' }}"
             );
         }
     </script>
@@ -722,47 +1255,183 @@
     <!-- Quotation Status Buttons -->
     <script>
         class QuotationStatusHandler {
-            constructor() {
+            constructor(quotationType = 'regular') {
+                this.quotationType = quotationType;
                 this.csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute("content");
                 this.bindEvents();
+                this.bindApproveForm();
+                this.bindRejectForm();
             }
 
             bindEvents() {
-                document.querySelectorAll("#approveBtn, #saveDraftBtn, #rejectBtn").forEach(button => {
-                    button.addEventListener("click", (e) => {
-                        e.preventDefault();
-                        const quotationId = button.dataset.quot;
-                        let statusId = null;
-
-                        switch (button.id) {
-                            case "saveDraftBtn":
-                                statusId = 1;
-                                break;
-                            case "approveBtn":
-                                statusId = 2;
-                                break;
-                            case "rejectBtn":
-                                statusId = 3;
-                                break;
+                // Handle Approve button - different behavior for regular vs additional quotations
+                const approveBtn = document.getElementById('approveBtn');
+                if (approveBtn) {
+                    approveBtn.addEventListener('click', (e) => {
+                        // If it's an additional quotation, skip the modal and directly approve
+                        if (this.quotationType === 'additional') {
+                            e.preventDefault();
+                            const quotationId = approveBtn.dataset.quot;
+                            // Directly update status to 2 (approved) without contract form
+                            this.updateStatus(quotationId, 2);
                         }
-
-                        if (statusId) this.updateStatus(quotationId, statusId);
+                        // Otherwise, let the modal open (data-bs-toggle will handle it)
                     });
+                }
+
+                // Handle Save Draft button
+                const saveDraftBtn = document.getElementById('saveDraftBtn');
+                if (saveDraftBtn) {
+                    saveDraftBtn.addEventListener("click", (e) => {
+                        e.preventDefault();
+                        const quotationId = saveDraftBtn.dataset.quot;
+                        this.updateStatus(quotationId, 1); // 1 = Draft
+                    });
+                }
+
+                // ✅ NEW: Handle Reject button - show modal instead of directly rejecting
+                const rejectBtn = document.getElementById('rejectBtn');
+                if (rejectBtn) {
+                    rejectBtn.addEventListener("click", (e) => {
+                        e.preventDefault();
+                        const rejectModal = new bootstrap.Modal(document.getElementById('rejectModal'));
+                        rejectModal.show();
+                        // Store quotation ID for later use in form submission
+                        document.getElementById('rejectModal').dataset.quotationId = rejectBtn.dataset.quot;
+                    });
+                }
+            }
+
+            bindRejectForm() {
+                const rejectForm = document.getElementById('rejectForm');
+                if (!rejectForm) return;
+
+                // ✅ NEW: Handle common reason buttons
+                document.querySelectorAll('.common-reason-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const reason = btn.dataset.reason;
+                        document.getElementById('rejectionReason').value = reason;
+                        // Highlight the clicked button
+                        document.querySelectorAll('.common-reason-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                    });
+                });
+
+                // ✅ NEW: Handle reject form submission
+                rejectForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+
+                    const quotationId = document.getElementById('rejectModal').dataset.quotationId;
+                    const rejectionReason = document.getElementById('rejectionReason').value.trim();
+
+                    // Validate reason
+                    if (!rejectionReason) {
+                        Swal.fire('Validation Error', 'Please provide a rejection reason.', 'warning');
+                        return;
+                    }
+
+                    // Confirm rejection
+                    const confirmed = await Swal.fire({
+                        icon: 'warning',
+                        title: 'Confirm Rejection',
+                        text: 'Are you sure you want to reject this quotation? This action cannot be undone.',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: 'Yes, reject it',
+                        cancelButtonText: 'Cancel'
+                    });
+
+                    if (!confirmed.isConfirmed) return;
+
+                    // Reject with status ID 3
+                    await this.updateStatus(quotationId, 3, {
+                        rejection_reason: rejectionReason
+                    });
+
+                    // Close modal on success
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('rejectModal'));
+                    if (modal) modal.hide();
                 });
             }
 
-            async updateStatus(quotationId, statusId) {
+            bindApproveForm() {
+                const approveForm = document.getElementById('approveForm');
+                if (!approveForm) return;
+
+                approveForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+
+                    const quotationId = document.getElementById('approveBtn').dataset.quot;
+                    const contractSubject = document.getElementById('contractSubject').value.trim();
+                    const projectStartDate = document.getElementById('projectStartDate').value;
+                    const projectEndDate = document.getElementById('projectEndDate').value;
+                    const withContract = document.getElementById('withContract').checked;
+
+                    // ✅ VALIDATION: Contract checkbox is REQUIRED
+                    if (!withContract) {
+                        Swal.fire('Validation Error', 'You must check "With Contract" to approve this quotation.', 'warning');
+                        return;
+                    }
+
+                    // ✅ VALIDATION: Contract subject is required
+                    if (!contractSubject) {
+                        Swal.fire('Validation Error', 'Contract Subject is required.', 'warning');
+                        return;
+                    }
+
+                    // ✅ VALIDATION: Start date is required
+                    if (!projectStartDate) {
+                        Swal.fire('Validation Error', 'Project Start Date is required.', 'warning');
+                        return;
+                    }
+
+                    // ✅ VALIDATION: End date is required
+                    if (!projectEndDate) {
+                        Swal.fire('Validation Error', 'Project End Date is required.', 'warning');
+                        return;
+                    }
+
+                    // ✅ VALIDATION: Start date must be before end date
+                    if (projectStartDate > projectEndDate) {
+                        Swal.fire('Validation Error', 'Project start date must be before end date.', 'warning');
+                        return;
+                    }
+
+                    // Approve with status ID 2
+                    await this.updateStatus(quotationId, 2, {
+                        contract_subject: contractSubject,
+                        project_start_date: projectStartDate,
+                        project_end_date: projectEndDate,
+                        with_contract: withContract ? 1 : 0
+                    });
+
+                    // Close modal on success
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('approveModal'));
+                    if (modal) modal.hide();
+                });
+            }
+
+            async updateStatus(quotationId, statusId, contractData = {}) {
                 try {
-                    const res = await fetch(`/quotations/${quotationId}/status`, {
+                    const payload = {
+                        status_id: statusId,
+                        ...contractData  // Include contract data if provided (for approve action)
+                    };
+
+                    const endpoint = this.quotationType === 'additional' 
+                        ? `/additional-quotations/${quotationId}/status`
+                        : `/quotations/${quotationId}/status`;
+
+                    const res = await fetch(endpoint, {
                         method: "PUT",
                         headers: {
                             "Content-Type": "application/json",
                             "X-CSRF-TOKEN": this.csrfToken,
                             "Accept": "application/json"
                         },
-                        body: JSON.stringify({
-                            status_id: statusId
-                        })
+                        body: JSON.stringify(payload)
                     });
 
                     const data = await res.json();
@@ -825,18 +1494,24 @@
             }
         }
 
-        new QuotationStatusHandler();
+        new QuotationStatusHandler("{{ $quotationType ?? 'regular' }}");
     </script>
 
     <script>
         window.quotationMaterialHandler = {
             loadMaterials: async function() {
-                const quotationId = "{{ $quotation->id }}";
+                const quotationId = "{{ $quotationId }}";
+                const quotationType = "{{ $quotationType }}";
                 const qStatus = "{{ strtolower($quotation->status->status_name ?? '') }}";
                 const readonly = {{ empty($readonly) ? 'false' : 'true' }};
 
                 try {
-                    const res = await fetch(`/quotation/${quotationId}/materials`);
+                    // Dynamically determine endpoint based on quotation type
+                    const endpoint = quotationType === 'additional' 
+                        ? `/additional-quotation/${quotationId}/materials`
+                        : `/quotation/${quotationId}/materials`;
+                    
+                    const res = await fetch(endpoint);
                     if (!res.ok) {
                         throw new Error(`HTTP error! status: ${res.status}`);
                     }
@@ -864,14 +1539,14 @@
 
                         // Render price field based on quotation status
                         if (qStatus === 'draft' && !readonly) {
-                            // Editable price field for draft
-                            priceField = `<input type="number" class="form-control update-price" 
+                            // Editable price field for draft (use text so we can show commas)
+                            priceField = `<input type="text" class="form-control update-price text-end" 
                             data-pivot="${mat.pivot_id}" data-material="${mat.id}"
-                            value="${parseFloat(mat.unit_price).toFixed(2)}" min="0" step="0.01"
+                            value="${formatNumberWithCommas(mat.unit_price)}" 
                             style="width: 100px; display:inline-block;">`;
                         } else {
                             // Display-only price field
-                            priceField = `₱${parseFloat(mat.unit_price).toFixed(2)}`;
+                            priceField = `₱${formatNumberWithCommas(mat.unit_price)}`;
                         }
 
                         const row = `
@@ -885,7 +1560,7 @@
                                 <span>${escapeHtml(mat.unit)}</span>
                             </td>
                             <td>${priceField}</td>
-                            <td class="line-total">₱${parseFloat(mat.line_total).toFixed(2)}</td>
+                            <td class="line-total text-end">₱${formatNumberWithCommas(mat.line_total)}</td>
                             <td class="text-center">
                                 ${!readonly ? `
                                                 <a href="#" class="text-danger delete-material" 
@@ -899,101 +1574,24 @@
                         tableBody.insertAdjacentHTML("beforeend", row);
                     });
 
-                    // ✅ Update grand total
-                    const grandTotalEl = document.getElementById("grandTotal");
-                    if (grandTotalEl) {
-                        grandTotalEl.textContent = "₱" + parseFloat(data.grand_total).toFixed(2);
+                    // ✅ Update grand total using centralized updater (preserves markup)
+                    if (data.grand_total !== undefined) {
+                        updateGrandTotalDisplay(data.grand_total);
+                    } else {
+                        computeAndUpdateGrandTotal();
                     }
 
-                    // ✅ Rebind handlers
+                        // Ensure price inputs are bound (formatting) before attaching handlers
+                        bindPriceInputs("{{ $quotationType ?? 'regular' }}");
+
+                        // ✅ Rebind handlers
                     try {
-                        new QuantityUpdater(".update-quantity");
-                        new DeleteMaterialFromQuotation(".delete-material");
+                        new QuantityUpdater(".update-quantity", "{{ $quotationType ?? 'regular' }}");
+                        new DeleteMaterialFromQuotation(".delete-material", "{{ $quotationType ?? 'regular' }}");
 
-                        // Re-bind price update handlers if in draft mode
-                        if (qStatus === 'draft' && !readonly) {
-                            document.querySelectorAll('.update-price').forEach(function(input) {
-                                input.addEventListener('change', async function() {
-                                    const newPrice = parseFloat(this.value);
-                                    const pivotId = this.dataset.pivot;
-                                    const materialId = this.dataset.material;
-                                    if (isNaN(newPrice) || newPrice < 0) {
-                                        Swal.fire('Invalid Price',
-                                            'Please enter a valid price.', 'warning');
-                                        return;
-                                    }
-                                    this.disabled = true;
-                                    this.classList.add('is-loading');
-                                    try {
-                                        // Only update the pivot. The controller will update the master material.
-                                        const pivotRes = await fetch(
-                                            `/quotation-materials/${pivotId}/update-unit-cost`, {
-                                                method: 'POST',
-                                                headers: {
-                                                    'Content-Type': 'application/json',
-                                                    'X-CSRF-TOKEN': document.querySelector(
-                                                            'meta[name="csrf-token"]')
-                                                        .content,
-                                                    'Accept': 'application/json'
-                                                },
-                                                body: JSON.stringify({
-                                                    unit_cost: newPrice
-                                                })
-                                            });
-
-                                        let pivotData;
-                                        try {
-                                            if (pivotRes.headers.get('content-type')?.includes(
-                                                    'application/json')) {
-                                                pivotData = await pivotRes.json();
-                                            } else {
-                                                throw new Error('Pivot response not JSON');
-                                            }
-                                        } catch (e) {
-                                            console.error('Pivot price response error:', e);
-                                            Swal.fire('Error', 'Pivot price response not JSON.',
-                                                'error');
-                                            this.disabled = false;
-                                            this.classList.remove('is-loading');
-                                            return;
-                                        }
-
-                                        if (pivotRes.ok && pivotData.success) {
-                                            // Update the line total for this row
-                                            const row = this.closest('tr');
-                                            const quantity = parseFloat(row.querySelector(
-                                                '.update-quantity').value || 0);
-                                            const lineTotal = newPrice * (isNaN(quantity) ? 0 :
-                                                quantity);
-                                            row.querySelector('.line-total').textContent =
-                                                `₱${lineTotal.toFixed(2)}`;
-
-                                            // Update grand total
-                                            if (pivotData.grand_total !== undefined) {
-                                                document.getElementById('grandTotal')
-                                                    .textContent =
-                                                    `₱${parseFloat(pivotData.grand_total).toFixed(2)}`;
-                                            }
-
-                                            Toast('Price updated!');
-                                        } else {
-                                            console.error('Pivot update failed:', {
-                                                pivotRes,
-                                                pivotData
-                                            });
-                                            Swal.fire('Error', 'Failed to update price.',
-                                                'error');
-                                        }
-                                    } catch (err) {
-                                        console.error('Unexpected error:', err);
-                                        Swal.fire('Error', 'Something went wrong: ' + err
-                                            .message, 'error');
-                                    }
-                                    this.disabled = false;
-                                    this.classList.remove('is-loading');
-                                });
-                            });
-                        }
+                        // Price inputs are bound via bindPriceInputs() above which attaches
+                        // both formatting and the change handler. Avoid duplicate bindings
+                        // here to prevent conflicting updates.
                     } catch (handlerErr) {
                         console.error("Error binding handlers:", handlerErr);
                     }
@@ -1026,6 +1624,7 @@
     <script>
         document.getElementById('createRevisionBtn').addEventListener('click', function() {
             const id = this.dataset.id;
+            const quotationType = "{{ $quotationType ?? 'regular' }}";
 
             Swal.fire({
                 title: 'Create a revision?',
@@ -1037,7 +1636,11 @@
             }).then((result) => {
                 if (!result.isConfirmed) return;
 
-                fetch(`/quotations/${id}/create-revision`, {
+                const endpoint = quotationType === 'additional' 
+                    ? `/additional-quotations/${id}/create-revision`
+                    : `/quotations/${id}/create-revision`;
+
+                fetch(endpoint, {
                         method: 'POST',
                         headers: {
                             'X-CSRF-TOKEN': '{{ csrf_token() }}',
@@ -1056,7 +1659,10 @@
                                 icon: 'success'
                             }).then(() => {
                                 // redirect to quotation edit page
-                                window.location.href = `/quotations/${data.quotation_id}`;
+                                const redirectUrl = quotationType === 'additional' 
+                                    ? `/additional-quotations/${data.quotation_id || id}/edit`
+                                    : `/quotations/${data.quotation_id}`;
+                                window.location.href = redirectUrl;
                             });
                         } else {
                             Swal.fire({
@@ -1104,8 +1710,8 @@
                     <div class="card-body">
                         <p><strong>Subject:</strong> ${rev.data.subject}</p>
                         <p><strong>Description:</strong> ${rev.data.description}</p>
-                        <p><strong>Labor Fee:</strong> ₱${parseFloat(rev.data.labor_fee).toFixed(2)}</p>
-                        <p><strong>Delivery Fee:</strong> ₱${parseFloat(rev.data.delivery_fee).toFixed(2)}</p>
+                        <p><strong>Labor Fee:</strong> ₱${formatNumberWithCommas(rev.data.labor_fee)}</p>
+                        <p><strong>Delivery Fee:</strong> ₱${formatNumberWithCommas(rev.data.delivery_fee)}</p>
 
                         <h6>Materials:</h6>
                         <table class="table table-sm table-bordered">
@@ -1123,9 +1729,9 @@
                                                                                                                                                                                                                             <tr>
                                                                                                                                                                                                                                 <td>${mat.name}</td>
                                                                                                                                                                                                                                 <td>${mat.unit}</td>
-                                                                                                                                                                                                                                <td>₱${parseFloat(mat.unit_price).toFixed(2)}</td>
+                                                                                                                                                                                                                                <td>₱${formatNumberWithCommas(mat.unit_price)}</td>
                                                                                                                                                                                                                                 <td>${mat.quantity}</td>
-                                                                                                                                                                                                                                <td>₱${(parseFloat(mat.unit_price) * mat.quantity).toFixed(2)}</td>
+                                                                                                                                                                                                                                <td>₱${formatNumberWithCommas(parseFloat(mat.unit_price) * mat.quantity)}</td>
                                                                                                                                                                                                                             </tr>
                                                                                                                                                                                                                         `).join('')}
                             </tbody>
@@ -1299,30 +1905,47 @@
                 generateLinkBtn.addEventListener('click', async function() {
                     generateLinkBtn.disabled = true;
                     generateLinkBtn.innerHTML =
-                        '<span class="spinner-border spinner-border-sm me-2"></span>Copying...';
+                        '<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
                     try {
-                        const token = "{{ $quotation->public_token ?? '' }}";
-                        if (!token) {
+                        const quotationId = "{{ $quotationId }}";
+                        const quotationType = "{{ $quotationType ?? 'regular' }}";
+
+                        // Call the generate token endpoint
+                        const endpoint = quotationType === 'additional' 
+                            ? `/additional-quotations/${quotationId}/generate-token`
+                            : `/quotations/${quotationId}/generate-token`;
+
+                        const response = await fetch(endpoint, {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json'
+                            }
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            const link = data.public_link;
+                            await navigator.clipboard.writeText(link);
                             Swal.fire({
-                                title: 'No Link Available',
-                                text: 'This quotation does not have a public link yet.',
-                                icon: 'warning',
+                                title: 'Link Generated & Copied!',
+                                text: link,
+                                icon: 'success',
                                 timer: 1500,
                                 showConfirmButton: false
                             });
                         } else {
-                            const link = `${window.location.origin}/quotation/public/${token}`;
-                            await navigator.clipboard.writeText(link);
                             Swal.fire({
-                                title: 'Link Copied!',
-                                text: link,
-                                icon: 'success',
-                                timer: 1200,
-                                showConfirmButton: false
+                                title: 'Failed',
+                                text: data.message || 'Could not generate link',
+                                icon: 'error'
                             });
                         }
                     } catch (err) {
-                        Swal.fire('Error', 'Could not copy the link.', 'error');
+                        console.error(err);
+                        Swal.fire('Error', 'Could not generate the link: ' + err.message, 'error');
                     }
                     generateLinkBtn.disabled = false;
                     generateLinkBtn.innerHTML = '<i class="fa-solid fa-link me-1"></i> Generate Link';
@@ -1330,4 +1953,126 @@
             }
         });
     </script>
+    <script>
+        // Ensure price inputs get formatting behavior on initial load
+        document.addEventListener('DOMContentLoaded', function() {
+            try { bindPriceInputs("{{ $quotationType ?? 'regular' }}"); } catch (e) { console.error('bindPriceInputs error', e); }
+        });
+    </script>
+
+    <!-- View Additional Quotations Modal -->
+    <div class="modal fade" id="additionalQuotationsModal" tabindex="-1" aria-labelledby="additionalQuotationsLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="additionalQuotationsLabel">Additional Quotations</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="additionalQuotationsList"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Additional Quotations Handler -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const viewAdditionalQtnBtn = document.getElementById('viewAdditionalQtnBtn');
+            const modalEl = document.getElementById('additionalQuotationsModal');
+            
+            if (!viewAdditionalQtnBtn || !modalEl) return;
+
+            const bsModal = new bootstrap.Modal(modalEl);
+
+            viewAdditionalQtnBtn.addEventListener('click', async function() {
+                const parentId = this.getAttribute('data-parent-id');
+                const container = document.getElementById('additionalQuotationsList');
+                
+                try {
+                    // Fetch additional quotations as JSON
+                    const response = await fetch(`/quotations/${parentId}/additional-quotations-json`);
+                    const data = await response.json();
+
+                    if (!response.ok || !data.success) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: data.message || 'Failed to load additional quotations',
+                            confirmButtonColor: '#d33'
+                        });
+                        return;
+                    }
+
+                    // Display quotations
+                    container.innerHTML = '';
+
+                    if (data.quotations.length === 0) {
+                        container.innerHTML = '<div class="alert alert-info">No additional quotations yet.</div>';
+                    } else {
+                        data.quotations.forEach((quotation, index) => {
+                            const div = document.createElement('div');
+                            div.classList.add('card', 'mb-3', 'border-primary', 'border-start', 'border-5');
+
+                            const statusBadgeClass = {
+                                'draft': 'bg-secondary',
+                                'pending': 'bg-warning text-dark',
+                                'approved': 'bg-success',
+                                'rejected': 'bg-danger',
+                                'completed': 'bg-success',
+                                'ongoing': 'bg-info'
+                            }[quotation.status?.status_name?.toLowerCase()] || 'bg-secondary';
+
+                            const approvalStatus = quotation.customer_approved 
+                                ? '<span class="badge bg-success ms-2"><i class="fa-solid fa-check me-1"></i>Approved</span>'
+                                : '<span class="badge bg-warning text-dark ms-2"><i class="fa-solid fa-hourglass me-1"></i>Pending</span>';
+
+                            div.innerHTML = `
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-0">${quotation.subject || 'Untitled'}</h6>
+                                        <small class="text-muted">ID: ${quotation.id}</small>
+                                    </div>
+                                    <div>
+                                        <span class="badge ${statusBadgeClass}">
+                                            ${quotation.status?.status_name || 'Unknown'}
+                                        </span>
+                                        ${approvalStatus}
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <p class="mb-2"><strong>Description:</strong> <br> 
+                                        ${quotation.description ? quotation.description : '<em class="text-muted">No description</em>'}
+                                    </p>
+                                    <p class="mb-2"><strong>Created:</strong> ${new Date(quotation.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}</p>
+                                    <p class="mb-2"><strong>Materials:</strong> ${quotation.materials?.length || 0}</p>
+                                    <div class="d-flex gap-2">
+                                        <a href="/additional-quotations/${quotation.id}/edit" class="btn btn-sm btn-primary">
+                                            <i class="fa-solid fa-eye me-1"></i> View/Edit
+                                        </a>
+                                    </div>
+                                </div>
+                            `;
+                            container.appendChild(div);
+                        });
+                    }
+
+                    // Show modal
+                    bsModal.show();
+                } catch (error) {
+                    console.error('Error fetching additional quotations:', error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Network Error',
+                        text: 'Failed to fetch additional quotations. Please try again.',
+                        confirmButtonColor: '#d33'
+                    });
+                }
+            });
+        });
+    </script>
+
 @endsection

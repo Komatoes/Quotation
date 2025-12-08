@@ -13,7 +13,14 @@ return new class extends Migration
      */
     public function up()
     {
-        //
+        Schema::table('users', function (Blueprint $table) {
+            if (!Schema::hasColumn('users', 'role')) {
+                $table->string('role')->default('user')->after('email');
+            }
+            if (!Schema::hasColumn('users', 'role_name')) {
+                $table->string('role_name')->nullable()->after('role');
+            }
+        });
     }
 
     /**
@@ -23,6 +30,13 @@ return new class extends Migration
      */
     public function down()
     {
-        //
+        Schema::table('users', function (Blueprint $table) {
+            if (Schema::hasColumn('users', 'role')) {
+                $table->dropColumn('role');
+            }
+            if (Schema::hasColumn('users', 'role_name')) {
+                $table->dropColumn('role_name');
+            }
+        });
     }
 };

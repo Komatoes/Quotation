@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Quotation;
 use App\Models\QuotationComment;
 use App\Models\QuotationCommentReply;
+use App\Helpers\NotificationHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -61,6 +62,9 @@ class QuotationCommentController extends Controller
             'session_token' => $sessionToken,
         ]);
 
+        // Create notification for admin/staff
+        NotificationHelper::notifyCommentAdded($comment, $quotation);
+
         // Optionally eager load relationships if needed for UI
         $comment = QuotationComment::with(['replies.nestedReplies'])->find($comment->id);
 
@@ -90,6 +94,9 @@ class QuotationCommentController extends Controller
             'comment'      => $request->comment,
             'sender_type'  => Auth::user()->hasRole('admin') ? 'admin' : (Auth::user()->hasRole('staff') ? 'staff' : 'customer'),
         ]);
+
+        // Create notification for admin/staff
+        NotificationHelper::notifyCommentAdded($comment, $quotation);
 
         // Reload with relationships
         $comment = QuotationComment::with(['replies.nestedReplies'])->find($comment->id);
@@ -483,8 +490,66 @@ class QuotationCommentController extends Controller
     public function customerApprove($publicToken)
     {
         $quotation = Quotation::where('public_token', $publicToken)->firstOrFail();
-        $quotation->update(['customer_approved' => true]);
+        $quotation->update([
+            'customer_approved' => true,
+            'approved_by_customer_at' => now()
+        ]);
+
+        // ✅ NEW: Create notification for approval
+        NotificationHelper::notify(
+            auth()->user()->id ?? $quotation->employee_id,
+            'customer_approval',
+            'Customer Approved Quotation',
+            "Customer {$quotation->client->client_name} approved quotation: {$quotation->quotation_number}",
+            'Quotation',
+            $quotation->id
+        );
 
         return response()->json(['success' => true, 'message' => 'Quotation approved by customer']);
+    }
+
+    /**
+     * Get comments for additional quotation
+     */
+    public function getAdditionalComments($id)
+    {
+        $additionalQuotation = \App\Models\AdditionalQuotation::findOrFail($id);
+        // Query using parent_quotation_id and quotation_type='additional' to comply with FK constraint
+        $comments = QuotationComment::where('quotation_id', $additionalQuotation->parent_quotation_id)
+            ->where('quotation_type', 'additional')
+            ->with(['replies.nestedReplies'])
+            ->orderBy('created_at', 'asc')
+            ->get();
+        return response()->json($comments);
+    }
+
+    /**
+     * Store comment for additional quotation
+     */
+    public function storeAdditionalComment(Request $request, $id)
+    {
+        $request->validate([
+            'comment' => 'required|string|max:1000'
+        ]);
+
+        $additionalQuotation = \App\Models\AdditionalQuotation::findOrFail($id);
+
+        // Store parent quotation ID (not additional quotation ID) to comply with FK constraint
+        $comment = QuotationComment::create([
+            'quotation_id' => $additionalQuotation->parent_quotation_id,
+            'quotation_type' => 'additional',
+            'user_id' => auth()->id(),
+            'user_name' => auth()->user()->name,
+            'comment' => $request->comment,
+            'sender_type' => 'admin',
+        ]);
+
+        $comment = QuotationComment::with(['replies.nestedReplies'])->find($comment->id);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Comment added successfully',
+            'comment' => $comment,
+        ]);
     }
 }

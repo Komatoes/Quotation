@@ -12,6 +12,8 @@ use App\Http\Controllers\QuotationCommentController;
 use App\Http\Controllers\QuotationCommentPublicController;
 use App\Http\Controllers\QuotationCommentAdminController;
 use App\Http\Controllers\BackupManagementController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\Admin\AdminLogController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 
@@ -29,7 +31,8 @@ Route::get('/', function () {
 
 Route::middleware(['auth', 'role:admin|staff'])->group(function () {
     Route::get('/dashboard', [QuotationController::class, 'viewHome'])->name('dashboard');
-    Route::get('/view-report/{id}', [QuotationController::class, 'viewReport'])->name('report');
+    Route::get('/quotation-reports', [QuotationController::class, 'quotationReports'])->name('quotation.reports');
+    Route::get('/view-report/{id}', [ProjectReportController::class, 'showReports'])->name('report');
 });
 
 // ---------------------------------------------------------------------------
@@ -59,6 +62,18 @@ Route::prefix('quotation/public')->group(function () {
     
     // Public export (DOC) for a quotation using token (no auth)
     Route::get('/{token}/export', [QuotationExportController::class, 'exportByToken'])->name('quotations.export.public');
+});
+
+// ---------------------------------------------------------------------------
+// PUBLIC ADDITIONAL QUOTATION ROUTES (no login needed)
+// ---------------------------------------------------------------------------
+
+Route::prefix('additional-quotation/public')->group(function () {
+    Route::get('/{token}', [QuotationController::class, 'showAdditionalPublicAccessForm'])->name('additional-quotations.public.form');
+    Route::post('/{token}/validate', [QuotationController::class, 'validateAdditionalPublicAccess'])->name('additional-quotations.public.validate');
+    Route::get('/{token}/view', [QuotationController::class, 'showAdditionalPublicQuotation'])->name('additional-quotations.public.view');
+    Route::post('/{token}/approve', [QuotationController::class, 'approveAdditionalQuotationPublic'])->name('additional-quotations.public.approve');
+    Route::get('/{token}/export', [QuotationController::class, 'exportAdditionalPublicQuotation'])->name('additional-quotations.export.public');
 });
 
 // ---------------------------------------------------------------------------
@@ -95,15 +110,60 @@ Route::middleware(['auth', 'role:admin|staff'])->group(function () {
 
     // 📈 Project Progress
     Route::post('/quotations/{quotationId}/update-progress', [ProjectReportController::class, 'updateProgress'])->name('quotations.updateProgress');
-    Route::get('/view-report/{id}', [ProjectReportController::class, 'showReports'])->name('quotations.showReports');
 
     // 🪶 Revisions
     Route::get('/quotations/{id}/revisions-json', [QuotationController::class, 'getRevisionsJson'])->name('quotations.revisions.json');
     Route::post('/quotations/{id}/create-revision', [QuotationController::class, 'createRevision'])->name('quotations.createRevision');
     
+    // � Fees
+    Route::post('/quotations/{id}/update-fee', [QuotationController::class, 'updateFee'])->name('quotations.update-fee');
+    
+    // 🔗 Public Links
+    Route::post('/quotations/{id}/generate-token', [QuotationController::class, 'generateToken'])->name('quotations.generate-token');
+    
+    // �📋 Additional Quotations
+    Route::get('/quotations/{id}/additional-quotations-json', [QuotationController::class, 'getAdditionalQuotationsJson'])->name('quotations.additional.json');
+    
     // Clients - update client information (used inline on quotation page)
     Route::put('/clients/{client}', [ClientController::class, 'update'])->name('clients.update');
 
+});
+
+// Additional Quotations - create via modal in view-report (no page view needed)
+Route::middleware(['auth'])->group(function () {
+    Route::post('/additional-quotation', [QuotationController::class, 'storeAdditionalQuotation'])->name('quotations.additional.store');
+    
+    // Additional quotation editing (show, edit, update, delete)
+    Route::get('/additional-quotations/{id}/edit', [QuotationController::class, 'editAdditionalQuotation'])->name('additional-quotations.edit');
+    Route::post('/additional-quotations/{id}/update', [QuotationController::class, 'updateAdditionalQuotation'])->name('additional-quotations.update');
+    Route::post('/additional-quotations/{id}/approve', [QuotationController::class, 'approveAdditionalQuotation'])->name('additional-quotations.approve');
+    Route::delete('/additional-quotations/{id}', [QuotationController::class, 'deleteAdditionalQuotation'])->name('additional-quotations.delete');
+    
+    // Materials for additional quotations
+    Route::post('/additional-quotations/{id}/materials', [QuotationController::class, 'attachMaterialToAdditional'])->name('additional-quotations.materials.attach');
+    Route::delete('/additional-quotations/{id}/materials/{materialId}', [QuotationController::class, 'detachMaterialFromAdditional'])->name('additional-quotations.materials.detach');
+    Route::delete('/additional-quotation-materials/{pivotId}', [QuotationController::class, 'deleteAdditionalQuotationMaterial'])->name('additional-quotation-materials.destroy');
+    Route::get('/additional-quotation/{id}/materials', [QuotationController::class, 'getAdditionalMaterials'])->name('additional-quotations.materials');
+    Route::post('/additional-quotation-materials/{id}/update-price', [QuotationController::class, 'updateAdditionalMaterialPrice'])->name('additional-quotation-materials.update-price');
+    Route::post('/additional-quotation-materials/{id}/update-quantity', [QuotationController::class, 'updateAdditionalMaterialQuantity'])->name('additional-quotation-materials.update-quantity');
+    Route::post('/additional-quotation-materials/add-selected', [QuotationController::class, 'storeSelectedMaterialsToAdditional'])->name('additional-quotations.materials.storeSelected');
+    
+    // Status, fees, and revisions for additional quotations
+    Route::put('/additional-quotations/{id}/status', [QuotationController::class, 'updateAdditionalQuotationStatus'])->name('additional-quotations.status');
+    Route::post('/additional-quotations/{id}/update-fee', [QuotationController::class, 'updateAdditionalQuotationFee'])->name('additional-quotations.update-fee');
+    Route::post('/additional-quotations/{id}/create-revision', [QuotationController::class, 'createAdditionalRevision'])->name('additional-quotations.create-revision');
+    Route::post('/additional-quotations/{id}/generate-token', [QuotationController::class, 'generateAdditionalToken'])->name('additional-quotations.generate-token');
+    Route::post('/additional-quotations/{id}/approve-and-attach', [QuotationController::class, 'approveAndAttachAdditionalQuotation'])->name('additional-quotations.approve-and-attach');
+    Route::get('/additional-quotations/{id}/revisions-json', [QuotationController::class, 'getAdditionalRevisionsJson'])->name('additional-quotations.revisions-json');
+    Route::post('/additional-quotations/{id}/generate-token', [QuotationController::class, 'generateAdditionalToken'])->name('additional-quotations.generate-token');
+    Route::get('/additional-quotations/{id}/export', [QuotationController::class, 'exportAdditionalQuotation'])->name('additional-quotations.export');
+    
+    // Comments for additional quotations
+    Route::get('/additional-quotations/{id}/comments', [QuotationCommentAdminController::class, 'getAdditionalComments']);
+    Route::post('/additional-quotations/{id}/comments', [QuotationCommentAdminController::class, 'storeAdditionalComment']);
+    
+    // View additional quotation (display only, not edit)
+    Route::get('/additional-quotations/{id}/view', [QuotationController::class, 'viewAdditionalQuotation'])->name('additional-quotations.view');
 });
 
 // ---------------------------------------------------------------------------
@@ -137,10 +197,27 @@ Route::get('/login', [App\Http\Controllers\Auth\LoginController::class, 'showLog
 Route::post('/login', [App\Http\Controllers\Auth\LoginController::class, 'login'])->name('login.submit')->middleware('guest');
 Route::post('/logout', [App\Http\Controllers\Auth\LoginController::class, 'logout'])->name('logout')->middleware('auth');
 
-Route::get('/forgot-password', [App\Http\Controllers\Auth\ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request')->middleware('guest');
-Route::post('/forgot-password', [App\Http\Controllers\Auth\ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email')->middleware('guest');
-Route::get('/reset-password/{token}', [App\Http\Controllers\Auth\ResetPasswordController::class, 'showResetForm'])->name('password.reset')->middleware('guest');
-Route::post('/reset-password', [App\Http\Controllers\Auth\ResetPasswordController::class, 'reset'])->name('password.update')->middleware('guest');
+// ✅ Forgot Password with OTP
+Route::get('/forgot-password', [App\Http\Controllers\Auth\LoginController::class, 'showForgotPasswordForm'])->name('forgot.password')->middleware('guest');
+Route::post('/forgot-password', [App\Http\Controllers\Auth\LoginController::class, 'sendOtp'])->name('send.otp')->middleware('guest');
+Route::get('/verify-otp', [App\Http\Controllers\Auth\LoginController::class, 'showVerifyOtpForm'])->name('verify.otp.form')->middleware('guest');
+Route::post('/verify-otp', [App\Http\Controllers\Auth\LoginController::class, 'verifyOtp'])->name('verify.otp')->middleware('guest');
+Route::get('/reset-password', [App\Http\Controllers\Auth\LoginController::class, 'showResetPasswordForm'])->name('reset.password.form')->middleware('guest');
+Route::post('/reset-password', [App\Http\Controllers\Auth\LoginController::class, 'resetPassword'])->name('reset.password')->middleware('guest');
+
+// ---------------------------------------------------------------------------
+// NOTIFICATION ROUTES (Requires Auth)
+// ---------------------------------------------------------------------------
+
+Route::middleware('auth')->group(function () {
+    Route::get('/notifications/count', [NotificationController::class, 'getUnreadCount'])->name('notifications.count');
+    Route::get('/notifications', [NotificationController::class, 'getNotifications'])->name('notifications.list');
+    Route::get('/notifications/unread', [NotificationController::class, 'getUnreadNotifications'])->name('notifications.unread');
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
+    Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
+    Route::delete('/notifications/{id}', [NotificationController::class, 'delete'])->name('notifications.delete');
+    Route::delete('/notifications', [NotificationController::class, 'clearAll'])->name('notifications.clear-all');
+});
 
 // ---------------------------------------------------------------------------
 // COMMENT MANAGEMENT (Public + Authenticated - auth checks inside controller)
@@ -202,7 +279,13 @@ Route::middleware(['auth'])->prefix('admin/backup')->group(function () {
     Route::get('/', [BackupManagementController::class, 'index'])->name('admin.backup.index');
     Route::post('/create', [BackupManagementController::class, 'create'])->name('admin.backup.create');
     Route::get('/download/{filename}', [BackupManagementController::class, 'download'])->name('admin.backup.download');
-    Route::post('/delete', [BackupManagementController::class, 'delete'])->name('admin.backup.delete');
-    Route::post('/restore', [BackupManagementController::class, 'restore'])->name('admin.backup.restore');
+});
+
+// System Logs Routes
+Route::middleware(['auth'])->prefix('admin/logs')->group(function () {
+    Route::get('/', [AdminLogController::class, 'index'])->name('admin.logs.index');
+    Route::get('/show/{log}', [AdminLogController::class, 'show'])->name('admin.logs.show');
+    Route::get('/export', [AdminLogController::class, 'export'])->name('admin.logs.export');
+    Route::post('/clear', [AdminLogController::class, 'clearOldLogs'])->name('admin.logs.clear');
 });
 

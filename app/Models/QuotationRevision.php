@@ -8,9 +8,12 @@ class QuotationRevision extends Model
 {
     protected $fillable = [
         'quotation_id',
+        'quotation_type',
         'old_data',
         'reason',
+        'change_reason',
         'version',
+        'created_by',
     ];
 
     protected $casts = [
@@ -20,5 +23,10 @@ class QuotationRevision extends Model
     public function quotation()
     {
         return $this->belongsTo(Quotation::class);
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'created_by');
     }
 }

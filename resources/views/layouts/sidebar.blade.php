@@ -71,6 +71,12 @@
             <div>Backup & Restore</div>
         </a>
     </li>
+    <li class="menu-item">
+        <a href="{{ route('admin.logs.index') }}" class="menu-link">
+            <i class="fa-solid fa-file-lines menu-icon"></i>
+            <div>System Logs</div>
+        </a>
+    </li>
     @endif
 </ul>
 

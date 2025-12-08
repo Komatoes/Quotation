@@ -121,13 +121,34 @@
 
                 <!-- Navbar -->
                 <nav class="layout-navbar navbar navbar-expand-xl align-items-center">
-                    <div class="container-fluid">
+                    <div class="container-fluid d-flex justify-content-between align-items-center">
                         <!-- Mobile sidebar toggle -->
                         <button class="btn btn-success d-xl-none ms-2" type="button" data-bs-toggle="offcanvas"
                             data-bs-target="#mobileSidebar" aria-controls="mobileSidebar">
                             <i class="fa-solid fa-bars me-1"></i>
                         </button>
 
+                        <!-- Right side navbar items -->
+                        <div class="d-flex align-items-center gap-3 ms-auto">
+                            <!-- Notifications Component -->
+                            @include('components.notifications')
+
+                            <!-- User Dropdown -->
+                            <div class="dropdown">
+                                <button class="btn btn-link text-white text-decoration-none dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fa-solid fa-user-circle me-2"></i>
+                                    <span>{{ Auth::user()->name ?? 'User' }}</span>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                                    <li>
+                                        <form method="POST" action="{{ route('logout') }}" style="display: inline;">
+                                            @csrf
+                                            <button type="submit" class="dropdown-item"><i class="fa-solid fa-sign-out-alt me-2"></i>Logout</button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
                 </nav>
 
@@ -300,6 +321,10 @@
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Global Form Validation System -->
+    <script src="{{ asset('assets/js/global-form-validation.js?v=1.2') }}"></script>
+    
     <script>
         // Enable dropdowns in mobile sidebar (offcanvas)
         document.addEventListener('DOMContentLoaded', function() {

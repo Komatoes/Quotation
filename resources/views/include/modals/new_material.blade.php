@@ -84,7 +84,12 @@ window.initNewMaterialForm = function(formEl, modalEl, quotationId) {
             }
 
             // Attach new material to quotation
-            const attachRes = await fetch('/quotation-materials/add-selected', {
+            const isAdditionalQuotation = quotationId && (quotationId > 0); // Determine endpoint based on context
+            const endpoint = (window.location.pathname.includes('additional-quotation') || window.location.pathname.includes('additional-quotations')) ?
+                '/additional-quotation-materials/add-selected' :
+                '/quotation-materials/add-selected';
+
+            const attachRes = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
                 body: JSON.stringify({ quot_id: quotationId, selected: [data.material.id], quantity: { [data.material.id]: 1 } })

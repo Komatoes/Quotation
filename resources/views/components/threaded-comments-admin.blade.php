@@ -145,9 +145,11 @@
 // Full admin comment handlers: load, render, post, edit, delete, replies
 (function(){
     const quotationId = "{{ $quotationId ?? '' }}";
+    const quotationType = "{{ $quotationType ?? 'quotation' }}";
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
-    const commentEndpoint = `/quotation/${quotationId}/comments`;
-    const commentsListEndpoint = `/quotation/${quotationId}/comments`;
+    const baseEndpoint = quotationType === 'additional' ? `/additional-quotations/${quotationId}/comments` : `/quotation/${quotationId}/comments`;
+    const commentEndpoint = baseEndpoint;
+    const commentsListEndpoint = baseEndpoint;
 
     function qs(s,ctx=document){return ctx.querySelector(s);} 
     function qsa(s,ctx=document){return Array.from((ctx||document).querySelectorAll(s));}

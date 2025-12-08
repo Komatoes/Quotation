@@ -2,6 +2,14 @@
 
 namespace App\Providers;
 
+use App\Models\Client;
+use App\Models\Material;
+use App\Models\Project;
+use App\Models\Quotation;
+use App\Observers\ClientObserver;
+use App\Observers\MaterialObserver;
+use App\Observers\ProjectObserver;
+use App\Observers\QuotationObserver;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -36,5 +44,11 @@ class AppServiceProvider extends ServiceProvider
             $mysqlBinPath = 'C:\\xampp\\mysql\\bin';
             putenv("PATH=" . $mysqlBinPath . ";" . getenv('PATH'));
         }
+
+        // Register model observers for automatic logging
+        Quotation::observe(QuotationObserver::class);
+        Project::observe(ProjectObserver::class);
+        Material::observe(MaterialObserver::class);
+        Client::observe(ClientObserver::class);
     }
 }

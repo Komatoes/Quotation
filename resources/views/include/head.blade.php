@@ -38,6 +38,9 @@
     <link rel="stylesheet" href="{{ asset('assets/vendor/libs/datatables-rowgroup-bs5/rowgroup.bootstrap5.css') }}" />
     <!-- Form Validation -->
     <link rel="stylesheet" href="{{ asset('assets/vendor/libs/@form-validation/form-validation.css') }}" />
+    
+    <!-- Global Form Validation Styles -->
+    <link rel="stylesheet" href="{{ asset('assets/css/global-form-validation.css') }}" />
 
     <!-- Page CSS -->
 

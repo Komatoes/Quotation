@@ -24,6 +24,17 @@ class QuotationCommentAdminController extends Controller
         return $this->base->storeAdminComment($request, $id);
     }
 
+    // Additional quotations comments
+    public function getAdditionalComments($id)
+    {
+        return $this->base->getAdditionalComments($id);
+    }
+
+    public function storeAdditionalComment(Request $request, $id)
+    {
+        return $this->base->storeAdditionalComment($request, $id);
+    }
+
     // Authenticated edit/delete
     public function update(Request $request, $id)
     {

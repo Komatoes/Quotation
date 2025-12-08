@@ -220,9 +220,9 @@
                         </div>
                     </form>
 
-                    {{-- <div class="links" style="margin-top: 20px;">
-                        <a class="link-item" id="forgot-password-btn">Forgot Password?</a>
-                    </div> --}}
+                    <div class="links" style="margin-top: 20px;">
+                        <a href="{{ route('forgot.password') }}" class="link-item">Forgot Password?</a>
+                    </div>
                 </div>
             </div>
 

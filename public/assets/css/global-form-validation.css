@@ -1,0 +1,330 @@
+/**
+ * GLOBAL FORM VALIDATION STYLES
+ * Styling for all form inputs across the application
+ */
+
+/* ==================== PRICE INPUTS ==================== */
+input[name*="price"],
+input[name*="fee"],
+input[name*="labor"],
+input[name*="delivery"],
+input[name*="unit_price"],
+input[data-type="price"],
+input[data-type="currency"],
+input[data-validate="price"],
+input.price-input {
+    font-family: 'Courier New', monospace;
+    text-align: right;
+    letter-spacing: 0.5px;
+}
+
+input[name*="price"]:focus,
+input[name*="fee"]:focus,
+input[name*="labor"]:focus,
+input[name*="delivery"]:focus,
+input[name*="unit_price"]:focus,
+input[data-type="price"]:focus,
+input[data-type="currency"]:focus,
+input[data-validate="price"]:focus,
+input.price-input:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    background-color: #f8f9fa;
+}
+
+/* ==================== NAME INPUTS ==================== */
+input[name*="name"],
+input[name*="first"],
+input[name*="last"],
+input[name*="subject"],
+input[name*="unit"],
+input[data-validate="name"],
+input[data-type="name"],
+input.name-input {
+    text-transform: capitalize;
+}
+
+input[name*="name"]:focus,
+input[name*="first"]:focus,
+input[name*="last"]:focus,
+input[name*="subject"]:focus,
+input[name*="unit"]:focus,
+input[data-validate="name"]:focus,
+input[data-type="name"]:focus,
+input.name-input:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* ==================== CONTACT INPUTS ==================== */
+input[name*="contact"],
+input[name*="phone"],
+input[type="tel"],
+input[data-validate="contact"],
+input[data-type="phone"] {
+    letter-spacing: 1px;
+    font-family: 'Courier New', monospace;
+    text-align: center;
+}
+
+input[name*="contact"]:focus,
+input[name*="phone"]:focus,
+input[type="tel"]:focus,
+input[data-validate="contact"]:focus,
+input[data-type="phone"]:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* ==================== QUANTITY INPUTS ==================== */
+input[name*="quantity"],
+input[data-validate="quantity"],
+input[data-type="quantity"] {
+    font-family: 'Courier New', monospace;
+    text-align: right;
+}
+
+input[name*="quantity"]:focus,
+input[data-validate="quantity"]:focus,
+input[data-type="quantity"]:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* ==================== VALIDATION ERROR STATES ==================== */
+input.is-invalid,
+textarea.is-invalid,
+select.is-invalid {
+    border-color: #dc3545 !important;
+    background-color: #fff5f5;
+}
+
+input.is-invalid:focus,
+textarea.is-invalid:focus,
+select.is-invalid:focus {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+}
+
+.invalid-feedback {
+    display: block;
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    font-weight: 500;
+}
+
+.invalid-feedback::before {
+    content: '⚠ ';
+    margin-right: 0.25rem;
+}
+
+/* ==================== VALIDATION SUCCESS STATES ==================== */
+input.is-valid,
+textarea.is-valid,
+select.is-valid {
+    border-color: #28a745;
+    background-color: #f0f9f5;
+}
+
+input.is-valid:focus,
+textarea.is-valid:focus,
+select.is-valid:focus {
+    border-color: #28a745;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+.valid-feedback {
+    display: block;
+    color: #28a745;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+/* ==================== FORM GROUP STYLING ==================== */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-label {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.form-label .text-danger {
+    margin-left: 0.25rem;
+}
+
+.form-control,
+.form-select,
+textarea {
+    border-radius: 0.375rem;
+    border: 1px solid #dee2e6;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-control:focus,
+.form-select:focus,
+textarea:focus {
+    border-color: #80bdff;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* ==================== HELPER TEXT ==================== */
+.form-text {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.form-text.text-danger {
+    color: #dc3545;
+    font-weight: 500;
+}
+
+/* ==================== INPUT ICONS ==================== */
+.input-with-icon {
+    position: relative;
+}
+
+.input-with-icon .form-control {
+    padding-right: 2.5rem;
+}
+
+.input-with-icon .input-icon {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1rem;
+    color: #6c757d;
+}
+
+.input-with-icon .form-control.is-invalid ~ .input-icon {
+    color: #dc3545;
+}
+
+.input-with-icon .form-control.is-valid ~ .input-icon {
+    color: #28a745;
+}
+
+/* ==================== MODALS WITH FORMS ==================== */
+.modal-body .form-group:last-child {
+    margin-bottom: 0;
+}
+
+.modal-body .form-control,
+.modal-body .form-select,
+.modal-body textarea {
+    margin-bottom: 0.5rem;
+}
+
+/* ==================== RESPONSIVE ADJUSTMENTS ==================== */
+@media (max-width: 576px) {
+    .form-label {
+        font-size: 0.95rem;
+    }
+
+    .form-control,
+    .form-select,
+    textarea {
+        font-size: 1rem;
+    }
+
+    .invalid-feedback {
+        font-size: 0.8rem;
+    }
+
+    input[type="tel"],
+    input[data-type="phone"] {
+        letter-spacing: 0.5px;
+    }
+}
+
+/* ==================== BUTTON STATES ==================== */
+button[type="submit"],
+.btn-primary {
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+}
+
+button[type="submit"]:disabled,
+.btn-primary:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+/* ==================== LOADING STATE ==================== */
+.form-control.loading,
+.btn-primary.loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+/* ==================== DESCRIPTION FIELDS ==================== */
+textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+textarea:focus {
+    background-color: #f8f9fa;
+}
+
+/* ==================== INLINE VALIDATION ==================== */
+.validation-inline {
+    display: inline-block;
+    font-size: 0.75rem;
+    margin-left: 0.5rem;
+    font-weight: bold;
+}
+
+.validation-inline.valid {
+    color: #28a745;
+}
+
+.validation-inline.invalid {
+    color: #dc3545;
+}
+
+/* ==================== FORM SECTIONS ==================== */
+.form-section {
+    padding: 1.5rem;
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+    margin-bottom: 1.5rem;
+    border-left: 4px solid #007bff;
+}
+
+.form-section .form-section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+/* ==================== FORM ROW ALIGNMENT ==================== */
+.form-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.form-row .form-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+@media (max-width: 576px) {
+    .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .form-row .form-group {
+        margin-bottom: 1rem;
+    }
+}

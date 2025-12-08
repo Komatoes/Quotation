@@ -2,7 +2,7 @@
 <div class="modal fade" id="addMatModal" tabindex="-1" aria-labelledby="addMatModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
-            <form id="addMaterialForm" method="POST" action="{{ url('/quotation-materials/store') }}">
+            <form id="addMaterialForm" method="POST" action="{{ isset($additionalQuotation) ? url('/additional-quotation-materials/add-selected') : url('/quotation-materials/add-selected') }}">
                 @csrf
                 <div class="modal-header">
                     <h5 class="modal-title" id="addMatModalLabel">Add Material to Quotation</h5>
@@ -36,7 +36,7 @@
                         </div>
                     </div>
 
-                    <input type="hidden" name="quot_id" value="{{ $quotation->id }}">
+                    <input type="hidden" name="quot_id" value="{{ isset($additionalQuotation) ? $additionalQuotation->id : ($quotation->id ?? $parentQuotation->id ?? '') }}">
                 </div>
 
                 <div class="modal-footer">
@@ -218,7 +218,9 @@
             this.submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Adding...';
 
             try {
-                const res = await fetch("/quotation-materials/add-selected", {
+                // Get the form action to determine the endpoint
+                const endpoint = this.formEl.action || "/quotation-materials/add-selected";
+                const res = await fetch(endpoint, {
                     method: "POST",
                     headers: {
                         "X-CSRF-TOKEN": '{{ csrf_token() }}',
@@ -308,7 +310,7 @@
     window.initAddMaterialSwap = function() {
         const btn = document.getElementById('openNewMaterialModalBtn');
         const modalEl = document.getElementById('addMatModal');
-        const quotationId = "{{ $quotation->id }}";
+    const quotationId = "{{ $additionalQuotation->id ?? $quotation->id ?? $parentQuotation->id ?? '' }}";
         if (!btn || !modalEl) return;
 
         // Remove any previous handler to avoid duplicate bindings
