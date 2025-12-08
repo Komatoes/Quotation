@@ -10,21 +10,58 @@ class UsersSeeder extends Seeder
 {
     public function run()
     {
-        // Industry-standard password (12 chars: uppercase, lowercase, numbers, special chars)
-        $password = 'SecurePass@2025!Qtn';
-
-        // Create or update admin account
-        $admin = User::updateOrCreate(
-            ['email' => 'jomilo.lano@quotation.app'],
+        // Admin accounts
+        $admins = [
+            [
+                'name' => 'Test Admin',
+                'last_name' => '',
+                'email' => 'laronvogn@gmail.com',
+                'username' => 'ADMIN',
+                'password' => 'ADMIN123',
+            ],
+            [
+                'name' => 'Nemo',
+                'last_name' => '',
+                'email' => 'blankgajes@gmail.com',
+                'username' => 'nemo',
+                'password' => 'Admin@123456',
+            ],
+            [
+                'name' => 'Ange',
+                'last_name' => '',
+                'email' => 'angelikamaslang@gmail.com',
+                'username' => 'ange',
+                'password' => 'Admin@123456',
+            ],
+            [
+                'name' => 'Mark',
+                'last_name' => '',
+                'email' => 'markandrebayo234@gmail.com',
+                'username' => 'mark',
+                'password' => 'Admin@123456',
+            ],
             [
                 'name' => 'Jomilo',
                 'last_name' => 'Lano',
+                'email' => 'jomilo.lano@quotation.app',
                 'username' => 'jomilo',
-                'password' => Hash::make($password),
-            ]
-        );
-        if (! $admin->hasRole('admin')) {
-            $admin->assignRole('admin');
+                'password' => 'Jomilo@123456',
+            ],
+        ];
+
+        foreach ($admins as $adminData) {
+            $admin = User::updateOrCreate(
+                ['email' => $adminData['email']],
+                [
+                    'name' => $adminData['name'],
+                    'last_name' => $adminData['last_name'],
+                    'username' => $adminData['username'],
+                    'password' => Hash::make($adminData['password']),
+                ]
+            );
+            if (! $admin->hasRole('admin')) {
+                $admin->assignRole('admin');
+            }
         }
 
         // Create or update staff account
@@ -34,7 +71,7 @@ class UsersSeeder extends Seeder
                 'name' => 'Redcrislan',
                 'last_name' => 'Toralde',
                 'username' => 'redcrislan',
-                'password' => Hash::make($password),
+                'password' => Hash::make('SecurePass@2025!Qtn'),
             ]
         );
         if (! $staff->hasRole('staff')) {
