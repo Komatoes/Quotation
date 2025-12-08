@@ -1,175 +1,222 @@
-    <!doctype html>
-    <html lang="en" data-bs-theme="light">
-    <style>
-        /* ===== Overlay Drawer Sidebar (Mobile) ===== */
+<!doctype html>
+<html lang="en" data-bs-theme="light">
 
-        .sidebar-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
-            z-index: 1040;
-        }
+<style>
+    /* ===== Overlay Drawer Sidebar (Mobile) ===== */
+    .sidebar-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease, visibility 0.3s ease;
+        z-index: 1040;
+    }
 
-        .sidebar-overlay.active {
-            opacity: 1;
-            visibility: visible;
-        }
+    .sidebar-overlay.active {
+        opacity: 1;
+        visibility: visible;
+    }
 
-        .mobile-sidebar {
-            position: fixed;
-            top: 0;
-            left: -260px;
-            width: 260px;
-            height: 100%;
-            background: var(--bs-body-bg);
-            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
-            overflow-y: auto;
-            transition: left 0.3s ease;
-            z-index: 1050;
-        }
+    .mobile-sidebar {
+        position: fixed;
+        top: 0;
+        left: -260px;
+        width: 260px;
+        height: 100%;
+        background: #42955c !important;
+        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
+        overflow-y: auto;
+        transition: left 0.3s ease;
+        z-index: 1050;
+    }
 
-        .mobile-sidebar.active {
-            left: 0;
-        }
-    </style>
+    .mobile-sidebar.active {
+        left: 0;
+    }
 
-    <head>
-        @include('include.head')
-    </head>
+    /* Sidebar link colors */
+    .layout-menu a,
+    .offcanvas a {
+        color: #ffffff !important;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 18px;
+        font-size: 1.08rem;
+        text-decoration: none;
+        width: 100%;
+    }
 
-    <body class="layout-navbar-fixed layout-menu-fixed layout-compact">
+    .layout-menu a:hover,
+    .offcanvas a:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+    }
 
-        <!-- Layout wrapper -->
-        <div class="layout-wrapper layout-content-navbar">
-            <div class="layout-container">
+    .menu-inner {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
 
+    .menu-item {
+        width: 100%;
+    }
 
-                <!-- Sidebar for desktop -->
-                <aside id="layout-menu" class="layout-menu menu-vertical bg-menu-theme d-none d-xl-block">
-                    @include('layouts.sidebar')
-                </aside>
-                <!-- Offcanvas Sidebar for mobile (Bootstrap) -->
-                <div class="offcanvas offcanvas-start d-xl-none" tabindex="-1" id="mobileSidebar" aria-labelledby="mobileSidebarLabel">
-                    <div class="offcanvas-header">
-                        <h5 class="offcanvas-title" id="mobileSidebarLabel">Menu</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-                    </div>
-                    <div class="offcanvas-body">
-                        @include('layouts.sidebar', ['mobile' => true])
-                    </div>
+    /* Navbar text/icons */
+    .navbar {
+        color: #ffffff !important;
+    }
+
+    .navbar a,
+    .navbar i,
+    .navbar span {
+        color: #ffffff !important;
+    }
+
+    .navbar .btn-outline-primary {
+        border-color: #ffffff;
+        color: #ffffff;
+    }
+
+    .navbar .btn-outline-primary:hover {
+        background-color: rgba(255, 255, 255, 0.15);
+    }
+</style>
+
+<head>
+    @include('include.head')
+</head>
+
+<body class="layout-navbar-fixed layout-menu-fixed layout-compact">
+
+    <!-- Layout wrapper -->
+    <div class="layout-wrapper layout-content-navbar">
+        <div class="layout-container">
+
+            <!-- Sidebar for desktop -->
+            <aside id="layout-menu" class="layout-menu menu-vertical d-none d-xl-block" style="background-color: #42955c;">
+                @include('layouts.sidebar')
+            </aside>
+
+            <!-- Offcanvas Sidebar for mobile (Bootstrap) -->
+            <div class="offcanvas offcanvas-start d-xl-none" tabindex="-1" id="mobileSidebar"
+                aria-labelledby="mobileSidebarLabel" style="background-color: #42955c;">
+                <div class="offcanvas-header border-bottom">
+                    <h5 class="offcanvas-title text-white" id="mobileSidebarLabel">Menu</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"
+                        aria-label="Close"></button>
                 </div>
+                <div class="offcanvas-body">
+                    @include('layouts.sidebar', ['mobile' => true])
+                </div>
+            </div>
 
+            <!-- Layout container -->
+            <div class="layout-page">
 
+                <!-- Navbar -->
+                <nav class="layout-navbar navbar navbar-expand-xl align-items-center">
+                    <div class="container-fluid d-flex justify-content-between align-items-center">
+                        <!-- Mobile sidebar toggle -->
+                        <button class="btn btn-success d-xl-none ms-2" type="button" data-bs-toggle="offcanvas"
+                            data-bs-target="#mobileSidebar" aria-controls="mobileSidebar">
+                            <i class="fa-solid fa-bars me-1"></i>
+                        </button>
 
-                <!-- Layout container -->
-                <div class="layout-page">
+                        <!-- Right side navbar items -->
+                        <div class="d-flex align-items-center gap-3 ms-auto">
+                            <!-- Notifications Component -->
+                            @include('components.notifications')
 
-                    <!-- Navbar -->
-                    <nav class="layout-navbar navbar navbar-expand-xl align-items-center bg-navbar-theme">
-                        <div class="container-fluid">
-                            <a href="{{ url('/') }}" class="navbar-brand">My App</a>
-                            <!-- Mobile sidebar toggle -->
-                            <button class="btn btn-outline-primary d-xl-none ms-2" type="button"
-                                data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar"
-                                aria-controls="mobileSidebar">
-                                <i class="ti ti-menu-2"></i>
-                            </button>
-
-                            <ul class="navbar-nav ms-auto">
-                                <li class="nav-item dropdown">
-                                    <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                                        <img src="{{ asset('assets/img/avatars/1.png') }}" class="rounded-circle"
-                                            width="30">
-                                        <span class="ms-2">Hello, User</span>
-                                    </a>
-                                    <ul class="dropdown-menu dropdown-menu-end">
-                                        <li><a class="dropdown-item" href="#">Profile</a></li>
-                                        <li><a class="dropdown-item" href="/logout-user">Logout</a></li>
-                                    </ul>
-                                </li>
-                            </ul>
+                            <!-- User Dropdown -->
+                            <div class="dropdown">
+                                <button class="btn btn-link text-white text-decoration-none dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fa-solid fa-user-circle me-2"></i>
+                                    <span>{{ Auth::user()->name ?? 'User' }}</span>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                                    <li>
+                                        <form method="POST" action="{{ route('logout') }}" style="display: inline;">
+                                            @csrf
+                                            <button type="submit" class="dropdown-item"><i class="fa-solid fa-sign-out-alt me-2"></i>Logout</button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
                         </div>
-                    </nav>
-
-                    <!-- Content wrapper -->
-                    <div class="content-wrapper">
-                        @yield('content')
                     </div>
+                </nav>
 
+                <!-- Content wrapper -->
+                <div class="content-wrapper">
+                    @yield('content')
                 </div>
-                <!-- /Layout page -->
-
             </div>
-            <!-- /Layout container -->
+            <!-- /Layout page -->
+
         </div>
-        <!-- /Layout wrapper -->
+        <!-- /Layout container -->
+    </div>
+    <!-- /Layout wrapper -->
 
-        @include('include.scripts')
-        <!-- Modal Handler -->
-        <script src="{{ asset('assets/js/modal-handler.js') }}"></script>
+    @include('include.scripts')
+    <script src="{{ asset('assets/js/modal-handler.js') }}"></script>
 
-        <!-- Offcanvas: Create Quotation -->
-        <div class="offcanvas offcanvas-end" id="add-new-quotation">
-            <div class="offcanvas-header border-bottom">
-                <h5 class="offcanvas-title">Add Quotation</h5>
-                <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas"
-                    aria-label="Close"></button>
-            </div>
-            <div class="offcanvas-body flex-grow-1">
-                <form class="row g-2" id="form-add-quotation" onsubmit="return false">
-
-                    <!-- Quotation Info -->
-                    <div class="col-sm-12">
-                        <label class="form-label">Subject</label>
-                        <input type="text" name="subject" class="form-control" placeholder="Renovation Project"
-                            required>
-                    </div>
-
-                    <div class="col-sm-12">
-                        <label class="form-label">Description</label>
-                        <textarea name="description" class="form-control" rows="3" placeholder="Details about the quotation"></textarea>
-                    </div>
-
-                    <div class="col-sm-6">
-                        <label class="form-label">Client First Name</label>
-                        <input type="text" name="client_first_name" class="form-control" placeholder="John" required>
-                    </div>
-
-                    <div class="col-sm-6">
-                        <label class="form-label">Client Last Name</label>
-                        <input type="text" name="client_last_name" class="form-control" placeholder="Doe" required>
-                    </div>
-
-                    <div class="col-sm-6">
-                        <label class="form-label">Contact No</label>
-                        <input type="text" name="client_contact_no" class="form-control" placeholder="09123456789"
-                            required>
-                    </div>
-
-                    <div class="col-sm-12">
-                        <label class="form-label">Address</label>
-                        <textarea name="client_address" class="form-control" rows="2" placeholder="123 Main St, City" required></textarea>
-                    </div>
-
-                    <!-- Buttons -->
-                    <div class="col-sm-12">
-                        <button type="submit" class="btn btn-primary me-2"
-                            onclick="addQuotation.add('form-add-quotation')">Save</button>
-                        <button type="reset" class="btn btn-outline-secondary"
-                            data-bs-dismiss="offcanvas">Cancel</button>
-                    </div>
-                </form>
-            </div>
+    <!-- Offcanvas: Create Quotation -->
+    <div class="offcanvas offcanvas-end" id="add-new-quotation">
+        <div class="offcanvas-header border-bottom">
+            <h5 class="offcanvas-title">Add Quotation</h5>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
         </div>
-    </body>
+        <div class="offcanvas-body flex-grow-1">
+            <form class="row g-2" id="form-add-quotation" onsubmit="return false">
 
-    </html>
+                <!-- Quotation Info -->
+                <div class="col-sm-12">
+                    <label class="form-label">Subject</label>
+                    <input type="text" name="subject" class="form-control" placeholder="Project Name" required>
+                </div>
+
+                <div class="col-sm-12">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="3" placeholder="Quoatation Description"></textarea>
+                </div>
+
+                <div class="col-sm-6">
+                    <label class="form-label">Client First Name</label>
+                    <input type="text" name="client_first_name" class="form-control" placeholder="First Name" required>
+                </div>
+
+                <div class="col-sm-6">
+                    <label class="form-label">Client Last Name</label>
+                    <input type="text" name="client_last_name" class="form-control" placeholder="Last Name" required>
+                </div>
+
+                <div class="col-sm-6">
+                    <label class="form-label">Contact No</label>
+                    <input type="text" name="client_contact_no" class="form-control" placeholder="Phone Number"
+                        required>
+                </div>
+
+                <div class="col-sm-12">
+                    <label class="form-label">Address</label>
+                    <textarea name="client_address" class="form-control" rows="2" placeholder="123 Main St, City" required></textarea>
+                </div>
+
+                <!-- Buttons -->
+                <div class="col-sm-12">
+                    <button type="submit" class="btn btn-primary me-2"
+                        onclick="addQuotation.add('form-add-quotation')">Save</button>
+                    <button type="reset" class="btn btn-outline-secondary" data-bs-dismiss="offcanvas">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <script>
         class AddQuotation {
@@ -196,7 +243,6 @@
                         data
                     }) => {
                         if (!ok) {
-                            // 🧠 Laravel validation errors
                             if (data.errors) {
                                 const messages = Object.values(data.errors)
                                     .flat()
@@ -216,13 +262,13 @@
                             }
                             return;
                         }
-                        // ✅ Success
                         Swal.fire({
-                            title: data.message || "Quotation created successfully!",
-                            icon: "success"
-                        }).then(() => {
-                            window.location.href = "/quotations/" + data.quotation_id;
-                        });
+                                title: data.message || "Quotation created successfully!",
+                                icon: "success"
+                            })
+                            .then(() => {
+                                window.location.href = "/quotations/" + data.quotation_id;
+                            });
                     })
                     .catch(error => {
                         console.error("Error:", error);
@@ -234,9 +280,9 @@
                     });
             }
         }
+
         const addQuotation = new AddQuotation();
 
-        // Quotation modal open for desktop
         document.addEventListener("DOMContentLoaded", () => {
             const btnAddQuotation = document.getElementById("btn-add-quotation");
             if (btnAddQuotation) {
@@ -246,15 +292,12 @@
                     offcanvas.show();
                 });
             }
-            // Quotation modal open for mobile
             const btnAddQuotationMobile = document.getElementById("btn-add-quotation-mobile");
             if (btnAddQuotationMobile) {
                 btnAddQuotationMobile.addEventListener("click", () => {
-                    // Close sidebar first
                     const sidebar = document.getElementById("mobileSidebar");
                     const sidebarInstance = bootstrap.Offcanvas.getOrCreateInstance(sidebar);
                     sidebarInstance.hide();
-                    // Open quotation modal after sidebar closes
                     setTimeout(() => {
                         const offcanvasEl = document.getElementById("add-new-quotation");
                         const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
@@ -265,19 +308,57 @@
         });
     </script>
 
-
     <script>
-    // Ensure only one Bootstrap offcanvas backdrop is present
-    document.addEventListener("shown.bs.offcanvas", function () {
-        // Remove extra backdrops if any
-        const backdrops = document.querySelectorAll('.offcanvas-backdrop');
-        if (backdrops.length > 1) {
-            for (let i = 1; i < backdrops.length; i++) {
-                backdrops[i].parentNode.removeChild(backdrops[i]);
+        // Ensure only one Bootstrap offcanvas backdrop is present
+        document.addEventListener("shown.bs.offcanvas", function() {
+            const backdrops = document.querySelectorAll('.offcanvas-backdrop');
+            if (backdrops.length > 1) {
+                for (let i = 1; i < backdrops.length; i++) {
+                    backdrops[i].parentNode.removeChild(backdrops[i]);
+                }
             }
-        }
-    });
+        });
     </script>
 
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Global Form Validation System -->
+    <script src="{{ asset('assets/js/global-form-validation.js?v=1.2') }}"></script>
+    
+    <script>
+        // Enable dropdowns in mobile sidebar (offcanvas)
+        document.addEventListener('DOMContentLoaded', function() {
+            function handleDropdowns(container) {
+                const toggles = container.querySelectorAll('.menu-toggle');
+                toggles.forEach(function(toggle) {
+                    toggle.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const submenu = toggle.nextElementSibling;
+                        if (submenu && submenu.classList.contains('menu-sub')) {
+                            submenu.classList.toggle('show');
+                        }
+                    });
+                });
+            }
+            // Desktop sidebar
+            const desktopSidebar = document.getElementById('layout-menu');
+            if (desktopSidebar) handleDropdowns(desktopSidebar);
+            // Mobile sidebar (offcanvas)
+            const mobileSidebar = document.getElementById('mobileSidebar');
+            if (mobileSidebar) {
+                mobileSidebar.addEventListener('shown.bs.offcanvas', function() {
+                    handleDropdowns(mobileSidebar);
+                });
+            }
+        });
+        // Add CSS for dropdown animation
+        const style = document.createElement('style');
+        style.innerHTML = `
+            .menu-sub { display: none; transition: all 0.2s; }
+            .menu-sub.show { display: block; }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+
+</html>

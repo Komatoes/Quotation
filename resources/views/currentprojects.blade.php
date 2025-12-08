@@ -39,7 +39,7 @@
     class ApprovedHandler {
         constructor() {
             this.currentPage = 1;
-            this.perPage = 5;
+            this.perPage = 10;
             this.searchQuery = "";
             this.quotations = [];
 
@@ -113,45 +113,44 @@
             const pagination = document.getElementById("approved-pagination");
             pagination.innerHTML = "";
 
-            if (totalPages <= 1) return; // hide if only 1 page
+            if (totalPages <= 1) return; // hide pagination if unnecessary
 
-            // Prev button
+            // Previous
             const prevDisabled = this.currentPage === 1 ? "disabled" : "";
             pagination.insertAdjacentHTML("beforeend", `
-            <li class="page-item ${prevDisabled}">
-                <a class="page-link" href="javascript:void(0);"><i class="ti ti-chevron-left"></i></a>
-            </li>
-        `);
+                <li class="page-item ${prevDisabled}">
+                    <a class="page-link" href="#" data-page="${this.currentPage - 1}">&laquo;</a>
+                </li>
+            `);
 
-            // Page numbers
+            // Pages
             for (let i = 1; i <= totalPages; i++) {
                 const active = i === this.currentPage ? "active" : "";
                 pagination.insertAdjacentHTML("beforeend", `
-                <li class="page-item ${active}">
-                    <a class="page-link" href="javascript:void(0);">${i}</a>
-                </li>
-            `);
+                    <li class="page-item ${active}">
+                        <a class="page-link" href="#" data-page="${i}">${i}</a>
+                    </li>
+                `);
             }
 
-            // Next button
+            // Next
             const nextDisabled = this.currentPage === totalPages ? "disabled" : "";
             pagination.insertAdjacentHTML("beforeend", `
-            <li class="page-item ${nextDisabled}">
-                <a class="page-link" href="javascript:void(0);"><i class="ti ti-chevron-right"></i></a>
-            </li>
-        `);
+                <li class="page-item ${nextDisabled}">
+                    <a class="page-link" href="#" data-page="${this.currentPage + 1}">&raquo;</a>
+                </li>
+            `);
 
-            // Event binding
-            pagination.querySelectorAll(".page-link").forEach((btn) => {
-                btn.addEventListener("click", () => {
-                    if (btn.querySelector(".ti-chevron-left")) {
-                        if (this.currentPage > 1) this.currentPage--;
-                    } else if (btn.querySelector(".ti-chevron-right")) {
-                        if (this.currentPage < totalPages) this.currentPage++;
-                    } else {
-                        this.currentPage = parseInt(btn.textContent);
+            // Add click handlers
+            pagination.querySelectorAll("a.page-link").forEach(link => {
+                link.addEventListener("click", (e) => {
+                    e.preventDefault();
+                    const page = parseInt(link.dataset.page);
+                    if (!isNaN(page) && page >= 1 && page <= totalPages && page !== this.currentPage) {
+                        this.currentPage = page;
+                        this.renderTable();
+                        this.renderPagination(totalItems);
                     }
-                    this.renderTable();
                 });
             });
         }

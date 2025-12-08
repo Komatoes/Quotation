@@ -1,41 +1,11 @@
 /* Modal improvements and fixes */
 document.addEventListener('DOMContentLoaded', function() {
-    // Fix for stuck backdrops
-    document.querySelectorAll('.modal').forEach(modal => {
-        modal.addEventListener('hidden.bs.modal', function() {
-            // Remove any stuck backdrops
-            document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
-                backdrop.remove();
-            });
-            // Re-enable scrolling if no modals are visible
-            if (!document.querySelector('.modal.show')) {
-                document.body.classList.remove('modal-open');
-                document.body.style.paddingRight = '';
-            }
-        });
-    });
+    // NOTE: Removed per-modal hidden handlers that duplicated backdrop cleanup.
+    // The centralized `modal-handler.js` is the authoritative source for backdrop
+    // and body class cleanup to avoid races when nested modals are used.
 
-    // Fix for scrolling in nested modals
-    document.querySelectorAll('[data-bs-toggle="modal"]').forEach(trigger => {
-        trigger.addEventListener('click', function() {
-            const currentModal = this.closest('.modal');
-            if (currentModal) {
-                currentModal.style.display = 'none';
-                currentModal.setAttribute('data-bs-backdrop', 'false');
-            }
-        });
-    });
-
-    // Restore parent modal when nested modal is closed
-    document.querySelectorAll('.modal').forEach(modal => {
-        modal.addEventListener('hidden.bs.modal', function() {
-            const parentModal = document.querySelector('.modal[data-bs-backdrop="false"]');
-            if (parentModal) {
-                parentModal.style.display = '';
-                parentModal.setAttribute('data-bs-backdrop', 'true');
-            }
-        });
-    });
+    // Nested modals: do not hide parent modals or toggle backdrop attributes.
+    // Bootstrap 5 handles nested modals/backdrop stacking. Avoid manual DOM hacks here.
 
     // Improve search bars
     document.querySelectorAll('.search-input').forEach(input => {

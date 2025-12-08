@@ -1,9 +1,7 @@
-/*
-* demo.css
-* File include item demo only specific css only
-******************************************************************************/
+
 
 .menu .app-brand.demo {
+  background: #42955c !important;
   height: 64px;
 }
 

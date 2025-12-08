@@ -39,7 +39,7 @@
     class CompletedHandler {
         constructor() {
             this.currentPage = 1;
-            this.perPage = 5; // items per page
+            this.perPage = 10; // items per page
             this.searchQuery = "";
             this.quotations = [];
 
@@ -112,39 +112,44 @@
             const pagination = document.getElementById("completed-pagination");
             pagination.innerHTML = "";
 
+            if (totalPages <= 1) return; // hide pagination if unnecessary
+
+            // Previous
             const prevDisabled = this.currentPage === 1 ? "disabled" : "";
             pagination.insertAdjacentHTML("beforeend", `
                 <li class="page-item ${prevDisabled}">
-                    <a class="page-link" href="javascript:void(0);"><i class="ti ti-chevron-left"></i></a>
+                    <a class="page-link" href="#" data-page="${this.currentPage - 1}">&laquo;</a>
                 </li>
             `);
 
+            // Pages
             for (let i = 1; i <= totalPages; i++) {
                 const active = i === this.currentPage ? "active" : "";
                 pagination.insertAdjacentHTML("beforeend", `
                     <li class="page-item ${active}">
-                        <a class="page-link" href="javascript:void(0);">${i}</a>
+                        <a class="page-link" href="#" data-page="${i}">${i}</a>
                     </li>
                 `);
             }
 
+            // Next
             const nextDisabled = this.currentPage === totalPages ? "disabled" : "";
             pagination.insertAdjacentHTML("beforeend", `
                 <li class="page-item ${nextDisabled}">
-                    <a class="page-link" href="javascript:void(0);"><i class="ti ti-chevron-right"></i></a>
+                    <a class="page-link" href="#" data-page="${this.currentPage + 1}">&raquo;</a>
                 </li>
             `);
 
-            pagination.querySelectorAll(".page-link").forEach((btn) => {
-                btn.addEventListener("click", () => {
-                    if (btn.querySelector(".ti-chevron-left")) {
-                        if (this.currentPage > 1) this.currentPage--;
-                    } else if (btn.querySelector(".ti-chevron-right")) {
-                        if (this.currentPage < totalPages) this.currentPage++;
-                    } else {
-                        this.currentPage = parseInt(btn.textContent);
+            // Add click handlers
+            pagination.querySelectorAll("a.page-link").forEach(link => {
+                link.addEventListener("click", (e) => {
+                    e.preventDefault();
+                    const page = parseInt(link.dataset.page);
+                    if (!isNaN(page) && page >= 1 && page <= totalPages && page !== this.currentPage) {
+                        this.currentPage = page;
+                        this.renderTable();
+                        this.renderPagination(totalItems);
                     }
-                    this.renderTable();
                 });
             });
         }

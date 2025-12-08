@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, FIXES ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v4
+        with:
+          php-version: '8.2'
+          coverage: none
+          extensions: mbstring, intl, pdo_sqlite
+
+      - name: Get Composer cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+
+      - name: Install dependencies
+        run: composer install --no-progress --no-suggest --prefer-dist
+
+      - name: Composer dump-autoload
+        run: composer dump-autoload -o
+
+      - name: Create .env
+        run: |
+          cp .env.example .env || true
+          php artisan key:generate --ansi --no-interaction
+          # Use sqlite in CI
+          php -r "file_exists('database/database.sqlite') || touch('database/database.sqlite');"
+          php artisan config:clear || true
+
+      - name: Sanity: php artisan route:list
+        run: php artisan route:list --no-ansi
+
+      - name: Run tests
+        run: vendor/bin/phpunit --testsuite=Feature --no-interaction --colors=never

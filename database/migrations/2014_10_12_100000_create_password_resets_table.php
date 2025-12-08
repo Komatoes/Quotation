@@ -16,6 +16,9 @@ return new class extends Migration
         Schema::create('password_resets', function (Blueprint $table) {
             $table->string('email')->primary();
             $table->string('token');
+            $table->string('otp')->nullable();
+            $table->boolean('otp_verified')->default(false);
+            $table->timestamp('otp_expires_at')->nullable();
             $table->timestamp('created_at')->nullable();
         });
     }

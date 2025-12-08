@@ -1,5 +1,4 @@
-{{-- <!doctype html>
-
+<!doctype html>
 <html lang="en" class="layout-wide customizer-hide" dir="ltr" data-skin="default" data-assets-path="../../assets/"
     data-template="vertical-menu-template-no-customizer" data-bs-theme="light">
 
@@ -7,229 +6,265 @@
     <meta charset="utf-8" />
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0" />
+    <title>Login - Quotation System</title>
 
-    <title>Demo: Login Basic - Pages | Vuexy - Bootstrap Dashboard PRO</title>
-
-    <meta name="description" content="" />
-
-    <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="../../assets/img/favicon/favicon.ico" />
-
-    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-        href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&ampdisplay=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&display=swap"
         rel="stylesheet" />
 
-    <link rel="stylesheet" href="../../assets/vendor/fonts/iconify-icons.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
-    <!-- Core CSS -->
-    <!-- build:css assets/vendor/css/theme.css  -->
+    <style>
+        /* -----------------------------------------------------
+           CORE
+        ----------------------------------------------------- */
+        * {
+            box-sizing: border-box;
+        }
 
-    <link rel="stylesheet" href="../../assets/vendor/libs/node-waves/node-waves.css" />
+        body {
+            font-family: 'Public Sans', Arial, sans-serif;
+            font-size: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 20px;
+        }
 
-    <link rel="stylesheet" href="../../assets/vendor/css/core.css" />
-    <link rel="stylesheet" href="../../assets/css/demo.css" />
+        /* -----------------------------------------------------
+           CONTAINER + 3D PRISM (BLUR-FREE VERSION)
+        ----------------------------------------------------- */
+        .login-container {
+            width: 100%;
+            max-width: 350px;
+            perspective: none; /* REMOVE perspective = no blurry text */
+        }
 
-    <!-- Vendors CSS -->
+        .rec-prism {
+            width: 100%;
+            height: 450px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s ease-in-out;
+        }
 
-    <link rel="stylesheet" href="../../assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css" />
+        .face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 10px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+            backface-visibility: hidden;
+            -webkit-font-smoothing: antialiased;
+            transform: rotateY(0deg);
+        }
 
-    <!-- endbuild -->
+        .face-back {
+            transform: rotateY(180deg);
+        }
 
-    <!-- Vendor -->
-    <link rel="stylesheet" href="../../assets/vendor/libs/@form-validation/form-validation.css" />
+        /* -----------------------------------------------------
+           CONTENT
+        ----------------------------------------------------- */
+        .content {
+            color: #666;
+        }
 
-    <!-- Page CSS -->
-    <!-- Page -->
-    <link rel="stylesheet" href="../../assets/vendor/css/pages/page-auth.css" />
+        .content h2 {
+            font-size: 1.55em;
+            margin-bottom: 10px;
+            text-align: center;
+            color: #07ad90;
+            font-weight: 700;
+        }
 
-    <!-- Helpers -->
-    <script src="../../assets/vendor/js/helpers.js"></script>
-    <!--! Template customizer & Theme config files MUST be included after core stylesheets and helpers.js in the <head> section -->
+        .content small {
+            display: block;
+            font-size: 0.85em;
+            text-align: center;
+            margin-bottom: 20px;
+            color: #888;
+        }
 
-    <!--? Config:  Mandatory theme config file contain global vars & default theme options, Set your preferred theme option in this file.  -->
+        .logo-section {
+            text-align: center;
+            margin-bottom: 20px;
+        }
 
-    <script src="../../assets/js/config.js"></script>
+        .logo-section img {
+            height: 60px;
+        }
+
+        /* -----------------------------------------------------
+           INPUTS
+        ----------------------------------------------------- */
+        .field-wrapper {
+            margin-bottom: 20px;
+        }
+
+        .field-wrapper input[type="text"],
+        .field-wrapper input[type="password"] {
+            width: 100%;
+            border: none;
+            background: transparent;
+            border-bottom: 2px solid #07ad90;
+            padding: 8px 2px;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+        }
+
+        .field-wrapper input:focus {
+            outline: none;
+            border-bottom-color: #42509e;
+        }
+
+        .field-wrapper input[type="submit"] {
+            cursor: pointer;
+            width: 100%;
+            background: linear-gradient(135deg, #07ad90, #05a882);
+            line-height: 2.5em;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px;
+            font-weight: 600;
+            font-size: 1em;
+            transition: 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .field-wrapper input[type="submit"]:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 18px rgba(7, 173, 144, 0.35);
+        }
+
+        /* -----------------------------------------------------
+           LINKS
+        ----------------------------------------------------- */
+        .links {
+            text-align: center;
+            margin-top: 15px;
+        }
+
+        .link-item {
+            cursor: pointer;
+            color: #42509e;
+            font-size: 0.85em;
+            text-decoration: none;
+            transition: 0.3s;
+        }
+
+        .link-item:hover {
+            color: #07ad90;
+        }
+
+        /* -----------------------------------------------------
+           ALERT
+        ----------------------------------------------------- */
+        .alert {
+            background-color: #ffebee;
+            color: #c62828;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            border-left: 4px solid #c62828;
+            font-size: 0.9em;
+        }
+    </style>
 </head>
 
 <body>
-    <!-- Content -->
+    <div class="login-container">
+        <div class="rec-prism" id="prism">
 
-    <div class="container-xxl">
-        <div class="authentication-wrapper authentication-basic container-p-y">
-            <div class="authentication-inner py-6">
-                <!-- Login -->
-                <div class="card">
-                    <div class="card-body">
-                        <!-- Logo -->
-                        <div class="app-brand justify-content-center mb-6">
-                            <a href="index.html" class="app-brand-link">
-                                <span class="app-brand-logo demo">
-                                    <span class="text-primary">
-                                        <svg width="32" height="22" viewBox="0 0 32 22" fill="none"
-                                            xmlns="http://www.w3.org/2000/svg">
-                                            <path fill-rule="evenodd" clip-rule="evenodd"
-                                                d="M0.00172773 0V6.85398C0.00172773 6.85398 -0.133178 9.01207 1.98092 10.8388L13.6912 21.9964L19.7809 21.9181L18.8042 9.88248L16.4951 7.17289L9.23799 0H0.00172773Z"
-                                                fill="currentColor" />
-                                            <path opacity="0.06" fill-rule="evenodd" clip-rule="evenodd"
-                                                d="M7.69824 16.4364L12.5199 3.23696L16.5541 7.25596L7.69824 16.4364Z"
-                                                fill="#161616" />
-                                            <path opacity="0.06" fill-rule="evenodd" clip-rule="evenodd"
-                                                d="M8.07751 15.9175L13.9419 4.63989L16.5849 7.28475L8.07751 15.9175Z"
-                                                fill="#161616" />
-                                            <path fill-rule="evenodd" clip-rule="evenodd"
-                                                d="M7.77295 16.3566L23.6563 0H32V6.88383C32 6.88383 31.8262 9.17836 30.6591 10.4057L19.7824 22H13.6938L7.77295 16.3566Z"
-                                                fill="currentColor" />
-                                        </svg>
-                                    </span>
-                                </span>
-                                <span class="app-brand-text demo text-heading fw-bold">Vuexy</span>
-                            </a>
+            {{-- ==================== LOGIN FACE ==================== --}}
+            <div class="face face-front">
+                <div class="content">
+
+                    <div class="logo-section">
+                        <img src="{{ asset('Image/LOGO.png') }}" alt="Logo">
+                    </div>
+
+                    <h2>Welcome Back</h2>
+                    <small>Sign in to your account</small>
+
+                    @if ($errors->any())
+                        <div class="alert">
+                            <ul>
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
                         </div>
-                        <!-- /Logo -->
-                        <h4 class="mb-1">Welcome to Vuexy! 👋</h4>
-                        <p class="mb-6">Please sign-in to your account and start the adventure</p>
+                    @endif
 
-                        <form id="loginform" class="mb-4">
-                            <div class="mb-6 form-control-validation">
-                                <label for="email" class="form-label">Email or Username</label>
-                                <input type="text" class="form-control" id="email" name="email_username"
-                                    placeholder="Enter your email or username" autofocus />
-                            </div>
+                    <form method="POST" action="{{ route('login.submit') }}">
+                        @csrf
 
-                            <div class="mb-6 form-password-toggle form-control-validation">
-                                <label class="form-label" for="password">Password</label>
-                                <div class="input-group input-group-merge">
-                                    <input type="password" id="password" class="form-control" name="password"
-                                        placeholder="&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;"
-                                        aria-describedby="password" />
-                                    <span class="input-group-text cursor-pointer"><i
-                                            class="icon-base ti tabler-eye-off"></i></span>
-                                </div>
-                            </div>
-
-                            <div class="my-8">
-                                <div class="d-flex justify-content-between">
-                                    <div class="form-check mb-0 ms-2">
-                                        <input class="form-check-input" type="checkbox" id="remember-me" />
-                                        <label class="form-check-label" for="remember-me"> Remember Me </label>
-                                    </div>
-                                    <a href="auth-forgot-password-basic.html">
-                                        <p class="mb-0">Forgot Password?</p>
-                                    </a>
-                                </div>
-                            </div>
-                            <div class="mb-6">
-                                <button class="btn btn-primary d-grid w-100" type="button"
-                                    onclick="login.loginUser('loginform')">Login</button>
-                            </div>
-                        </form>
-
-                        <p class="text-center">
-                            <span>New on our platform?</span>
-                            <a href="/register">
-                                <span>Create an account</span>
-                            </a>
-                        </p>
-
-                        <div class="divider my-6">
-                            <div class="divider-text">or</div>
+                        <div class="field-wrapper">
+                            <input type="text" name="username" placeholder="username" required autofocus>
                         </div>
 
-                        <div class="d-flex justify-content-center">
-                            <a href="javascript:;" class="btn btn-icon rounded-circle btn-text-facebook me-1_5">
-                                <i class="icon-base ti tabler-brand-facebook-filled icon-20px"></i>
-                            </a>
-
-                            <a href="javascript:;" class="btn btn-icon rounded-circle btn-text-twitter me-1_5">
-                                <i class="icon-base ti tabler-brand-twitter-filled icon-20px"></i>
-                            </a>
-
-                            <a href="javascript:;" class="btn btn-icon rounded-circle btn-text-github me-1_5">
-                                <i class="icon-base ti tabler-brand-github-filled icon-20px"></i>
-                            </a>
-
-                            <a href="javascript:;" class="btn btn-icon rounded-circle btn-text-google-plus">
-                                <i class="icon-base ti tabler-brand-google-filled icon-20px"></i>
-                            </a>
+                        <div class="field-wrapper">
+                            <input type="password" name="password" placeholder="password" required>
                         </div>
+
+                        <div class="field-wrapper">
+                            <input type="submit" value="Sign In">
+                        </div>
+                    </form>
+
+                    <div class="links" style="margin-top: 20px;">
+                        <a href="{{ route('forgot.password') }}" class="link-item">Forgot Password?</a>
                     </div>
                 </div>
-                <!-- /Login -->
             </div>
+
+            {{-- ==================== FORGOT PASSWORD FACE ====================
+            <div class="face face-back">
+                <div class="content">
+                    <h2>Reset Password</h2>
+                    <small>Enter your email to receive a reset link</small>
+
+                    <form method="POST" action="{{ route('password.email') }}">
+                        @csrf
+
+                        <div class="field-wrapper">
+                            <input type="text" name="email" placeholder="email" required>
+                        </div>
+
+                        <div class="field-wrapper">
+                            <input type="submit" value="Send Reset Link">
+                        </div>
+                    </form>
+
+                    <div class="links" style="margin-top: 25px;">
+                        <a class="link-item" id="back-to-login-btn">← Back to Login</a>
+                    </div>
+                </div>
+            </div>
+
         </div>
-    </div>
+    </div> --}}
+
     <script>
-        class Login {
-            loginUser(id) {
-                const form = document.getElementById(id);
-                const formData = new FormData(form);
+        const prism = document.getElementById('prism');
 
-                fetch("/login-user", {
-                        method: "POST",
-                        headers: {
-                            "X-CSRF-TOKEN": '{{ csrf_token() }}'
-                        },
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        Swal.fire({
-                            title: "Login successful!",
-                            icon: "success",
-                            timer: 1500,
-                            showConfirmButton: false
-                        }).then(() => {
-                            // Redirect after success
-                            window.location.href = "/";
-                        });
-                    })
-                    .catch(error => {
-                        console.error("Error:", error);
-                    });
-            }
-        }
+        document.getElementById('forgot-password-btn').onclick = () => {
+            prism.style.transform = "rotateY(180deg)";
+        };
 
-        const login = new Login();
+        document.getElementById('back-to-login-btn').onclick = () => {
+            prism.style.transform = "rotateY(0deg)";
+        };
     </script>
 
-    <!-- / Content -->
-
-    <!-- Core JS -->
-    <!-- build:js assets/vendor/js/theme.js -->
-
-    <script src="../../assets/vendor/libs/jquery/jquery.js"></script>
-
-    <script src="../../assets/vendor/libs/popper/popper.js"></script>
-    <script src="../../assets/vendor/js/bootstrap.js"></script>
-    <script src="../../assets/vendor/libs/node-waves/node-waves.js"></script>
-
-    <script src="../../assets/vendor/libs/@algolia/autocomplete-js.js"></script>
-
-    <script src="../../assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.js"></script>
-
-    <script src="../../assets/vendor/libs/hammer/hammer.js"></script>
-
-    <script src="../../assets/vendor/libs/i18n/i18n.js"></script>
-
-    <script src="../../assets/vendor/js/menu.js"></script>
-
-    <!-- endbuild -->
-
-    <!-- Vendors JS -->
-    <script src="../../assets/vendor/libs/@form-validation/popular.js"></script>
-    <script src="../../assets/vendor/libs/@form-validation/bootstrap5.js"></script>
-    <script src="../../assets/vendor/libs/@form-validation/auto-focus.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-    <!-- Main JS -->
-
-    <script src="../../assets/js/main.js"></script>
-
-    <!-- Page JS -->
-    <script src="../../assets/js/pages-auth.js"></script>
 </body>
 
-</html> --}}
+</html>

@@ -37,8 +37,8 @@
 <script>
 class RejectedHandler {
     constructor() {
-        this.currentPage = 1;
-        this.perPage = 5; // show 5 per page
+    this.currentPage = 1;
+    this.perPage = 10; // show 10 per page
         this.searchQuery = "";
         this.quotations = [];
 
@@ -104,43 +104,44 @@ class RejectedHandler {
         const pagination = document.getElementById("rejected-pagination");
         pagination.innerHTML = "";
 
-        // Prev button
+        if (totalPages <= 1) return; // hide pagination if unnecessary
+
+        // Previous
         const prevDisabled = this.currentPage === 1 ? "disabled" : "";
         pagination.insertAdjacentHTML("beforeend", `
             <li class="page-item ${prevDisabled}">
-                <a class="page-link" href="javascript:void(0);">&laquo;</a>
+                <a class="page-link" href="#" data-page="${this.currentPage - 1}">&laquo;</a>
             </li>
         `);
 
-        // Page numbers
+        // Pages
         for (let i = 1; i <= totalPages; i++) {
             const active = i === this.currentPage ? "active" : "";
             pagination.insertAdjacentHTML("beforeend", `
                 <li class="page-item ${active}">
-                    <a class="page-link" href="javascript:void(0);">${i}</a>
+                    <a class="page-link" href="#" data-page="${i}">${i}</a>
                 </li>
             `);
         }
 
-        // Next button
+        // Next
         const nextDisabled = this.currentPage === totalPages ? "disabled" : "";
         pagination.insertAdjacentHTML("beforeend", `
             <li class="page-item ${nextDisabled}">
-                <a class="page-link" href="javascript:void(0);">&raquo;</a>
+                <a class="page-link" href="#" data-page="${this.currentPage + 1}">&raquo;</a>
             </li>
         `);
 
-        // Event binding
-        pagination.querySelectorAll(".page-link").forEach((btn, index) => {
-            btn.addEventListener("click", () => {
-                if (btn.innerHTML.includes("«")) {
-                    if (this.currentPage > 1) this.currentPage--;
-                } else if (btn.innerHTML.includes("»")) {
-                    if (this.currentPage < totalPages) this.currentPage++;
-                } else {
-                    this.currentPage = parseInt(btn.textContent);
+        // Add click handlers
+        pagination.querySelectorAll("a.page-link").forEach(link => {
+            link.addEventListener("click", (e) => {
+                e.preventDefault();
+                const page = parseInt(link.dataset.page);
+                if (!isNaN(page) && page >= 1 && page <= totalPages && page !== this.currentPage) {
+                    this.currentPage = page;
+                    this.renderTable();
+                    this.renderPagination(totalItems);
                 }
-                this.renderTable();
             });
         });
     }
