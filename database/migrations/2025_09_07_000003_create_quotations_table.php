@@ -24,6 +24,7 @@ return new class extends Migration
             $table->decimal('delivery_fee', 10, 2)->default(0); // Delivery cost
             $table->boolean('customer_approved')->default(false); // Customer approved
             $table->boolean('provider_approved')->default(false); // Provider approved
+            $table->timestamp('approved_by_customer_at')->nullable(); // When customer approved
             $table->timestamps(); // created_at and updated_at
         });
     }
