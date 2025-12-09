@@ -168,12 +168,9 @@
 
                     <!-- Pagination -->
                     @if($logs->hasPages())
-                        <div class="row mt-4">
-                            <div class="col-12">
-                                <nav aria-label="Page navigation">
-                                    {{ $logs->links() }}
-                                </nav>
-                            </div>
+                        <div class="d-flex justify-content-center mt-4">
+                            {{-- ✅ Pass filter parameters to pagination links with Bootstrap 5 styling --}}
+                            {{ $logs->appends(request()->query())->links('pagination::bootstrap-5') }}
                         </div>
                     @endif
                 </div>

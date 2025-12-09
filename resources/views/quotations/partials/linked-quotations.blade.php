@@ -41,17 +41,15 @@
                                             </a>
                                         </td>
                                         <td>
-                                            @if($linked->isRejected())
-                                                <span class="badge badge-danger">Rejected</span>
-                                            @else
-                                                <span class="badge badge-{{ $linked->status->status_name === 'Approved' ? 'success' : ($linked->status->status_name === 'Rejected' ? 'danger' : 'warning') }}">
-                                                    {{ $linked->status->status_name ?? 'Pending' }}
-                                                </span>
-                                            @endif
+                                            @php
+                                                $ln = strtolower($linked->status->status_name ?? '');
+                                                $badgeClass = $linked->isRejected() ? 'bg-danger' : ($ln === 'approved' ? 'bg-success' : ($ln === 'rejected' ? 'bg-danger' : 'bg-warning text-dark'));
+                                            @endphp
+                                            <span class="badge {{ $badgeClass }}">{{ $linked->status->status_name ?? 'Pending' }}</span>
                                         </td>
                                         <td>{{ number_format($linked->labor_fee, 2) }}</td>
                                         <td>{{ number_format($linked->delivery_fee, 2) }}</td>
-                                        <td>{{ $linked->created_at->format('M d, Y') }}</td>
+                                        <td>{{ $linked->created_at->setTimezone(config('app.timezone'))->format('M d, Y') }}</td>
                                         <td>
                                             <a href="{{ route('quotations.show', $linked->id) }}" class="btn btn-sm btn-info">
                                                 <i class="fas fa-eye"></i> View

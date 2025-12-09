@@ -72,8 +72,16 @@ Route::prefix('additional-quotation/public')->group(function () {
     Route::get('/{token}', [QuotationController::class, 'showAdditionalPublicAccessForm'])->name('additional-quotations.public.form');
     Route::post('/{token}/validate', [QuotationController::class, 'validateAdditionalPublicAccess'])->name('additional-quotations.public.validate');
     Route::get('/{token}/view', [QuotationController::class, 'showAdditionalPublicQuotation'])->name('additional-quotations.public.view');
+    Route::get('/{token}/revisions-json', [QuotationController::class, 'getAdditionalPublicRevisionsJson'])->name('additional-quotations.public.revisions-json');
     Route::post('/{token}/approve', [QuotationController::class, 'approveAdditionalQuotationPublic'])->name('additional-quotations.public.approve');
     Route::get('/{token}/export', [QuotationController::class, 'exportAdditionalPublicQuotation'])->name('additional-quotations.export.public');
+    
+    // 💬 Comments for public additional quotation access
+    Route::post('/{token}/comment', [QuotationCommentPublicController::class, 'storeAdditionalPublicComment'])->name('additional-quotation.public.comment.submit');
+    Route::get('/{token}/comments', [QuotationCommentPublicController::class, 'getAdditionalPublicComments'])->name('additional-quotation.public.comments');
+    Route::put('/{token}/comments/{id}', [QuotationCommentPublicController::class, 'updateAdditionalPublicComment'])->name('additional-quotation.public.comment.update');
+    Route::delete('/{token}/comments/{id}', [QuotationCommentPublicController::class, 'destroyAdditionalPublicComment'])->name('additional-quotation.public.comment.destroy');
+    Route::post('/{token}/comments/{id}/reply', [QuotationCommentPublicController::class, 'storeAdditionalPublicReply'])->name('additional-quotation.public.reply');
 });
 
 // ---------------------------------------------------------------------------
@@ -278,6 +286,8 @@ Route::middleware('auth')->get('/test-permissions', function () {
 Route::middleware(['auth'])->prefix('admin/backup')->group(function () {
     Route::get('/', [BackupManagementController::class, 'index'])->name('admin.backup.index');
     Route::post('/create', [BackupManagementController::class, 'create'])->name('admin.backup.create');
+    Route::post('/delete', [BackupManagementController::class, 'delete'])->name('admin.backup.delete');
+    Route::post('/restore', [BackupManagementController::class, 'restore'])->name('admin.backup.restore');
     Route::get('/download/{filename}', [BackupManagementController::class, 'download'])->name('admin.backup.download');
 });
 

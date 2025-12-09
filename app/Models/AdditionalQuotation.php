@@ -101,7 +101,8 @@ class AdditionalQuotation extends Model
      */
     public function getFormattedCreatedDate(): string
     {
-        return $this->created_at->format('M d, Y');
+        // Format using application timezone to avoid off-by-one day issues
+        return $this->created_at->setTimezone(config('app.timezone'))->format('M d, Y');
     }
 
     /**

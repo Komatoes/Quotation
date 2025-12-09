@@ -99,10 +99,7 @@
 
 <div style="position: relative; display: inline-block;">
     <!-- Bell Icon -->
-    <button id="notificationBell" style="background: none; border: none; cursor: pointer; position: relative; font-size: 1.25rem; color: #495057;" onclick="toggleNotificationsDropdown()">
-        <i class="fa-solid fa-bell"></i>
-        <span class="notifications-badge" id="notificationBadge" style="display: none;">0</span>
-    </button>
+
 
     <!-- Notifications Dropdown -->
     <div id="notificationsDropdown" class="notifications-dropdown" style="display: none;">
@@ -126,7 +123,6 @@
 
         <!-- Footer -->
         <div class="notifications-footer">
-            <a href="{{ route('notifications.list') }}">View All Notifications</a>
         </div>
     </div>
 </div>

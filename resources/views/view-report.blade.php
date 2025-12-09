@@ -39,7 +39,11 @@
                 
                 <p><strong>Customer:</strong> <span id="clientName">{{ $client->first_name }}
                         {{ $client->last_name }}</span>
-                    @if (empty($readonly))
+                    @php
+                        $qStatus = strtolower($quotation->status->status_name ?? '');
+                        $canEditClientInReport = empty($readonly) && $qStatus !== 'completed' && $qStatus !== 'rejected';
+                    @endphp
+                    @if ($canEditClientInReport)
                         <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="editClientBtn">Edit
                             Client</button>
                     @endif
@@ -69,7 +73,8 @@
                         } elseif ($qStatus === 'rejected') {
                             $badgeText = 'Additional Quotation Rejected';
                             $badgeClass = 'bg-danger';
-                        } elseif ($quotation->progress >= 100) {
+                        } elseif ($quotation->customer_approved && $quotation->progress >= 100) {
+                            // ✅ FIXED: Only show as approved if BOTH customer_approved AND progress >= 100
                             $badgeText = 'Approved & Attached to Parent';
                             $badgeClass = 'bg-success';
                         } elseif ($quotation->customer_approved) {
@@ -104,6 +109,15 @@
                     </span>
                 </div>
 
+                @if ($qStatus === 'rejected' && !empty($quotation->rejection_reason))
+                    <div class="alert alert-danger mt-3" role="alert">
+                        <h5 class="alert-heading">
+                            <i class="fa-solid fa-exclamation-circle me-2"></i> Rejection Reason
+                        </h5>
+                        <p class="mb-0">{!! nl2br(e($quotation->rejection_reason)) !!}</p>
+                    </div>
+                @endif
+
                 @php
                     // Show contract details only if quotation is approved or later
                     $isApproved = $quotation->status_id >= 2; // 2 = approved
@@ -115,12 +129,12 @@
                         <p><strong>Contract Subject:</strong> <span>{{ $quotation->contract_subject }}</span></p>
                         @if ($quotation->project_start_date)
                             <p><strong>Project Start Date:</strong>
-                                <span>{{ \Carbon\Carbon::parse($quotation->project_start_date)->format('M d, Y') }}</span>
+                        <span>{{ \Carbon\Carbon::parse($quotation->project_start_date)->setTimezone(config('app.timezone'))->format('M d, Y') }}</span>
                             </p>
                         @endif
                         @if ($quotation->project_end_date)
                             <p><strong>Project End Date:</strong>
-                                <span>{{ \Carbon\Carbon::parse($quotation->project_end_date)->format('M d, Y') }}</span>
+                                <span>{{ \Carbon\Carbon::parse($quotation->project_end_date)->setTimezone(config('app.timezone'))->format('M d, Y') }}</span>
                             </p>
                         @endif
                         <p>
@@ -138,6 +152,15 @@
                     <button type="button" class="btn btn-outline-secondary mt-3" id="generateLinkBtn"
                         title="Generate & Copy Public Link">
                         <i class="fa-solid fa-link me-1"></i> Generate Link
+                    </button>
+                @endif
+
+                @if ($isAdditional && !$quotation->customer_approved && empty($readonly))
+                    {{-- ✅ Approve button for additional quotations --}}
+                    <button type="button" class="btn btn-success mt-3" id="approveAdditionalBtn"
+                        data-additional-id="{{ $quotation->id }}"
+                        title="Approve this additional quotation">
+                        <i class="fa-solid fa-check-circle me-1"></i> Approve Additional Quotation
                     </button>
                 @endif
                 
@@ -274,8 +297,8 @@
                     <div class="alert alert-info mb-3" role="alert">
                         <div class="row">
                             <div class="col-md-6">
-                                <p class="mb-1"><strong>Start Date:</strong> {{ $startDate->format('M d, Y') }}</p>
-                                <p class="mb-0"><strong>End Date:</strong> {{ $endDate->format('M d, Y') }}</p>
+                    <p class="mb-1"><strong>Start Date:</strong> {{ $startDate->setTimezone(config('app.timezone'))->format('M d, Y') }}</p>
+                        <p class="mb-0"><strong>End Date:</strong> {{ $endDate->setTimezone(config('app.timezone'))->format('M d, Y') }}</p>
                             </div>
                             <div class="col-md-6 text-end">
                                 <p class="mb-0"><strong>{{ $statusIcon }} Status:</strong> <span class="badge 
@@ -364,8 +387,8 @@
 
                                 {{-- 2. Timestamp --}}
                                 <small class="text-muted text-end">
-                                    Updated: **{{ $report->created_at->format('M d, Y') }}**<br>
-                                    at {{ $report->created_at->format('h:i A') }}
+                                    Updated: **{{ $report->created_at->setTimezone(config('app.timezone'))->format('M d, Y') }}**<br>
+                                    at {{ $report->created_at->setTimezone(config('app.timezone'))->format('h:i A') }}
                                 </small>
                             </div>
 
@@ -718,6 +741,70 @@
                 }
                 generateLinkBtn.disabled = false;
                 generateLinkBtn.innerHTML = '<i class="fa-solid fa-link me-1"></i> Generate Link';
+            });
+        }
+    });
+</script>
+
+<!-- Approve Additional Quotation Script -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const approveAdditionalBtn = document.getElementById('approveAdditionalBtn');
+        if (approveAdditionalBtn) {
+            approveAdditionalBtn.addEventListener('click', async function() {
+                const additionalId = this.dataset.additionalId;
+                
+                // Confirm action
+                const result = await Swal.fire({
+                    title: 'Approve Additional Quotation?',
+                    text: 'This will mark the additional quotation as approved and set progress to 100%.',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#198754',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Yes, approve it!'
+                });
+
+                if (!result.isConfirmed) return;
+
+                approveAdditionalBtn.disabled = true;
+                approveAdditionalBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Approving...';
+
+                try {
+                    const response = await fetch(`/additional-quotations/${additionalId}/approve`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({})
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        Swal.fire({
+                            title: 'Approved!',
+                            text: 'Additional quotation has been approved.',
+                            icon: 'success',
+                            timer: 1500,
+                            showConfirmButton: false
+                        }).then(() => {
+                            // Reload page to refresh status
+                            window.location.reload();
+                        });
+                    } else {
+                        Swal.fire('Error', data.message || 'Failed to approve quotation', 'error');
+                        approveAdditionalBtn.disabled = false;
+                        approveAdditionalBtn.innerHTML = '<i class="fa-solid fa-check-circle me-1"></i> Approve Additional Quotation';
+                    }
+                } catch (error) {
+                    console.error('Approval error:', error);
+                    Swal.fire('Error', 'Something went wrong!', 'error');
+                    approveAdditionalBtn.disabled = false;
+                    approveAdditionalBtn.innerHTML = '<i class="fa-solid fa-check-circle me-1"></i> Approve Additional Quotation';
+                }
             });
         }
     });

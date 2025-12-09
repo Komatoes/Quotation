@@ -12,13 +12,13 @@
             </ol>
         </nav>
 
-        <!-- Header -->
+        {{-- <!-- Header -->
         <div class="card mb-4">
             <div class="card-body text-center bg-light rounded shadow-sm">
                 <h1 class="h3 mb-0"><i class="fa-solid fa-database me-2"></i>Backup & Restore Management</h1>
                 <small class="text-muted">Admin-only backup control panel with 3-2-1 backup strategy</small>
             </div>
-        </div>
+        </div> --}}
 
         @if(isset($error))
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -31,13 +31,13 @@
         <div class="row mb-4">
             <div class="col-md-12">
                 <div class="card">
-                    <div class="card-header bg-primary text-white">
+                    {{-- <div class="card-header bg-primary text-white">
                         <h5 class="mb-0"><i class="fa-solid fa-shield me-2"></i>3-2-1 Backup Strategy Status</h5>
-                    </div>
+                    </div> --}}
                     <div class="card-body">
-                        <p class="text-muted mb-3">
+                        {{-- <p class="text-muted mb-3">
                             <strong>3-2-1 Strategy:</strong> 3 copies of data, 2 different storage media, 1 offsite location
-                        </p>
+                        </p> --}}
                         <div class="row">
                             <div class="col-md-4">
                                 <div class="card border-left-primary mb-3">
@@ -55,7 +55,7 @@
                                     </div>
                                 </div>
                             </div>
-
+{{-- 
                             <div class="col-md-4">
                                 <div class="card border-left-success mb-3">
                                     <div class="card-body">
@@ -71,8 +71,8 @@
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-
+                            </div> --}}
+{{-- 
                             <div class="col-md-4">
                                 <div class="card border-left-info mb-3">
                                     <div class="card-body">
@@ -89,9 +89,9 @@
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </div> --}}
 
-                        <div class="mt-3">
+                        {{-- <div class="mt-3">
                             @if(($backupStats['strategy_compliant'] ?? false))
                                 <div class="alert alert-success mb-0">
                                     <i class="fa-solid fa-check-circle me-2"></i>
@@ -103,7 +103,7 @@
                                     <strong>⚠️ Strategy Not Compliant</strong> — Add offsite backups (Google Drive or S3) to meet 3-2-1 requirements.
                                 </div>
                             @endif
-                        </div>
+                        </div> --}}
                     </div>
                 </div>
             </div>
@@ -120,7 +120,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
+            {{-- <div class="col-md-6">
                 <div class="card">
                     <div class="card-body">
                         <h6 class="card-title mb-3"><i class="fa-solid fa-google me-2"></i>Google Drive Status</h6>
@@ -134,7 +134,7 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </div> --}}
 
         <!-- Actions -->
         <div class="row mb-4">

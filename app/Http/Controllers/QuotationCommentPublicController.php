@@ -58,4 +58,29 @@ class QuotationCommentPublicController extends Controller
     {
         return $this->base->customerApprove($publicToken);
     }
+
+    public function getAdditionalPublicComments($publicToken)
+    {
+        return $this->base->getAdditionalPublicComments($publicToken);
+    }
+
+    public function storeAdditionalPublicComment(Request $request, $publicToken)
+    {
+        return $this->base->storeAdditionalPublicComment($request, $publicToken);
+    }
+
+    public function updateAdditionalPublicComment(Request $request, $publicToken, $id)
+    {
+        return $this->base->updateAdditionalPublicComment($request, $publicToken, $id);
+    }
+
+    public function destroyAdditionalPublicComment(Request $request, $publicToken, $id)
+    {
+        return $this->base->destroyAdditionalPublicComment($request, $publicToken, $id);
+    }
+
+    public function storeAdditionalPublicReply(Request $request, $publicToken, $id)
+    {
+        return $this->base->storeAdditionalPublicReply($request, $publicToken, $id);
+    }
 }

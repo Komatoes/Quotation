@@ -4,7 +4,7 @@
     @php
         // Detect quotation type: Regular Quotation vs Additional Quotation
         $isAdditional = isset($isAdditional) && $isAdditional;
-        
+
         // Get client info based on quotation type
         if ($isAdditional) {
             $client = $quotation->parentQuotation->client;
@@ -12,7 +12,7 @@
             $client = $quotation->client;
         }
     @endphp
-    
+
     <div class="container-fluid">
         <!-- Header -->
         <div class="card mb-4">
@@ -94,6 +94,15 @@
                     </span>
                 </div>
 
+                @if ($qStatus === 'rejected' && !empty($quotation->rejection_reason))
+                    <div class="alert alert-danger mt-3" role="alert">
+                        <h5 class="alert-heading">
+                            <i class="fa-solid fa-exclamation-circle me-2"></i> Rejection Reason
+                        </h5>
+                        <p class="mb-0">{!! nl2br(e($quotation->rejection_reason)) !!}</p>
+                    </div>
+                @endif
+
                 @php
                     // Show contract details only if quotation is approved or later
                     $isApproved = $quotation->status_id >= 2; // 2 = approved
@@ -104,13 +113,17 @@
                         <h5 class="mb-3">Contract Details</h5>
                         <p><strong>Contract Subject:</strong> <span>{{ $quotation->contract_subject }}</span></p>
                         @if ($quotation->project_start_date)
-                            <p><strong>Project Start Date:</strong> <span>{{ \Carbon\Carbon::parse($quotation->project_start_date)->format('M d, Y') }}</span></p>
+                            <p><strong>Project Start Date:</strong>
+                        <span>{{ \Carbon\Carbon::parse($quotation->project_start_date)->setTimezone(config('app.timezone'))->format('M d, Y') }}</span>
+                            </p>
                         @endif
                         @if ($quotation->project_end_date)
-                            <p><strong>Project End Date:</strong> <span>{{ \Carbon\Carbon::parse($quotation->project_end_date)->format('M d, Y') }}</span></p>
+                            <p><strong>Project End Date:</strong>
+                                <span>{{ \Carbon\Carbon::parse($quotation->project_end_date)->setTimezone(config('app.timezone'))->format('M d, Y') }}</span>
+                            </p>
                         @endif
                         <p>
-                            <strong>Contract Status:</strong> 
+                            <strong>Contract Status:</strong>
                             @if ($quotation->with_contract)
                                 <span class="badge bg-success">With Contract</span>
                             @else
@@ -120,19 +133,24 @@
                     </div>
                 @endif
 
-                @if (!$quotation->customer_approved)
-                    <button id="approve-btn" class="btn btn-success mt-3">
-                        <i class="fa-solid fa-check-circle me-1"></i> Approve Quotation
-                    </button>
-                @endif
-                    <button type="button" class="btn btn-outline-info mt-3" id="viewAdditionalQtnBtn"
-                        title="View Additional Quotations for this Project"
-                        data-parent-id="{{ $quotation->id }}">
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                    @if (!$quotation->customer_approved)
+                        <button id="approve-btn" class="btn btn-success">
+                            <i class="fa-solid fa-check-circle me-1"></i> Approve Quotation
+                        </button>
+                    @endif
+                    <button type="button" class="btn btn-outline-info" id="viewAdditionalQtnBtn"
+                        title="View Additional Quotations for this Project" data-parent-id="{{ $quotation->id }}">
                         <i class="fa-solid fa-list me-1"></i> View Additional Quotations
                     </button>
-                    <a href="{{ $exportRoute }}" class="btn btn-info btn-sm w-auto me-2" target="_blank" rel="noopener">
+                    <a href="{{ $exportRoute }}" class="btn btn-info" target="_blank" rel="noopener">
                         <i class="fa-solid fa-file-word me-1"></i> Export as DOC
                     </a>
+                    <button type="button" class="btn btn-outline-secondary" id="viewRevisionsBtn"
+                        data-id="{{ $quotation->id }}">
+                        <i class="bi bi-clock-history me-1"></i> View Revisions
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -155,9 +173,10 @@
                         @foreach ($materials as $material)
                             @php
                                 // For additional quotations, unit_cost is in pivot; for regular, it's direct property
-                                $unitPrice = isset($isAdditional) && $isAdditional 
-                                    ? ($material->pivot->unit_cost ?? 0)
-                                    : ($material->unit_price ?? 0);
+                                $unitPrice =
+                                    isset($isAdditional) && $isAdditional
+                                        ? $material->pivot->unit_cost ?? 0
+                                        : $material->unit_price ?? 0;
                                 $quantity = $material->pivot->quantity ?? 0;
                             @endphp
                             <tr>
@@ -171,10 +190,11 @@
                     <tfoot>
                         @php
                             // Calculate material subtotal - handle both regular and additional quotations
-                            $materialSubtotal = $materials->sum(function($m) use ($isAdditional) {
-                                $unitPrice = isset($isAdditional) && $isAdditional 
-                                    ? ($m->pivot->unit_cost ?? 0)
-                                    : ($m->unit_price ?? 0);
+                            $materialSubtotal = $materials->sum(function ($m) use ($isAdditional) {
+                                $unitPrice =
+                                    isset($isAdditional) && $isAdditional
+                                        ? $m->pivot->unit_cost ?? 0
+                                        : $m->unit_price ?? 0;
                                 $quantity = $m->pivot->quantity ?? 0;
                                 return $unitPrice * $quantity;
                             });
@@ -241,8 +261,8 @@
                                         </span>
                                     </h6>
                                     <small class="text-muted text-end">
-                                        Updated: {{ $report->created_at->format('M d, Y') }}<br>
-                                        at {{ $report->created_at->format('h:i A') }}
+                                        Updated: {{ $report->created_at->setTimezone(config('app.timezone'))->format('M d, Y') }}<br>
+                                        at {{ $report->created_at->setTimezone(config('app.timezone'))->format('h:i A') }}
                                     </small>
                                 </div>
 
@@ -271,13 +291,6 @@
             'commentEndpoint' => route('quotation.comment.submit', $quotation->public_token),
             'commentsEndpoint' => route('quotation.public.comments', $quotation->public_token),
         ])
-
-        <!-- Revision History Button and Modal -->
-        <div class="mt-3 mb-4 text-end">
-            <button type="button" class="btn btn-outline-secondary" id="viewRevisionsBtn" data-id="{{ $quotation->id }}">
-                <i class="bi bi-clock-history me-1"></i> View Revisions
-            </button>
-        </div>
 
         <div class="modal fade" id="revisionHistoryModal" tabindex="-1" aria-labelledby="revisionHistoryLabel"
             aria-hidden="true">
@@ -311,9 +324,9 @@
 
                     const token = "{{ $quotation->public_token }}";
                     const isAdditional = {{ isset($isAdditional) && $isAdditional ? 'true' : 'false' }};
-                    const approveUrl = isAdditional 
-                        ? `/additional-quotation/public/${token}/approve`
-                        : "{{ route('quotation.customer.approve', $quotation->public_token) }}";
+                    const approveUrl = isAdditional ?
+                        `/additional-quotation/public/${token}/approve` :
+                        "{{ route('quotation.customer.approve', $quotation->public_token) }}";
 
                     fetch(approveUrl, {
                             method: 'POST',
@@ -359,7 +372,15 @@
             if (viewRevisionsBtn) {
                 viewRevisionsBtn.addEventListener('click', function() {
                     const id = this.dataset.id;
-                    fetch(`/quotations/${id}/revisions-json`)
+                    const token = "{{ $token ?? '' }}";
+                    const isAdditional = {{ isset($isAdditional) && $isAdditional ? 'true' : 'false' }};
+
+                    // Use token-based endpoint for additional quotations, ID-based for regular
+                    const endpoint = isAdditional && token ?
+                        `/additional-quotation/public/${token}/revisions-json` :
+                        `/quotations/${id}/revisions-json`;
+
+                    fetch(endpoint)
                         .then(res => res.json())
                         .then(data => {
                             const container = document.getElementById('revisionList');
@@ -394,14 +415,14 @@
                                                 </thead>
                                                 <tbody>
                                                     ${rev.data.materials.map(mat => `
-                                                                <tr>
-                                                                    <td>${mat.name}</td>
-                                                                    <td>${mat.unit}</td>
-                                                                    <td>₱${parseFloat(mat.unit_price).toFixed(2)}</td>
-                                                                    <td>${mat.quantity}</td>
-                                                                    <td>₱${(parseFloat(mat.unit_price) * mat.quantity).toFixed(2)}</td>
-                                                                </tr>
-                                                            `).join('')}
+                                                                    <tr>
+                                                                        <td>${mat.name}</td>
+                                                                        <td>${mat.unit}</td>
+                                                                        <td>₱${parseFloat(mat.unit_price).toFixed(2)}</td>
+                                                                        <td>${mat.quantity}</td>
+                                                                        <td>₱${(parseFloat(mat.unit_price) * mat.quantity).toFixed(2)}</td>
+                                                                    </tr>
+                                                                `).join('')}
                                                 </tbody>
                                             </table>
                                         </div>
@@ -417,7 +438,8 @@
     </script>
 
     <!-- View Additional Quotations Modal -->
-    <div class="modal fade" id="additionalQuotationsModal" tabindex="-1" aria-labelledby="additionalQuotationsLabel" aria-hidden="true">
+    <div class="modal fade" id="additionalQuotationsModal" tabindex="-1" aria-labelledby="additionalQuotationsLabel"
+        aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
@@ -439,7 +461,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             const viewAdditionalQtnBtn = document.getElementById('viewAdditionalQtnBtn');
             const modalEl = document.getElementById('additionalQuotationsModal');
-            
+
             if (!viewAdditionalQtnBtn || !modalEl) return;
 
             const bsModal = new bootstrap.Modal(modalEl);
@@ -447,18 +469,20 @@
             viewAdditionalQtnBtn.addEventListener('click', function() {
                 const parentId = this.getAttribute('data-parent-id');
                 const container = document.getElementById('additionalQuotationsList');
-                
+
                 // Display additional quotations from passed data
                 container.innerHTML = '';
-                
+
                 const additionalQuotations = @json($additionalQuotations ?? []);
-                
+
                 if (!additionalQuotations || additionalQuotations.length === 0) {
-                    container.innerHTML = '<div class="alert alert-info">No additional quotations yet.</div>';
+                    container.innerHTML =
+                        '<div class="alert alert-info">No additional quotations yet.</div>';
                 } else {
                     additionalQuotations.forEach((quotation, index) => {
                         const div = document.createElement('div');
-                        div.classList.add('card', 'mb-3', 'border-primary', 'border-start', 'border-5');
+                        div.classList.add('card', 'mb-3', 'border-primary', 'border-start',
+                            'border-5');
 
                         const statusBadgeClass = {
                             'draft': 'bg-secondary',
@@ -467,11 +491,11 @@
                             'rejected': 'bg-danger',
                             'completed': 'bg-success',
                             'ongoing': 'bg-info'
-                        }[quotation.status?.status_name?.toLowerCase()] || 'bg-secondary';
+                        } [quotation.status?.status_name?.toLowerCase()] || 'bg-secondary';
 
-                        const approvalStatus = quotation.customer_approved 
-                            ? '<span class="badge bg-success ms-2"><i class="fa-solid fa-check me-1"></i>Approved</span>'
-                            : '<span class="badge bg-warning text-dark ms-2"><i class="fa-solid fa-hourglass me-1"></i>Pending</span>';
+                        const approvalStatus = quotation.customer_approved ?
+                            '<span class="badge bg-success ms-2"><i class="fa-solid fa-check me-1"></i>Approved</span>' :
+                            '<span class="badge bg-warning text-dark ms-2"><i class="fa-solid fa-hourglass me-1"></i>Pending</span>';
 
                         div.innerHTML = `
                             <div class="card-header d-flex justify-content-between align-items-center">
@@ -506,7 +530,8 @@
                     document.querySelectorAll('.view-additional-btn').forEach(btn => {
                         btn.addEventListener('click', function() {
                             const quotationId = this.getAttribute('data-id');
-                            displayAdditionalQuotationDetails(quotationId, additionalQuotations);
+                            displayAdditionalQuotationDetails(quotationId,
+                                additionalQuotations);
                         });
                     });
                 }
@@ -619,39 +644,40 @@
                 const token = "{{ $quotation->public_token }}";
 
                 fetch(`/additional-quotation/public/${token}/approve`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': "{{ csrf_token() }}",
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        additional_quotation_id: quotationId
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': "{{ csrf_token() }}",
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            additional_quotation_id: quotationId
+                        })
                     })
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        Swal.fire({
-                            toast: true,
-                            position: 'top-end',
-                            icon: 'success',
-                            title: data.message || 'Approved!',
-                            showConfirmButton: false,
-                            timer: 1200
-                        });
-                        // Refresh modal or reload
-                        setTimeout(() => location.reload(), 1200);
-                    } else {
-                        Swal.fire('Error', data.error || 'Something went wrong', 'error');
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: data.message || 'Approved!',
+                                showConfirmButton: false,
+                                timer: 1200
+                            });
+                            // Refresh modal or reload
+                            setTimeout(() => location.reload(), 1200);
+                        } else {
+                            Swal.fire('Error', data.error || 'Something went wrong', 'error');
+                            btn.disabled = false;
+                            btn.innerHTML =
+                                '<i class="fa-solid fa-check-circle me-1"></i> Approve This Quotation';
+                        }
+                    })
+                    .catch(() => {
+                        Swal.fire('Error', 'Could not approve quotation', 'error');
                         btn.disabled = false;
                         btn.innerHTML = '<i class="fa-solid fa-check-circle me-1"></i> Approve This Quotation';
-                    }
-                })
-                .catch(() => {
-                    Swal.fire('Error', 'Could not approve quotation', 'error');
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fa-solid fa-check-circle me-1"></i> Approve This Quotation';
-                });
+                    });
             }
         });
     </script>

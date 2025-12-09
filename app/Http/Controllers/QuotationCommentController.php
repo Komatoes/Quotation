@@ -552,4 +552,90 @@ class QuotationCommentController extends Controller
             'comment' => $comment,
         ]);
     }
+
+    /**
+     * Get comments for additional quotation via public token
+     */
+    public function getAdditionalPublicComments($publicToken)
+    {
+        try {
+            $additionalQuotation = \App\Models\AdditionalQuotation::where('public_token', $publicToken)->firstOrFail();
+
+            $comments = QuotationComment::where('quotation_id', $additionalQuotation->parent_quotation_id)
+                ->where('quotation_type', 'additional')
+                ->with(['replies.nestedReplies'])
+                ->orderBy('created_at', 'asc')
+                ->get();
+
+            return response()->json($comments);
+        } catch (\Exception $e) {
+            return response()->json([], 404);
+        }
+    }
+
+    /**
+     * Store comment for additional quotation via public token
+     */
+    public function storeAdditionalPublicComment(Request $request, $publicToken)
+    {
+        $request->validate([
+            'comment' => 'required|string|max:1000'
+        ]);
+
+        try {
+            $additionalQuotation = \App\Models\AdditionalQuotation::where('public_token', $publicToken)->firstOrFail();
+
+            // Check if quotation is still open for comments
+            if ($additionalQuotation->customer_approved) {
+                return response()->json(['success' => false, 'message' => 'This quotation is already approved.'], 403);
+            }
+
+            $comment = QuotationComment::create([
+                'quotation_id' => $additionalQuotation->parent_quotation_id,
+                'quotation_type' => 'additional',
+                'user_id' => null,
+                'user_name' => $request->user_name ?? 'Customer',
+                'comment' => $request->comment,
+                'sender_type' => 'customer',
+                'session_token' => session()->getId(),
+            ]);
+
+            $comment = QuotationComment::with(['replies.nestedReplies'])->find($comment->id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Comment added successfully',
+                'comment' => $comment,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to add comment'], 500);
+        }
+    }
+
+    /**
+     * Update comment for additional quotation via public token
+     */
+    public function updateAdditionalPublicComment(Request $request, $publicToken, $id)
+    {
+        // Similar to updatePublicComment but for additional quotations
+        return $this->updatePublicComment($request, $publicToken, $id);
+    }
+
+    /**
+     * Delete comment for additional quotation via public token
+     */
+    public function destroyAdditionalPublicComment(Request $request, $publicToken, $id)
+    {
+        // Similar to destroyPublicComment but for additional quotations
+        return $this->destroyPublicComment($request, $publicToken, $id);
+    }
+
+    /**
+     * Store reply for additional quotation via public token
+     */
+    public function storeAdditionalPublicReply(Request $request, $publicToken, $id)
+    {
+        // Similar to storePublicReply but for additional quotations
+        return $this->storePublicReply($request, $publicToken, $id);
+    }
 }

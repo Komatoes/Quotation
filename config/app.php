@@ -69,7 +69,17 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    /*
+    |--------------------------------------------------------------------------
+    | Application Timezone
+    |--------------------------------------------------------------------------
+    |
+    | Make the application timezone configurable via the APP_TIMEZONE env
+    | variable. This helps deployments set the correct local timezone
+    | (e.g. Asia/Manila) without editing config files repeatedly.
+    |
+    */
+    'timezone' => env('APP_TIMEZONE', 'UTC'),
 
     /*
     |--------------------------------------------------------------------------

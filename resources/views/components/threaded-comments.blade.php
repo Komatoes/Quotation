@@ -225,6 +225,34 @@
     const commentEndpoint = "{{ $commentEndpoint ?? '' }}" || (publicToken ? `/quotation/public/${publicToken}/comment` : `/quotation/${quotationId}/comments`);
     const commentsListEndpoint = "{{ $commentsEndpoint ?? '' }}" || (publicToken ? `/quotation/public/${publicToken}/comments` : `/quotations/${quotationId}/comments`);
 
+    // Safe Swal fallback: if SweetAlert2 isn't loaded yet on the page, provide a tiny shim so
+    // calls to Swal.fire won't throw and block our handlers. This avoids "Swal is not defined"
+    // errors that make buttons appear to do nothing.
+    if (typeof Swal === 'undefined') {
+        window.Swal = {
+            fire: function(optsOrTitle, text, icon){
+                try {
+                    if (typeof optsOrTitle === 'object') {
+                        const o = optsOrTitle;
+                        // for toast-style calls just log; for modal-like show alert
+                        if (o.toast) {
+                            // console fallback for toast
+                            if (o.title) console.log('[toast]', o.title);
+                        } else {
+                            alert(o.title || o.text || '');
+                        }
+                    } else {
+                        alert(optsOrTitle + (text ? '\n' + text : ''));
+                    }
+                } catch (e) {
+                    // best-effort - don't break the app
+                    console.log('Swal fallback caught', optsOrTitle, text, icon);
+                }
+                return Promise.resolve({ isConfirmed: true });
+            }
+        };
+    }
+
     // Helpers
     function qs(selector, ctx=document){ return ctx.querySelector(selector); }
     function qsa(selector, ctx=document){ return Array.from((ctx||document).querySelectorAll(selector)); }
@@ -240,16 +268,22 @@
                     'Accept': 'application/json'
                 }
             });
-            const comments = await res.json();
-            if (Array.isArray(comments) && comments.length > 0) {
-                // Clear existing comments
-                const commentsList = qs('#comments-list');
+            const resp = await res.json();
+            // Normalize response: accept array or { data: [...] } or { comments: [...] }
+            let comments = [];
+            if (Array.isArray(resp)) comments = resp;
+            else if (resp && Array.isArray(resp.data)) comments = resp.data;
+            else if (resp && Array.isArray(resp.comments)) comments = resp.comments;
+
+            // Always replace the client-side list with server data (keeps page consistent with DB)
+            const commentsList = qs('#comments-list');
+            if (commentsList) {
                 commentsList.innerHTML = '';
-                // Re-render with session tokens included
                 comments.forEach(c => {
                     commentsList.insertAdjacentHTML('beforeend', buildCommentHtml(c));
                 });
             }
+            console.debug('[Comments] Loaded from API', comments);
         } catch(err) {
             console.error('Error loading comments:', err);
         }
@@ -353,8 +387,23 @@
                     // also set cookie for persistence across reloads so server-side rendering can use it
                     if (typeof setCookie === 'function') setCookie('publicCommentSessionToken', window.SESSION_TOKEN, 3650);
                 }
-                const container = qs(`[data-comment-id="${commentId}"] .replies-container`);
-                if(container) container.insertAdjacentHTML('beforeend', buildReplyHtml(data.reply));
+                const commentEl = qs(`[data-comment-id="${commentId}"]`);
+                const container = commentEl ? commentEl.querySelector('.replies-container') : null;
+                if (container) {
+                    // Modern markup: append into .replies-container
+                    container.insertAdjacentHTML('beforeend', buildReplyHtml(data.reply));
+                } else if (commentEl) {
+                    // Legacy markup: look for existing <ul class="list-group"> and append as an <li>
+                    const legacyList = commentEl.querySelector('ul.list-group');
+                    if (legacyList) {
+                        // Wrap the reply HTML in a list item to match server-rendered structure
+                        const liHtml = `<li class="list-group-item border-0 p-0 mb-3" data-reply-id="${data.reply.id}">${buildReplyHtml(data.reply)}</li>`;
+                        legacyList.insertAdjacentHTML('beforeend', liHtml);
+                    } else {
+                        // Fallback: append directly under the comment element
+                        commentEl.insertAdjacentHTML('beforeend', buildReplyHtml(data.reply));
+                    }
+                }
                 textarea.value=''; qs(`#reply-form-${commentId}`).style.display='none';
                 Swal.fire({toast:true,position:'top-end',icon:'success',title:'Reply posted!',showConfirmButton:false,timer:1200});
             } else { Swal.fire('Error',data.message||'Failed to post reply','error'); }
@@ -459,77 +508,105 @@
     });
 
     // Delete reply
-    document.addEventListener('click', function(e){ const t = e.target.closest('.delete-reply, .delete-nested-reply'); if(!t) return; const id = t.dataset.replyId || t.dataset.nestedReplyId; Swal.fire({title:'Delete reply?',text:'This cannot be undone',icon:'warning',showCancelButton:true,confirmButtonColor:'#d33',cancelButtonColor:'#6c757d',confirmButtonText:'Yes, delete it'}).then(async (res)=>{ if(!res.isConfirmed) return; try{ const deleteEndpoint = publicToken ? `/quotation/public/${publicToken}/replies/${id}` : `/replies/${id}`; const headers = {'X-CSRF-TOKEN':csrfToken,'Accept':'application/json'}; if(publicToken) { headers['X-Session-Token'] = window.SESSION_TOKEN; } const resp = await fetch(deleteEndpoint, { method:'DELETE', headers: headers }); const data = await resp.json(); if(data.success){ qs(`[data-reply-id="${id}"]`)?.remove(); qs(`[data-nested-reply-id="${id}"]`)?.remove(); Swal.fire({toast:true,position:'top-end',icon:'success',title:'Deleted',showConfirmButton:false,timer:1200}); } else Swal.fire('Error',data.message||'Failed to delete','error'); }catch(err){ console.error(err); Swal.fire('Error','Something went wrong','error'); } }); });
+    document.addEventListener('click', function(e){
+        const t = e.target.closest('.delete-reply, .delete-nested-reply'); if(!t) return;
+        const id = t.dataset.replyId || t.dataset.nestedReplyId;
+        Swal.fire({title:'Delete reply?',text:'This cannot be undone',icon:'warning',showCancelButton:true,confirmButtonColor:'#d33',cancelButtonColor:'#6c757d',confirmButtonText:'Yes, delete it'}).then(async (res)=>{
+            if(!res.isConfirmed) return;
+            try{
+                const deleteEndpoint = publicToken ? `/quotation/public/${publicToken}/replies/${id}` : `/replies/${id}`;
+                const headers = {'X-CSRF-TOKEN':csrfToken,'Accept':'application/json'};
+                if(publicToken) { headers['X-Session-Token'] = window.SESSION_TOKEN; }
+                const resp = await fetch(deleteEndpoint, { method:'DELETE', headers: headers });
+                const data = await resp.json();
+                if(data.success){
+                    // Prefer removing the closest list-group-item or reply-item wrapper so legacy and modern markup are covered
+                    const directEl = qs(`[data-reply-id="${id}"]`) || qs(`[data-nested-reply-id="${id}"]`);
+                    if(directEl){
+                        const wrapper = directEl.closest('li.list-group-item') || directEl.closest('.reply-item') || directEl.closest('.comment-thread');
+                        if(wrapper) wrapper.remove(); else directEl.remove();
+                    }
+                    Swal.fire({toast:true,position:'top-end',icon:'success',title:'Deleted',showConfirmButton:false,timer:1200});
+                } else Swal.fire('Error',data.message||'Failed to delete','error');
+            }catch(err){ console.error(err); Swal.fire('Error','Something went wrong','error'); }
+        });
+    });
 
     // Builders for HTML snippets (simple)
-    function buildCommentHtml(c){
+    function buildCommentHtml(comment){
         // Permission check: show edit/delete buttons only for owner
         let editDeleteButtons = '';
         
         // For authenticated users (admin/staff): show buttons if they own the comment
-        if (window.IS_AUTHENTICATED && window.CURRENT_USER_ID === c.user_id) {
-            editDeleteButtons = `<button class="btn btn-sm btn-link text-primary edit-comment" data-comment-id="${c.id}">Edit</button>
-                            <button class="btn btn-sm btn-link text-danger delete-comment" data-comment-id="${c.id}">Delete</button>`;
+        if (window.IS_AUTHENTICATED && window.CURRENT_USER_ID === comment.user_id) {
+            editDeleteButtons = `<button class="btn btn-sm btn-link text-primary edit-comment" data-comment-id="${comment.id}">Edit</button>
+                            <button class="btn btn-sm btn-link text-danger delete-comment" data-comment-id="${comment.id}">Delete</button>`;
         }
         // For public view: show buttons if session token matches
-        else if (publicToken && window.SESSION_TOKEN && c.session_token && window.SESSION_TOKEN === c.session_token) {
-            editDeleteButtons = `<button class="btn btn-sm btn-link text-primary edit-comment" data-comment-id="${c.id}">Edit</button>
-                            <button class="btn btn-sm btn-link text-danger delete-comment" data-comment-id="${c.id}">Delete</button>`;
+        else if (publicToken && window.SESSION_TOKEN && comment.session_token && window.SESSION_TOKEN === comment.session_token) {
+            editDeleteButtons = `<button class="btn btn-sm btn-link text-primary edit-comment" data-comment-id="${comment.id}">Edit</button>
+                            <button class="btn btn-sm btn-link text-danger delete-comment" data-comment-id="${comment.id}">Delete</button>`;
         }
         
-        return `\n        <div class="comment-thread mb-4 border-start border-2 border-primary ps-3" data-comment-id="${c.id}">\n            <div class="d-flex mb-2">\n                <div class="flex-shrink-0"><div class="avatar ${c.sender_type==='customer'?'avatar-primary':'avatar-success'}"><span class="avatar-initial rounded-circle">${(c.user_name||'U').charAt(0).toUpperCase()}</span></div></div>\n                <div class="flex-grow-1 ms-3">\n                    <div class="d-flex justify-content-between align-items-start mb-1">\n                        <div><span class="fw-semibold">${c.user_name}</span><small class="text-muted ms-2">just now</small></div>\n                        <div class="comment-actions">\n                            ${editDeleteButtons}\n                            <button class="btn btn-sm btn-link text-secondary reply-toggle" data-comment-id="${c.id}">Reply</button>\n                        </div>\n                    </div>\n                    <p class="mb-2 comment-text">${escapeHtml(c.comment)}</p>\n\n                    <!-- Inline edit form -->\n                    <div class="edit-comment-form mt-2" id="edit-comment-form-${c.id}" style="display:none;">\n                        <textarea class="form-control mb-2 edit-comment-text" data-comment-id="${c.id}">${escapeHtml(c.comment)}</textarea>\n                        <div class="d-flex gap-2">\n                            <button class="btn btn-sm btn-primary save-edit-comment" data-comment-id="${c.id}">Save</button>\n                            <button class="btn btn-sm btn-secondary cancel-edit-comment" data-comment-id="${c.id}">Cancel</button>\n                        </div>\n                    </div>\n\n                    <div class="reply-form-container mt-2" id="reply-form-${c.id}" style="display:none;">\n                        <textarea class="form-control mb-2 reply-textarea" rows="2"></textarea>\n                        <div class="d-flex gap-2">\n                            <button class="btn btn-sm btn-primary submit-reply" data-comment-id="${c.id}">Reply</button>\n                            <button class="btn btn-sm btn-secondary cancel-reply" data-comment-id="${c.id}">Cancel</button>\n                        </div>\n                    </div>\n                    <div class="replies-container mt-3"></div>\n                </div>\n            </div>\n        </div>\n        `;
+        // Render existing replies (if any) into the replies-container so replies persist after client reload
+        let repliesHtml = '';
+        if (Array.isArray(comment.replies) && comment.replies.length) {
+            repliesHtml += '<div class="replies-container mt-3">';
+            comment.replies.forEach(function(reply){
+                repliesHtml += buildReplyHtml(reply);
+            });
+            repliesHtml += '</div>';
+        } else {
+            repliesHtml = '<div class="replies-container mt-3"></div>';
+        }
+
+        return `\n        <div class="comment-thread mb-4 border-start border-2 border-primary ps-3" data-comment-id="${comment.id}">\n            <div class="d-flex mb-2">\n                <div class="flex-shrink-0"><div class="avatar ${comment.sender_type==='customer'?'avatar-primary':'avatar-success'}"><span class="avatar-initial rounded-circle">${(comment.user_name||'U').charAt(0).toUpperCase()}</span></div></div>\n                <div class="flex-grow-1 ms-3">\n                    <div class="d-flex justify-content-between align-items-start mb-1">\n                        <div><span class="fw-semibold">${comment.user_name}</span><small class="text-muted ms-2">just now</small></div>\n                        <div class="comment-actions">\n                            ${editDeleteButtons}\n                            <button class="btn btn-sm btn-link text-secondary reply-toggle" data-comment-id="${comment.id}">Reply</button>\n                        </div>\n                    </div>\n                    <p class="mb-2 comment-text">${escapeHtml(comment.comment)}</p>\n\n                    <!-- Inline edit form -->\n                    <div class="edit-comment-form mt-2" id="edit-comment-form-${comment.id}" style="display:none;">\n                        <textarea class="form-control mb-2 edit-comment-text" data-comment-id="${comment.id}">${escapeHtml(comment.comment)}</textarea>\n                        <div class="d-flex gap-2">\n                            <button class="btn btn-sm btn-primary save-edit-comment" data-comment-id="${comment.id}">Save</button>\n                            <button class="btn btn-sm btn-secondary cancel-edit-comment" data-comment-id="${comment.id}">Cancel</button>\n                        </div>\n                    </div>\n\n                    <div class="reply-form-container mt-2" id="reply-form-${comment.id}" style="display:none;">\n                        <textarea class="form-control mb-2 reply-textarea" rows="2"></textarea>\n                        <div class="d-flex gap-2">\n                            <button class="btn btn-sm btn-primary submit-reply" data-comment-id="${comment.id}">Reply</button>\n                            <button class="btn btn-sm btn-secondary cancel-reply" data-comment-id="${comment.id}">Cancel</button>\n                        </div>\n                    </div>\n                    ${repliesHtml}\n                </div>\n            </div>\n        </div>\n        `;
     }
 
-    function buildReplyHtml(r){
+    function buildReplyHtml(reply){
         // Permission check: show edit/delete buttons only for owner
         let editDeleteButtons = '';
-        
+
         // For authenticated users (admin/staff): show buttons if they own the reply
-        if (window.IS_AUTHENTICATED && window.CURRENT_USER_ID === r.user_id) {
-            editDeleteButtons = `<button class="btn btn-sm btn-link text-primary edit-reply" data-reply-id="${r.id}">Edit</button><button class="btn btn-sm btn-link text-danger delete-reply" data-reply-id="${r.id}">Delete</button>`;
+        if (window.IS_AUTHENTICATED && window.CURRENT_USER_ID === reply.user_id) {
+            editDeleteButtons = `<button class="btn btn-sm btn-link text-primary edit-reply" data-reply-id="${reply.id}">Edit</button><button class="btn btn-sm btn-link text-danger delete-reply" data-reply-id="${reply.id}">Delete</button>`;
         }
         // For public view: show buttons if session token matches
-        else if (publicToken && window.SESSION_TOKEN && r.session_token && window.SESSION_TOKEN === r.session_token) {
-            editDeleteButtons = `<button class="btn btn-sm btn-link text-primary edit-reply" data-reply-id="${r.id}">Edit</button><button class="btn btn-sm btn-link text-danger delete-reply" data-reply-id="${r.id}">Delete</button>`;
+        else if (publicToken && window.SESSION_TOKEN && reply.session_token && window.SESSION_TOKEN === reply.session_token) {
+            editDeleteButtons = `<button class="btn btn-sm btn-link text-primary edit-reply" data-reply-id="${reply.id}">Edit</button><button class="btn btn-sm btn-link text-danger delete-reply" data-reply-id="${reply.id}">Delete</button>`;
         }
-        
-        return `\n        <div class="reply-item mb-3" data-reply-id="${r.id}">\n            <div class="d-flex">\n                <div class="flex-shrink-0"><div class="avatar avatar-sm ${r.sender_type==='customer'?'avatar-primary':'avatar-success'}"><span class="avatar-initial rounded-circle">${(r.user_name||'U').charAt(0).toUpperCase()}</span></div></div>\n                <div class="flex-grow-1 ms-2">\n                    <div class="d-flex justify-content-between align-items-start mb-1">\n                        <div><span class="fw-semibold">${r.user_name}</span><small class="text-muted ms-2">just now</small></div>\n                        <div class="reply-actions">${editDeleteButtons}</div>\n                    </div>\n                    <p class="mb-1 reply-text">${escapeHtml(r.comment)}</p>\n                    <div class="edit-reply-form mt-2" id="edit-reply-form-${r.id}" style="display:none;">\n                        <textarea class="form-control mb-2 edit-reply-text" data-reply-id="${r.id}">${escapeHtml(r.comment)}</textarea>\n                        <div class="d-flex gap-2">\n                            <button class="btn btn-sm btn-primary save-edit-reply" data-reply-id="${r.id}">Save</button>\n                            <button class="btn btn-sm btn-secondary cancel-edit-reply" data-reply-id="${r.id}">Cancel</button>\n                        </div>\n                    </div>\n                </div>\n            </div>\n        </div>\n        `;
+
+        // Render nested replies (if any)
+        let nestedRepliesHtml = '';
+        if (Array.isArray(reply.nestedReplies) && reply.nestedReplies.length) {
+            nestedRepliesHtml += '<div class="nested-replies mt-2 ms-3">';
+            reply.nestedReplies.forEach(function(nested){ nestedRepliesHtml += buildNestedReplyHtml(nested); });
+            nestedRepliesHtml += '</div>';
+        }
+
+        return `\n        <div class="reply-item mb-3" data-reply-id="${reply.id}">\n            <div class="d-flex">\n                <div class="flex-shrink-0"><div class="avatar avatar-sm ${reply.sender_type==='customer'?'avatar-primary':'avatar-success'}"><span class="avatar-initial rounded-circle">${(reply.user_name||'U').charAt(0).toUpperCase()}</span></div></div>\n                <div class="flex-grow-1 ms-2">\n                    <div class="d-flex justify-content-between align-items-start mb-1">\n                        <div><span class="fw-semibold">${reply.user_name}</span><small class="text-muted ms-2">just now</small></div>\n                        <div class="reply-actions">${editDeleteButtons}</div>\n                    </div>\n                    <p class="mb-1 reply-text">${escapeHtml(reply.comment)}</p>\n                    <div class="edit-reply-form mt-2" id="edit-reply-form-${reply.id}" style="display:none;">\n                        <textarea class="form-control mb-2 edit-reply-text" data-reply-id="${reply.id}">${escapeHtml(reply.comment)}</textarea>\n                        <div class="d-flex gap-2">\n                            <button class="btn btn-sm btn-primary save-edit-reply" data-reply-id="${reply.id}">Save</button>\n                            <button class="btn btn-sm btn-secondary cancel-edit-reply" data-reply-id="${reply.id}">Cancel</button>\n                        </div>\n                    </div>\n                    ${nestedRepliesHtml}\n                </div>\n            </div>\n        </div>\n        `;
     }
 
+    // Helper to build a nested reply block (used by buildReplyHtml)
+    function buildNestedReplyHtml(nested){
+        let editDeleteButtons = '';
+        if (window.IS_AUTHENTICATED && window.CURRENT_USER_ID === nested.user_id) {
+            editDeleteButtons = `<button class="btn btn-sm btn-link text-primary edit-nested-reply" data-nested-reply-id="${nested.id}">Edit</button><button class="btn btn-sm btn-link text-danger delete-nested-reply" data-nested-reply-id="${nested.id}">Delete</button>`;
+        } else if (publicToken && window.SESSION_TOKEN && nested.session_token && window.SESSION_TOKEN === nested.session_token) {
+            editDeleteButtons = `<button class="btn btn-sm btn-link text-primary edit-nested-reply" data-nested-reply-id="${nested.id}">Edit</button><button class="btn btn-sm btn-link text-danger delete-nested-reply" data-nested-reply-id="${nested.id}">Delete</button>`;
+        }
+        return `\n            <div class="reply-item mb-2" data-nested-reply-id="${nested.id}">\n                <div class="d-flex">\n                    <div class="flex-shrink-0"><div class="avatar avatar-xs ${nested.sender_type==='customer'?'avatar-primary':'avatar-success'}"><span class="avatar-initial rounded-circle">${(nested.user_name||'U').charAt(0).toUpperCase()}</span></div></div>\n                    <div class="flex-grow-1 ms-2">\n                        <div class="d-flex justify-content-between align-items-start mb-1">\n                            <div><span class="fw-semibold">${nested.user_name}</span><small class="text-muted ms-2">just now</small></div>\n                            <div class="nested-reply-actions">${editDeleteButtons}</div>\n                        </div>\n                        <p class="mb-0">${escapeHtml(nested.comment)}</p>\n                    </div>\n                </div>\n            </div>\n        `;
+    }
     function escapeHtml(unsafe){ return String(unsafe).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
 
-    // Load comments from server on page load (for public view to ensure session tokens are loaded)
-    async function loadPublicComments() {
-        if (!publicToken) return; // Only for public view
-        try {
-            const res = await fetch(commentsListEndpoint, {
-                method: 'GET',
-                headers: {
-                    'X-Session-Token': window.SESSION_TOKEN,
-                    'Accept': 'application/json'
-                }
-            });
-            const comments = await res.json();
-            if (Array.isArray(comments) && comments.length > 0) {
-                // Clear existing comments (server-side rendered ones)
-                const commentsList = qs('#comments-list');
-                commentsList.innerHTML = '';
-                // Re-render with session tokens included (from API response)
-                comments.forEach(c => {
-                    commentsList.insertAdjacentHTML('beforeend', buildCommentHtml(c));
-                });
-                console.log('[Debug] Loaded ' + comments.length + ' comments from API with session tokens');
-            }
-        } catch(err) {
-            console.error('[Debug] Error loading comments:', err);
-        }
+    // Use the primary loader (loadCommentsFromServer) to fetch public comments and render.
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            if (publicToken) loadCommentsFromServer();
+        });
+    } else {
+        if (publicToken) loadCommentsFromServer();
     }
 
-    // Trigger load on DOMContentLoaded
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', loadPublicComments);
-    } else {
-        loadPublicComments();
-    }
 })();
 </script>

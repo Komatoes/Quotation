@@ -184,6 +184,7 @@
                     @include('draftprojects')
                 </div>
             </section>
+
             <section id="archived-projects" class="mt-5">
                 <div class="row">
                     @include('archivedprojects')
@@ -218,7 +219,7 @@
                     </div>
                 </div>
                 <div class="modal-footer" style="border-top: 1px solid #e3e6f0;">
-                    <a href="{{ route('notifications.list') }}" class="btn btn-link" style="text-decoration: none;">View All Notifications</a>
+
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
@@ -370,5 +371,7 @@
                 });
             }
         }
+
+      
     </script>
 @endsection

@@ -16,9 +16,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
     <style>
-        /* -----------------------------------------------------
-           CORE
-        ----------------------------------------------------- */
         * {
             box-sizing: border-box;
         }
@@ -35,13 +32,9 @@
             padding: 20px;
         }
 
-        /* -----------------------------------------------------
-           CONTAINER + 3D PRISM (BLUR-FREE VERSION)
-        ----------------------------------------------------- */
         .login-container {
             width: 100%;
             max-width: 350px;
-            perspective: none; /* REMOVE perspective = no blurry text */
         }
 
         .rec-prism {
@@ -61,17 +54,12 @@
             border-radius: 10px;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
             backface-visibility: hidden;
-            -webkit-font-smoothing: antialiased;
-            transform: rotateY(0deg);
         }
 
         .face-back {
             transform: rotateY(180deg);
         }
 
-        /* -----------------------------------------------------
-           CONTENT
-        ----------------------------------------------------- */
         .content {
             color: #666;
         }
@@ -101,9 +89,6 @@
             height: 60px;
         }
 
-        /* -----------------------------------------------------
-           INPUTS
-        ----------------------------------------------------- */
         .field-wrapper {
             margin-bottom: 20px;
         }
@@ -144,12 +129,9 @@
             box-shadow: 0 10px 18px rgba(7, 173, 144, 0.35);
         }
 
-        /* -----------------------------------------------------
-           LINKS
-        ----------------------------------------------------- */
         .links {
             text-align: center;
-            margin-top: 15px;
+            margin-top: 10px;
         }
 
         .link-item {
@@ -164,17 +146,14 @@
             color: #07ad90;
         }
 
-        /* -----------------------------------------------------
-           ALERT
-        ----------------------------------------------------- */
         .alert {
-            background-color: #ffebee;
-            color: #c62828;
-            padding: 12px;
-            border-radius: 4px;
+            background-color: #ffe4e6;
+            color: #c91d1d;
+            padding: 10px;
+            border-radius: 6px;
+            border-left: 4px solid #c91d1d;
+            font-size: 0.85em;
             margin-bottom: 15px;
-            border-left: 4px solid #c62828;
-            font-size: 0.9em;
         }
     </style>
 </head>
@@ -183,7 +162,6 @@
     <div class="login-container">
         <div class="rec-prism" id="prism">
 
-            {{-- ==================== LOGIN FACE ==================== --}}
             <div class="face face-front">
                 <div class="content">
 
@@ -192,79 +170,38 @@
                     </div>
 
                     <h2>Welcome Back</h2>
-                    <small>Sign in to your account</small>
-
-                    @if ($errors->any())
-                        <div class="alert">
-                            <ul>
-                                @foreach ($errors->all() as $error)
-                                    <li>{{ $error }}</li>
-                                @endforeach
-                            </ul>
-                        </div>
-                    @endif
+                    <small>Log in to your account</small>
 
                     <form method="POST" action="{{ route('login.submit') }}">
                         @csrf
 
+                        @if ($errors->any())
+                            <div class="alert">
+                                {{ $errors->first() }}
+                            </div>
+                        @endif
+
                         <div class="field-wrapper">
-                            <input type="text" name="username" placeholder="username" required autofocus>
+                            <input type="text" name="username" placeholder="Username" value="{{ old('username') }}" required autofocus>
                         </div>
 
                         <div class="field-wrapper">
-                            <input type="password" name="password" placeholder="password" required>
+                            <input type="password" name="password" placeholder="Password" required>
+                        </div>
+
+                        <div class="links">
+                            <a id="forgot-password-btn" class="link-item" href="{{ route('forgot.password') }}">Forgot Password?</a>
                         </div>
 
                         <div class="field-wrapper">
                             <input type="submit" value="Sign In">
                         </div>
                     </form>
-
-                    <div class="links" style="margin-top: 20px;">
-                        <a href="{{ route('forgot.password') }}" class="link-item">Forgot Password?</a>
-                    </div>
-                </div>
-            </div>
-
-            {{-- ==================== FORGOT PASSWORD FACE ====================
-            <div class="face face-back">
-                <div class="content">
-                    <h2>Reset Password</h2>
-                    <small>Enter your email to receive a reset link</small>
-
-                    <form method="POST" action="{{ route('password.email') }}">
-                        @csrf
-
-                        <div class="field-wrapper">
-                            <input type="text" name="email" placeholder="email" required>
-                        </div>
-
-                        <div class="field-wrapper">
-                            <input type="submit" value="Send Reset Link">
-                        </div>
-                    </form>
-
-                    <div class="links" style="margin-top: 25px;">
-                        <a class="link-item" id="back-to-login-btn">← Back to Login</a>
-                    </div>
                 </div>
             </div>
 
         </div>
-    </div> --}}
-
-    <script>
-        const prism = document.getElementById('prism');
-
-        document.getElementById('forgot-password-btn').onclick = () => {
-            prism.style.transform = "rotateY(180deg)";
-        };
-
-        document.getElementById('back-to-login-btn').onclick = () => {
-            prism.style.transform = "rotateY(0deg)";
-        };
-    </script>
+    </div>
 
 </body>
-
 </html>

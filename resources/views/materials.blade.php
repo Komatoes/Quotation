@@ -293,12 +293,13 @@ class MaterialHandler {
         }
 
         this.paginatedItems.forEach(material => {
+            const formattedPrice = parseFloat(material.unit_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             const row = `
                 <tr>
                     <td>${material.name}</td>
                     <td>${material.description || ''}</td>
                     <td>${material.unit}</td>
-                    <td>${material.unit_price}</td>
+                    <td>₱${formattedPrice}</td>
                     <td>
                         <button class="btn btn-sm btn-warning edit-btn" data-id="${material.id}">Edit</button>
                     </td>

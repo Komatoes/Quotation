@@ -5,9 +5,9 @@
     @php
         // Detect quotation type: Regular Quotation vs Additional Quotation
         $isAdditional = isset($additionalQuotation) && !isset($quotation);
-        $quotation = $isAdditional ? $additionalQuotation : ($quotation ?? null);
+        $quotation = $isAdditional ? $additionalQuotation : $quotation ?? null;
         $quotationType = $isAdditional ? 'additional' : 'regular';
-        
+
         // Get client info based on quotation type
         if ($isAdditional) {
             $client = $quotation->parentQuotation->client;
@@ -31,7 +31,7 @@
                 <div class="card-body text-center bg-light rounded shadow-sm">
                     @php
                         $qStatus = strtolower($quotation->status->status_name ?? '');
-                        
+
                         if ($isAdditional) {
                             // Additional Quotation header logic
                             if ($qStatus === 'completed') {
@@ -72,13 +72,13 @@
             <div class="card mb-4">
                 <div class="card-body">
                     <h3 class="mb-3">{{ $quotation->subject }}</h3>
-                    
+
                     @if ($isAdditional)
                         <p><strong>Parent Quotation:</strong> {{ $quotation->parentQuotation->subject }}
                             (ID: {{ $quotation->parent_quotation_id }})
                         </p>
                     @endif
-                    
+
                     <p><strong>Customer:</strong> <span id="clientName">{{ $client->first_name }}
                             {{ $client->last_name }}</span>
                         @php
@@ -93,7 +93,7 @@
                                 $canEditClient = !(
                                     $qStatus === 'completed' ||
                                     $qStatus === 'rejected' ||
-                                    ($quotation->service_approved && $qStatus === 'ongoing')
+                                    $qStatus === 'ongoing'
                                 );
                             }
 
@@ -171,10 +171,11 @@
                     @endphp
 
                     <div class="mt-3">
-                        <p> <strong> Status: </strong> <span class="badge {{ $badgeClass }} mb-3 d-inline-flex align-items-center"
-                            id="quotation-status-badge">
-                            {{ $badgeText }}
-                        </span></p>
+                        <p> <strong> Status: </strong> <span
+                                class="badge {{ $badgeClass }} mb-3 d-inline-flex align-items-center"
+                                id="quotation-status-badge">
+                                {{ $badgeText }}
+                            </span></p>
                     </div>
 
                     @if (!$isAdditional)
@@ -188,13 +189,17 @@
                                 <h5 class="mb-3">Contract Details</h5>
                                 <p><strong>Contract Subject:</strong> <span>{{ $quotation->contract_subject }}</span></p>
                                 @if ($quotation->project_start_date)
-                                    <p><strong>Project Start Date:</strong> <span>{{ \Carbon\Carbon::parse($quotation->project_start_date)->format('M d, Y') }}</span></p>
+                                    <p><strong>Project Start Date:</strong>
+                                        <span>{{ \Carbon\Carbon::parse($quotation->project_start_date)->setTimezone(config('app.timezone'))->format('M d, Y') }}</span>
+                                    </p>
                                 @endif
                                 @if ($quotation->project_end_date)
-                                    <p><strong>Project End Date:</strong> <span>{{ \Carbon\Carbon::parse($quotation->project_end_date)->format('M d, Y') }}</span></p>
+                                    <p><strong>Project End Date:</strong>
+                                        <span>{{ \Carbon\Carbon::parse($quotation->project_end_date)->setTimezone(config('app.timezone'))->format('M d, Y') }}</span>
+                                    </p>
                                 @endif
                                 <p>
-                                    <strong>Contract Status:</strong> 
+                                    <strong>Contract Status:</strong>
                                     @if ($quotation->with_contract)
                                         <span class="badge bg-success">With Contract</span>
                                     @else
@@ -219,10 +224,12 @@
                                 <div class="d-flex flex-wrap gap-2 justify-content-end">
                                     @php
                                         $qStatus = strtolower($quotation->status->status_name ?? '');
-                                        
+
                                         // For additional quotations, check if customer_approved or status >= 2 (approved)
-                                        $isApprovedAdditional = $isAdditional && ($quotation->customer_approved || $quotation->status_id >= 2);
-                                        
+                                        $isApprovedAdditional =
+                                            $isAdditional &&
+                                            ($quotation->customer_approved || $quotation->status_id >= 2);
+
                                         $canAddMaterial =
                                             empty($readonly) &&
                                             $qStatus !== 'completed' &&
@@ -364,7 +371,9 @@
                                     @endphp
                                     <tr>
                                         <td colspan="3" class="text-end fw-bold">Total Material Cost:</td>
-                                        <td class="text-end fw-bold">₱{{ number_format($materials->sum(fn($m) => ($m->pivot->unit_cost ?? $m->unit_price) * $m->pivot->quantity), 2) }}</td>
+                                        <td class="text-end fw-bold">
+                                            ₱{{ number_format($materials->sum(fn($m) => ($m->pivot->unit_cost ?? $m->unit_price) * $m->pivot->quantity), 2) }}
+                                        </td>
                                     </tr>
                                     <tr>
                                         <td colspan="3" class="text-end fw-bold">Labor Fee:</td>
@@ -372,15 +381,11 @@
                                             @if ($canEditFees)
                                                 <div class="input-group">
                                                     <span class="input-group-text">₱</span>
-                                                    <input type="number" class="form-control text-end fee-input labor-fee-display" 
-                                                        id="laborFee"
-                                                        placeholder="0.00"
-                                                        data-field="labor_fee"
-                                                        data-validate="price"
-                                                        value="{{ $quotation->labor_fee }}"
-                                                        step="0.01"
-                                                        min="0"
-                                                        style="font-family: inherit;">
+                                                    <input type="text"
+                                                        class="form-control text-end fee-input labor-fee-display"
+                                                        id="laborFee" placeholder="0.00" data-field="labor_fee"
+                                                        data-validate="price" value="{{ $quotation->labor_fee }}"
+                                                        step="0.01" min="0" style="font-family: inherit;">
                                                 </div>
                                             @else
                                                 <span>₱{{ number_format($quotation->labor_fee, 2) }}</span>
@@ -393,15 +398,11 @@
                                             @if ($canEditFees)
                                                 <div class="input-group">
                                                     <span class="input-group-text">₱</span>
-                                                    <input type="number" class="form-control text-end fee-input delivery-fee-display" 
-                                                        id="deliveryFee" 
-                                                        placeholder="0.00"
-                                                        data-field="delivery_fee"
-                                                        data-validate="price"
-                                                        value="{{ $quotation->delivery_fee }}"
-                                                        step="0.01"
-                                                        min="0"
-                                                        style="font-family: inherit;">
+                                                    <input type="text"
+                                                        class="form-control text-end fee-input delivery-fee-display"
+                                                        id="deliveryFee" placeholder="0.00" data-field="delivery_fee"
+                                                        data-validate="price" value="{{ $quotation->delivery_fee }}"
+                                                        step="0.01" min="0" style="font-family: inherit;">
                                                 </div>
                                             @else
                                                 <span>₱{{ number_format($quotation->delivery_fee, 2) }}</span>
@@ -414,7 +415,8 @@
                                     <td class="fw-bold text-primary fs-5 text-end" id="grandTotal">
                                         @if (Auth::user()->can('view_prices'))
                                             <span id="grandTotalValue" class="grand-total-display">
-                                                ₱<span id="grandTotalAmount">{{ number_format($materials->sum(fn($m) => ($m->pivot->unit_cost ?? $m->unit_price) * $m->pivot->quantity) + $quotation->labor_fee + $quotation->delivery_fee, 2) }}</span>
+                                                ₱<span
+                                                    id="grandTotalAmount">{{ number_format($materials->sum(fn($m) => ($m->pivot->unit_cost ?? $m->unit_price) * $m->pivot->quantity) + $quotation->labor_fee + $quotation->delivery_fee, 2) }}</span>
                                             </span>
                                         @else
                                             <span class="badge bg-secondary">Hidden</span>
@@ -455,9 +457,9 @@
                                 </button>
                             @else
                                 {{-- Regular quotations: Show contract form modal --}}
-                                <button type="button" class="btn btn-success" id="approveBtn"
-                                    data-bs-toggle="modal" data-bs-target="#approveModal"
-                                    data-quot="{{ $quotation->id }}" @if (!$quotation->customer_approved) disabled @endif>
+                                <button type="button" class="btn btn-success" id="approveBtn" data-bs-toggle="modal"
+                                    data-bs-target="#approveModal" data-quot="{{ $quotation->id }}"
+                                    @if (!$quotation->customer_approved) disabled @endif>
                                     <i class="fa-solid fa-check-circle me-1"></i> Approve
                                 </button>
                             @endif
@@ -592,18 +594,23 @@
                             <button type="button" class="btn-close" data-bs-dismiss="modal"
                                 aria-label="Close"></button>
                         </div>
+
                         <form id="approveForm">
                             <div class="modal-body">
-                                <div class="alert alert-info" role="alert">
-                                    <i class="fa-solid fa-info-circle me-2"></i>
-                                    <strong>Note:</strong> All fields are required to approve this quotation. You must confirm the contract is in place.
+
+                                <div class="alert alert-info d-flex align-items-start" role="alert">
+                                    <i class="fa-solid fa-info-circle me-2 mt-1"></i>
+                                    <div>
+                                        <strong>Note:</strong> All fields are required to approve this quotation.
+                                        You must confirm the contract is in place.
+                                    </div>
                                 </div>
 
                                 <div class="mb-3">
                                     <label for="contractSubject" class="form-label">
                                         Contract Subject <span class="text-danger">*</span>
                                     </label>
-                                    <input type="text" class="form-control" id="contractSubject" 
+                                    <input type="text" class="form-control" id="contractSubject"
                                         name="contract_subject" placeholder="Enter contract subject" required>
                                 </div>
 
@@ -611,7 +618,7 @@
                                     <label for="projectStartDate" class="form-label">
                                         Project Start Date <span class="text-danger">*</span>
                                     </label>
-                                    <input type="date" class="form-control" id="projectStartDate" 
+                                    <input type="date" class="form-control" id="projectStartDate"
                                         name="project_start_date" required>
                                 </div>
 
@@ -619,18 +626,22 @@
                                     <label for="projectEndDate" class="form-label">
                                         Project End Date <span class="text-danger">*</span>
                                     </label>
-                                    <input type="date" class="form-control" id="projectEndDate" 
+                                    <input type="date" class="form-control" id="projectEndDate"
                                         name="project_end_date" required>
                                 </div>
 
-                                <div class="form-check mb-3 border border-primary border-3 p-3 rounded">
-                                    <input class="form-check-input" type="checkbox" id="withContract" 
-                                        name="with_contract" value="1" style="width: 1.5em; height: 1.5em;">
-                                    <label class="form-check-label ms-2" for="withContract">
-                                        <strong>I confirm this quotation is backed by a valid contract</strong>
-                                    </label>
+                                <div class="border border-primary border-2 rounded p-3">
+                                    <div class="form-check d-flex align-items-center">
+                                        <input class="form-check-input me-2" type="checkbox" id="withContract"
+                                            name="with_contract" value="1">
+                                        <label class="form-check-label" for="withContract">
+                                            <strong>I confirm this quotation is backed by a valid contract</strong>
+                                        </label>
+                                    </div>
                                 </div>
+
                             </div>
+
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                                 <button type="submit" class="btn btn-success">
@@ -642,56 +653,55 @@
                 </div>
             </div>
 
-            <!-- ✅ NEW: Reject Quotation Modal -->
-            <div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel"
-                aria-hidden="true">
+                <!-- ✅ NEW: Reject Quotation Modal 
+                -->
+            <div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
                         <div class="modal-header">
                             <h5 class="modal-title" id="rejectModalLabel">Reject Quotation</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                aria-label="Close"></button>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <form id="rejectForm">
                             <div class="modal-body">
                                 <div class="alert alert-warning" role="alert">
                                     <i class="fa-solid fa-exclamation-triangle me-2"></i>
-                                    <strong>Warning:</strong> Rejecting a quotation will mark it as rejected. You must provide a reason.
+                                    <strong>Warning:</strong> Rejecting a quotation will mark it as rejected. You must provide a
+                                    reason.
                                 </div>
 
                                 <div class="mb-3">
                                     <label for="rejectionReason" class="form-label">
                                         Rejection Reason <span class="text-danger">*</span>
                                     </label>
-                                    <textarea class="form-control" id="rejectionReason" 
-                                        name="rejection_reason" rows="3"
+                                    <textarea class="form-control" id="rejectionReason" name="rejection_reason" rows="3"
                                         placeholder="Enter your rejection reason..." required></textarea>
                                 </div>
 
                                 <div class="mb-3">
                                     <label class="form-label">Quick Select Reason</label>
                                     <div class="btn-group d-flex flex-wrap gap-2" role="group" style="gap: 0.5rem !important;">
-                                        <button type="button" class="btn btn-outline-danger btn-sm common-reason-btn" 
+                                        <button type="button" class="btn btn-outline-danger btn-sm common-reason-btn"
                                             data-reason="Client budget exceeded - quotation too expensive">
                                             <i class="fa-solid fa-money-bill me-1"></i> Budget Issue
                                         </button>
-                                        <button type="button" class="btn btn-outline-danger btn-sm common-reason-btn" 
+                                        <button type="button" class="btn btn-outline-danger btn-sm common-reason-btn"
                                             data-reason="Client decided to go with another vendor">
                                             <i class="fa-solid fa-building me-1"></i> Other Vendor
                                         </button>
-                                        <button type="button" class="btn btn-outline-danger btn-sm common-reason-btn" 
+                                        <button type="button" class="btn btn-outline-danger btn-sm common-reason-btn"
                                             data-reason="Materials not available or out of stock">
                                             <i class="fa-solid fa-box me-1"></i> No Stock
                                         </button>
-                                        <button type="button" class="btn btn-outline-danger btn-sm common-reason-btn" 
+                                        <button type="button" class="btn btn-outline-danger btn-sm common-reason-btn"
                                             data-reason="Timeline does not meet client requirements">
                                             <i class="fa-solid fa-calendar me-1"></i> Timeline Issue
                                         </button>
-                                        <button type="button" class="btn btn-outline-danger btn-sm common-reason-btn" 
+                                        <button type="button" class="btn btn-outline-danger btn-sm common-reason-btn"
                                             data-reason="Client canceled the project">
                                             <i class="fa-solid fa-ban me-1"></i> Project Canceled
                                         </button>
-                                        <button type="button" class="btn btn-outline-danger btn-sm common-reason-btn" 
+                                        <button type="button" class="btn btn-outline-danger btn-sm common-reason-btn"
                                             data-reason="Specifications do not match client requirements">
                                             <i class="fa-solid fa-list-check me-1"></i> Specs Mismatch
                                         </button>
@@ -714,231 +724,247 @@
                 </div>
             </div>
 
-        </div>
-    </div>
+            </div>
+            </div>
 
-    <!-- ---------------- Scripts ---------------- -->
+            <!-- ---------------- Scripts ---------------- -->
 
-    <script>
-        /**
-         * Format a number with thousand separators (commas)
-         * Example: 123456.78 => "123,456.78"
-         */
-        function formatNumberWithCommas(value) {
-            if (value === null || value === undefined) return '0.00';
-            const num = parseFloat(value);
-            if (isNaN(num)) return '0.00';
-            // Format number with 2 decimal places, then add commas
-            const formatted = num.toFixed(2);
-            return formatted.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-        }
-
-        /**
-         * Update grand total display with proper comma formatting
-         * Example: updateGrandTotalDisplay(123456.50) => ₱123,456.50
-         */
-        function updateGrandTotalDisplay(amount) {
-            // Prefer updating the inner amount span if present so we don't strip
-            // surrounding markup / classes. Fall back to replacing the cell text.
-            const grandTotalAmountEl = document.getElementById('grandTotalAmount');
-            if (grandTotalAmountEl) {
-                grandTotalAmountEl.textContent = formatNumberWithCommas(amount);
-                // Ensure parent shows currency prefix if needed
-                const parent = grandTotalAmountEl.closest('#grandTotal');
-                if (parent) {
-                    // parent may already contain the currency symbol in markup; keep it.
-                    // if not, ensure the visible text is correct by leaving structure intact.
+            <script>
+                /**
+                 * Format a number with thousand separators (commas)
+                 * Example: 123456.78 => "123,456.78"
+                 */
+                function formatNumberWithCommas(value) {
+                    if (value === null || value === undefined) return '0.00';
+                    const num = parseFloat(value);
+                    if (isNaN(num)) return '0.00';
+                    // Format number with 2 decimal places, then add commas
+                    const formatted = num.toFixed(2);
+                    return formatted.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
                 }
-                return;
-            }
 
-            const grandTotalEl = document.getElementById("grandTotal");
-            if (grandTotalEl) {
-                grandTotalEl.textContent = "₱" + formatNumberWithCommas(amount);
-            }
-        }
-
-        /**
-         * Compute grand total on the client by summing all visible line totals
-         * and fee inputs. Useful when server responses don't include grand_total.
-         * Handles both editable inputs (.fee-input) and display-only spans (when disabled).
-         */
-        function computeAndUpdateGrandTotal() {
-            let materialsTotal = 0;
-            document.querySelectorAll('.line-total').forEach(el => {
-                try {
-                    const txt = el.textContent || '';
-                    // remove currency symbol and commas
-                    const raw = txt.replace(/[^0-9.\-]/g, '');
-                    const v = parseFloat(raw);
-                    if (!isNaN(v)) materialsTotal += v;
-                } catch (e) { /* ignore malformed cells */ }
-            });
-
-            let feesTotal = 0;
-            // Try to read from editable fee inputs first
-            document.querySelectorAll('.fee-input').forEach(inp => {
-                try {
-                    const val = inp.value || '0';
-                    const raw = val.toString().replace(/,/g, '').replace(/[^0-9.\-]/g, '');
-                    const v = parseFloat(raw);
-                    if (!isNaN(v)) feesTotal += v;
-                } catch (e) { /* ignore malformed inputs */ }
-            });
-
-            // If no fee inputs found (disabled state), read from labor and delivery fee display spans
-            if (feesTotal === 0) {
-                // Labor fee: look for the text after "Labor Fee:" label
-                const laborFeeSpans = document.querySelectorAll('tfoot tr');
-                laborFeeSpans.forEach(tr => {
-                    const tdText = tr.querySelector('td:first-child')?.textContent || '';
-                    if (tdText.includes('Labor Fee')) {
-                        const priceSpan = tr.querySelector('td:nth-child(4) span');
-                        if (priceSpan) {
-                            const raw = priceSpan.textContent.replace(/[^0-9.\-]/g, '');
-                            const v = parseFloat(raw);
-                            if (!isNaN(v)) feesTotal += v;
+                /**
+                 * Update grand total display with proper comma formatting
+                 * Example: updateGrandTotalDisplay(123456.50) => ₱123,456.50
+                 */
+                function updateGrandTotalDisplay(amount) {
+                    // Prefer updating the inner amount span if present so we don't strip
+                    // surrounding markup / classes. Fall back to replacing the cell text.
+                    const grandTotalAmountEl = document.getElementById('grandTotalAmount');
+                    if (grandTotalAmountEl) {
+                        grandTotalAmountEl.textContent = formatNumberWithCommas(amount);
+                        // Ensure parent shows currency prefix if needed
+                        const parent = grandTotalAmountEl.closest('#grandTotal');
+                        if (parent) {
+                            // parent may already contain the currency symbol in markup; keep it.
+                            // if not, ensure the visible text is correct by leaving structure intact.
                         }
+                        return;
                     }
-                });
 
-                // Delivery fee: look for the text after "Delivery/Hauling Fee:" label
-                laborFeeSpans.forEach(tr => {
-                    const tdText = tr.querySelector('td:first-child')?.textContent || '';
-                    if (tdText.includes('Delivery') || tdText.includes('Hauling')) {
-                        const priceSpan = tr.querySelector('td:nth-child(4) span');
-                        if (priceSpan) {
-                            const raw = priceSpan.textContent.replace(/[^0-9.\-]/g, '');
-                            const v = parseFloat(raw);
-                            if (!isNaN(v)) feesTotal += v;
-                        }
+                    const grandTotalEl = document.getElementById("grandTotal");
+                    if (grandTotalEl) {
+                        grandTotalEl.textContent = "₱" + formatNumberWithCommas(amount);
                     }
-                });
-            }
+                }
 
-            const grand = materialsTotal + feesTotal;
-            updateGrandTotalDisplay(grand);
-            return grand;
-        }
-
-        /**
-         * Bind formatting behavior to editable price inputs (.update-price)
-         * - on focus: remove commas so user can type raw number
-         * - on blur: format with commas
-         */
-        function bindPriceInputs(quotationType = 'regular') {
-            document.querySelectorAll('.update-price').forEach(input => {
-                if (input.dataset.priceBound) return;
-                input.dataset.priceBound = 'true';
-
-                input.addEventListener('focus', (e) => {
-                    const v = e.target.value || '';
-                    e.target.value = v.toString().replace(/,/g, '').trim();
-                });
-
-                input.addEventListener('blur', (e) => {
-                    if (e.target.value === '') {
-                        e.target.value = '0.00';
-                    }
-                    try {
-                        e.target.value = formatNumberWithCommas(e.target.value);
-                    } catch (err) {
-                        console.error('Format price error', err);
-                    }
-                });
-
-                // Attach change handler to send updated unit price to the server
-                // and update the line total + grand total immediately.
-                if (!input.dataset.priceChangeBound) {
-                    input.dataset.priceChangeBound = 'true';
-                    input.addEventListener('change', async function() {
-                        // Read raw numeric value (strip commas)
-                        const raw = this.value ? this.value.toString().replace(/,/g, '') : '';
-                        const newPrice = parseFloat(raw);
-                        const pivotId = this.dataset.pivot;
-                        const materialId = this.dataset.material;
-
-                        if (isNaN(newPrice) || newPrice < 0) {
-                            Swal.fire('Invalid Price', 'Please enter a valid price.', 'warning');
-                            // Reformat back to previous or 0.00
-                            try { this.value = formatNumberWithCommas(this.value || 0); } catch (e) {}
-                            return;
-                        }
-
-                        this.disabled = true;
-                        this.classList.add('is-loading');
-
+                /**
+                 * Compute grand total on the client by summing all visible line totals
+                 * and fee inputs. Useful when server responses don't include grand_total.
+                 * Handles both editable inputs (.fee-input) and display-only spans (when disabled).
+                 */
+                function computeAndUpdateGrandTotal() {
+                    let materialsTotal = 0;
+                    document.querySelectorAll('.line-total').forEach(el => {
                         try {
-                            const endpoint = quotationType === 'additional' 
-                                ? `/additional-quotation-materials/${pivotId}/update-price`
-                                : `/quotation-materials/${pivotId}/update-unit-cost`;
-                            
-                            const pivotRes = await fetch(endpoint, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                                    'Accept': 'application/json'
-                                },
-                                body: JSON.stringify({ unit_cost: newPrice })
-                            });
+                            const txt = el.textContent || '';
+                            // remove currency symbol and commas
+                            const raw = txt.replace(/[^0-9.\-]/g, '');
+                            const v = parseFloat(raw);
+                            if (!isNaN(v)) materialsTotal += v;
+                        } catch (e) {
+                            /* ignore malformed cells */ }
+                    });
 
-                            let pivotData;
-                            try {
-                                if (pivotRes.headers.get('content-type')?.includes('application/json')) {
-                                    pivotData = await pivotRes.json();
-                                } else {
-                                    throw new Error('Pivot response not JSON');
+                    let feesTotal = 0;
+                    // Try to read from editable fee inputs first
+                    document.querySelectorAll('.fee-input').forEach(inp => {
+                        try {
+                            const val = inp.value || '0';
+                            const raw = val.toString().replace(/,/g, '').replace(/[^0-9.\-]/g, '');
+                            const v = parseFloat(raw);
+                            if (!isNaN(v)) feesTotal += v;
+                        } catch (e) {
+                            /* ignore malformed inputs */ }
+                    });
+
+                    // If no fee inputs found (disabled state), read from labor and delivery fee display spans
+                    if (feesTotal === 0) {
+                        // Labor fee: look for the text after "Labor Fee:" label
+                        const laborFeeSpans = document.querySelectorAll('tfoot tr');
+                        laborFeeSpans.forEach(tr => {
+                            const tdText = tr.querySelector('td:first-child')?.textContent || '';
+                            if (tdText.includes('Labor Fee')) {
+                                const priceSpan = tr.querySelector('td:nth-child(4) span');
+                                if (priceSpan) {
+                                    const raw = priceSpan.textContent.replace(/[^0-9.\-]/g, '');
+                                    const v = parseFloat(raw);
+                                    if (!isNaN(v)) feesTotal += v;
                                 }
-                            } catch (e) {
-                                console.error('Pivot price response error:', e);
-                                Swal.fire('Error', 'Pivot price response not JSON.', 'error');
+                            }
+                        });
+
+                        // Delivery fee: look for the text after "Delivery/Hauling Fee:" label
+                        laborFeeSpans.forEach(tr => {
+                            const tdText = tr.querySelector('td:first-child')?.textContent || '';
+                            if (tdText.includes('Delivery') || tdText.includes('Hauling')) {
+                                const priceSpan = tr.querySelector('td:nth-child(4) span');
+                                if (priceSpan) {
+                                    const raw = priceSpan.textContent.replace(/[^0-9.\-]/g, '');
+                                    const v = parseFloat(raw);
+                                    if (!isNaN(v)) feesTotal += v;
+                                }
+                            }
+                        });
+                    }
+
+                    const grand = materialsTotal + feesTotal;
+                    updateGrandTotalDisplay(grand);
+                    return grand;
+                }
+
+                /**
+                 * Bind formatting behavior to editable price inputs (.update-price)
+                 * - on focus: remove commas so user can type raw number
+                 * - on blur: format with commas
+                 */
+                function bindPriceInputs(quotationType = 'regular') {
+                    document.querySelectorAll('.update-price').forEach(input => {
+                        if (input.dataset.priceBound) return;
+                        input.dataset.priceBound = 'true';
+
+                        input.addEventListener('focus', (e) => {
+                            const v = e.target.value || '';
+                            e.target.value = v.toString().replace(/,/g, '').trim();
+                        });
+
+                        input.addEventListener('blur', (e) => {
+                            if (e.target.value === '') {
+                                e.target.value = '0.00';
+                            }
+                            try {
+                                e.target.value = formatNumberWithCommas(e.target.value);
+                            } catch (err) {
+                                console.error('Format price error', err);
+                            }
+                        });
+
+                        // Attach change handler to send updated unit price to the server
+                        // and update the line total + grand total immediately.
+                        if (!input.dataset.priceChangeBound) {
+                            input.dataset.priceChangeBound = 'true';
+                            input.addEventListener('change', async function() {
+                                // Read raw numeric value (strip commas)
+                                const raw = this.value ? this.value.toString().replace(/,/g, '') : '';
+                                const newPrice = parseFloat(raw);
+                                const pivotId = this.dataset.pivot;
+                                const materialId = this.dataset.material;
+
+                                if (isNaN(newPrice) || newPrice < 0) {
+                                    Swal.fire('Invalid Price', 'Please enter a valid price.', 'warning');
+                                    // Reformat back to previous or 0.00
+                                    try {
+                                        this.value = formatNumberWithCommas(this.value || 0);
+                                    } catch (e) {}
+                                    return;
+                                }
+
+                                this.disabled = true;
+                                this.classList.add('is-loading');
+
+                                try {
+                                    const endpoint = quotationType === 'additional' ?
+                                        `/additional-quotation-materials/${pivotId}/update-price` :
+                                        `/quotation-materials/${pivotId}/update-unit-cost`;
+
+                                    const pivotRes = await fetch(endpoint, {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-TOKEN': document.querySelector(
+                                                'meta[name="csrf-token"]').content,
+                                            'Accept': 'application/json'
+                                        },
+                                        body: JSON.stringify({
+                                            unit_cost: newPrice
+                                        })
+                                    });
+
+                                    let pivotData;
+                                    try {
+                                        if (pivotRes.headers.get('content-type')?.includes(
+                                            'application/json')) {
+                                            pivotData = await pivotRes.json();
+                                        } else {
+                                            throw new Error('Pivot response not JSON');
+                                        }
+                                    } catch (e) {
+                                        console.error('Pivot price response error:', e);
+                                        Swal.fire('Error', 'Pivot price response not JSON.', 'error');
+                                        this.disabled = false;
+                                        this.classList.remove('is-loading');
+                                        return;
+                                    }
+
+                                    if (pivotRes.ok && pivotData.success) {
+                                        // Update the line total for this row
+                                        const row = this.closest('tr');
+                                        if (row) {
+                                            const quantity = parseFloat(row.querySelector('.update-quantity')
+                                                ?.value || 0);
+                                            const lineTotal = newPrice * (isNaN(quantity) ? 0 : quantity);
+                                            const lineEl = row.querySelector('.line-total');
+                                            if (lineEl) lineEl.textContent =
+                                                `₱${formatNumberWithCommas(lineTotal)}`;
+                                        }
+
+                                        // Update grand total (use central updater). If server didn't
+                                        // include grand_total, compute it from the DOM as a fallback.
+                                        if (pivotData.grand_total !== undefined) {
+                                            updateGrandTotalDisplay(pivotData.grand_total);
+                                        } else {
+                                            computeAndUpdateGrandTotal();
+                                        }
+
+                                        // Format and show the new price in the input
+                                        try {
+                                            this.value = formatNumberWithCommas(newPrice);
+                                        } catch (e) {}
+                                        Toast('Price updated!');
+                                    } else {
+                                        console.error('Pivot update failed:', {
+                                            pivotRes,
+                                            pivotData
+                                        });
+                                        Swal.fire('Error', 'Failed to update price.', 'error');
+                                    }
+                                } catch (err) {
+                                    console.error('Unexpected error:', err);
+                                    Swal.fire('Error', 'Something went wrong: ' + (err.message || err),
+                                    'error');
+                                }
+
                                 this.disabled = false;
                                 this.classList.remove('is-loading');
-                                return;
-                            }
-
-                            if (pivotRes.ok && pivotData.success) {
-                                // Update the line total for this row
-                                const row = this.closest('tr');
-                                if (row) {
-                                    const quantity = parseFloat(row.querySelector('.update-quantity')?.value || 0);
-                                    const lineTotal = newPrice * (isNaN(quantity) ? 0 : quantity);
-                                    const lineEl = row.querySelector('.line-total');
-                                    if (lineEl) lineEl.textContent = `₱${formatNumberWithCommas(lineTotal)}`;
-                                }
-
-                                // Update grand total (use central updater). If server didn't
-                                // include grand_total, compute it from the DOM as a fallback.
-                                if (pivotData.grand_total !== undefined) {
-                                    updateGrandTotalDisplay(pivotData.grand_total);
-                                } else {
-                                    computeAndUpdateGrandTotal();
-                                }
-
-                                // Format and show the new price in the input
-                                try { this.value = formatNumberWithCommas(newPrice); } catch (e) {}
-                                Toast('Price updated!');
-                            } else {
-                                console.error('Pivot update failed:', { pivotRes, pivotData });
-                                Swal.fire('Error', 'Failed to update price.', 'error');
-                            }
-                        } catch (err) {
-                            console.error('Unexpected error:', err);
-                            Swal.fire('Error', 'Something went wrong: ' + (err.message || err), 'error');
+                            });
                         }
-
-                        this.disabled = false;
-                        this.classList.remove('is-loading');
                     });
                 }
-            });
-        }
 
-        function appendMaterialsToTable(materials) {
-            const tbody = document.querySelector("table tbody");
-            materials.forEach(mat => {
-                const row = `<tr>
+                function appendMaterialsToTable(materials) {
+                    const tbody = document.querySelector("table tbody");
+                    materials.forEach(mat => {
+                        const row = `<tr>
             <td>${mat.name}</td>
             <td>
                 <input type="number" class="form-control update-quantity" 
@@ -954,602 +980,758 @@
                 </a>
             </td>
         </tr>`;
-                tbody.insertAdjacentHTML("beforeend", row);
-            });
-
-            // Rebind events for new quantity inputs and delete links
-            new QuantityUpdater(".update-quantity", "{{ $quotationType ?? 'regular' }}");
-            new DeleteMaterialFromQuotation(".delete-material", "{{ $quotationType ?? 'regular' }}");
-            // Bind price input formatting for new rows
-            bindPriceInputs("{{ $quotationType ?? 'regular' }}");
-            // Ensure grand total reflects newly appended materials
-            computeAndUpdateGrandTotal();
-        }
-    </script>
-
-
-    <!-- Delete Material from Quotation -->
-    <script>
-        class DeleteMaterialFromQuotation {
-            constructor(selector, quotationType = 'regular') {
-                this.selector = selector;
-                this.quotationType = quotationType;
-                this.bindEvents();
-            }
-            bindEvents() {
-                document.addEventListener("click", (e) => {
-                    const btn = e.target.closest(this.selector);
-                    if (!btn) return;
-                    e.preventDefault();
-                    this.deleteMaterial(btn.dataset.quot, btn.dataset.id, btn.closest("tr"));
-                });
-            }
-            async deleteMaterial(quotationId, pivotId, rowEl) {
-                const confirm = await Swal.fire({
-                    title: "Are you sure?",
-                    text: "This material will be removed from the quotation",
-                    icon: "warning",
-                    showCancelButton: true,
-                    confirmButtonColor: "#d33",
-                    cancelButtonColor: "#6c757d",
-                    confirmButtonText: "Yes, delete it"
-                });
-                if (!confirm.isConfirmed) return;
-                try {
-                    const endpoint = this.quotationType === 'additional' 
-                        ? `/additional-quotation-materials/${pivotId}`
-                        : `/quotation-materials/${pivotId}`;
-                    
-                    const res = await fetch(endpoint, {
-                        method: "DELETE",
-                        headers: {
-                            "X-CSRF-TOKEN": '{{ csrf_token() }}',
-                            "Accept": "application/json"
-                        }
+                        tbody.insertAdjacentHTML("beforeend", row);
                     });
-                    const data = await res.json();
-                    if (res.ok && data.success) {
-                        // SUCCESS -> toast
-                        Toast(data.message || 'Deleted!');
-                        if (rowEl) rowEl.remove();
-                        if (data.grand_total !== undefined) {
-                            updateGrandTotalDisplay(data.grand_total);
-                        } else {
-                            computeAndUpdateGrandTotal();
-                        }
-                    } else {
-                        Swal.fire("Error", data.message || "Failed to delete", "error");
-                    }
-                } catch (error) {
-                    console.error(error);
-                    Swal.fire("Something went wrong!", "", "error");
+
+                    // Rebind events for new quantity inputs and delete links
+                    new QuantityUpdater(".update-quantity", "{{ $quotationType ?? 'regular' }}");
+                    new DeleteMaterialFromQuotation(".delete-material", "{{ $quotationType ?? 'regular' }}");
+                    // Bind price input formatting for new rows
+                    bindPriceInputs("{{ $quotationType ?? 'regular' }}");
+                    // Ensure grand total reflects newly appended materials
+                    computeAndUpdateGrandTotal();
                 }
-            }
-        }
-        new DeleteMaterialFromQuotation(".delete-material", "{{ $quotationType ?? 'regular' }}");
-    </script>
+            </script>
 
-    <script>
-        class QuantityUpdater {
-            constructor(selector, quotationType = 'regular') {
-                this.selector = selector;
-                this.quotationType = quotationType;
-                this.debounceTimers = new Map(); // per-input debounce
-                this.init();
-            }
 
-            init() {
-                document.querySelectorAll(this.selector).forEach(input => {
-                    input.addEventListener("input", (e) => this.debounceUpdate(e));
-                    // Prevent form submission on Enter
-                    input.addEventListener("keypress", (e) => {
-                        if (e.key === "Enter") {
+            <!-- Delete Material from Quotation -->
+            <script>
+                class DeleteMaterialFromQuotation {
+                    constructor(selector, quotationType = 'regular') {
+                        this.selector = selector;
+                        this.quotationType = quotationType;
+                        this.bindEvents();
+                    }
+                    bindEvents() {
+                        document.addEventListener("click", (e) => {
+                            const btn = e.target.closest(this.selector);
+                            if (!btn) return;
                             e.preventDefault();
-                        }
-                    });
-                });
-            }
-
-            debounceUpdate(e) {
-                const input = e.target;
-
-                // Clear previous timer for this input
-                if (this.debounceTimers.has(input)) {
-                    clearTimeout(this.debounceTimers.get(input));
-                }
-
-                // Short debounce to avoid spamming backend
-                this.debounceTimers.set(input, setTimeout(() => {
-                    this.update(input);
-                }, 150)); // 150ms delay
-            }
-
-            async update(input) {
-                const newQty = input.value,
-                    pivotId = input.dataset.pivot,
-                    quotId = input.dataset.quot;
-
-                try {
-                    const endpoint = this.quotationType === 'additional' 
-                        ? `/additional-quotation-materials/${pivotId}/update-quantity`
-                        : `/quotation-materials/update-quantity`;
-
-                    const res = await fetch(endpoint, {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content
-                        },
-                        body: JSON.stringify({
-                            pivot_id: pivotId,
-                            quot_id: quotId,
-                            quantity: newQty
-                        })
-                    });
-
-                    const data = await res.json();
-
-                    if (res.ok && data.success) {
-                        // Update line total for this row
-                        const row = input.closest("tr");
-                        if (row) {
-                            const lineTotal = row.querySelector(".line-total");
-                            if (lineTotal) {
-                                lineTotal.textContent = `₱${formatNumberWithCommas(data.line_total)}`;
-                            }
-                        }
-
-                        // Update grand total
-                        if (data.grand_total !== undefined) {
-                            updateGrandTotalDisplay(data.grand_total);
-                        } else {
-                            computeAndUpdateGrandTotal();
-                        }
-
-                        // Show success toast
-                        if (window.Toast && typeof window.Toast === 'function') {
-                            Toast('Quantity updated!');
-                        }
-                    } else {
-                        console.error("Update failed response:", data);
-                        Swal.fire("Update failed", data.message || "Failed to update quantity", "error");
+                            this.deleteMaterial(btn.dataset.quot, btn.dataset.id, btn.closest("tr"));
+                        });
                     }
-                } catch (error) {
-                    console.error("Quantity update error:", error);
-                    Swal.fire("Something went wrong!", error.message || "", "error");
+                    async deleteMaterial(quotationId, pivotId, rowEl) {
+                        const confirm = await Swal.fire({
+                            title: "Are you sure?",
+                            text: "This material will be removed from the quotation",
+                            icon: "warning",
+                            showCancelButton: true,
+                            confirmButtonColor: "#d33",
+                            cancelButtonColor: "#6c757d",
+                            confirmButtonText: "Yes, delete it"
+                        });
+                        if (!confirm.isConfirmed) return;
+                        try {
+                            const endpoint = this.quotationType === 'additional' ?
+                                `/additional-quotation-materials/${pivotId}` :
+                                `/quotation-materials/${pivotId}`;
+
+                            const res = await fetch(endpoint, {
+                                method: "DELETE",
+                                headers: {
+                                    "X-CSRF-TOKEN": '{{ csrf_token() }}',
+                                    "Accept": "application/json"
+                                }
+                            });
+                            const data = await res.json();
+                            if (res.ok && data.success) {
+                                // SUCCESS -> toast
+                                Toast(data.message || 'Deleted!');
+                                if (rowEl) rowEl.remove();
+                                if (data.grand_total !== undefined) {
+                                    updateGrandTotalDisplay(data.grand_total);
+                                } else {
+                                    computeAndUpdateGrandTotal();
+                                }
+                            } else {
+                                Swal.fire("Error", data.message || "Failed to delete", "error");
+                            }
+                        } catch (error) {
+                            console.error(error);
+                            Swal.fire("Something went wrong!", "", "error");
+                        }
+                    }
                 }
-            }
-        }
+                new DeleteMaterialFromQuotation(".delete-material", "{{ $quotationType ?? 'regular' }}");
+            </script>
 
-        // Initialize
-        new QuantityUpdater(".update-quantity", "{{ $quotationType ?? 'regular' }}");
-    </script>
+            <script>
+                class QuantityUpdater {
+                    constructor(selector, quotationType = 'regular') {
+                        this.selector = selector;
+                        this.quotationType = quotationType;
+                        this.debounceTimers = new Map(); // per-input debounce
+                        this.init();
+                    }
 
+                    init() {
+                        document.querySelectorAll(this.selector).forEach(input => {
+                            input.addEventListener("input", (e) => this.debounceUpdate(e));
+                            // Prevent form submission on Enter
+                            input.addEventListener("keypress", (e) => {
+                                if (e.key === "Enter") {
+                                    e.preventDefault();
+                                }
+                            });
+                        });
+                    }
 
+                    debounceUpdate(e) {
+                        const input = e.target;
 
-    <!-- Update Fees -->
-    <script>
-        class FeeUpdater {
-            constructor(selector, quotationId, csrfToken, quotationType = 'regular') {
-                this.selector = selector;
-                this.quotationId = quotationId;
-                this.csrfToken = csrfToken;
-                this.quotationType = quotationType;
-                this.debounceTimer = null;
-
-                document.querySelectorAll(this.selector).forEach(input => {
-                    // Add input event listener
-                    input.addEventListener("input", (e) => this.updateFee(e));
-
-                    // Add focus event listener
-                    input.addEventListener("focus", (e) => {
-                        if (e.target.value === "0.00") {
-                            e.target.value = "";
+                        // Clear previous timer for this input
+                        if (this.debounceTimers.has(input)) {
+                            clearTimeout(this.debounceTimers.get(input));
                         }
-                    });
 
-                    // Add blur event listener
-                    input.addEventListener("blur", (e) => {
-                        if (e.target.value === "" || e.target.value === "0") {
-                            e.target.value = "0.00";
-                        }
-                    });
-                });
-            }
+                        // Short debounce to avoid spamming backend
+                        this.debounceTimers.set(input, setTimeout(() => {
+                            this.update(input);
+                        }, 150)); // 150ms delay
+                    }
 
-            updateFee(e) {
-                if (!e.isTrusted) return; // ignore programmatic changes
+                    async update(input) {
+                        const newQty = input.value,
+                            pivotId = input.dataset.pivot,
+                            quotId = input.dataset.quot;
 
-                const input = e.target;
-                const field = input.dataset.field;
-                const value = input.value;
+                        try {
+                            const endpoint = this.quotationType === 'additional' ?
+                                `/additional-quotation-materials/${pivotId}/update-quantity` :
+                                `/quotation-materials/update-quantity`;
 
-                console.log('Fee Update Initiated:', {
-                    field,
-                    value,
-                    quotationId: this.quotationId
-                });
-
-                // ✅ Debounce to avoid spamming backend
-                clearTimeout(this.debounceTimer);
-                this.debounceTimer = setTimeout(async () => {
-                    try {
-                        console.log('Sending Fee Update Request:', {
-                            url: this.quotationType === 'additional' 
-                                ? `/additional-quotations/${this.quotationId}/update-fee`
-                                : `/quotations/${this.quotationId}/update-fee`,
-                            field,
-                            value
-                        });
-
-                        const endpoint = this.quotationType === 'additional' 
-                            ? `/additional-quotations/${this.quotationId}/update-fee`
-                            : `/quotations/${this.quotationId}/update-fee`;
-
-                        const res = await fetch(endpoint, {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                                "X-CSRF-TOKEN": this.csrfToken,
-                                "Accept": "application/json"
-                            },
-                            body: JSON.stringify({
-                                field,
-                                value
-                            })
-                        });
-
-                        console.log('Raw Response:', res);
-                        const data = await res.json();
-                        console.log("Fee Update Response:", {
-                            status: res.status,
-                            ok: res.ok,
-                            data
-                        });
-
-                        if (res.ok && data.success) {
-                            console.log('Fee Update Success:', {
-                                newGrandTotal: data.grand_total,
-                                field,
-                                value
+                            const res = await fetch(endpoint, {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content
+                                },
+                                body: JSON.stringify({
+                                    pivot_id: pivotId,
+                                    quot_id: quotId,
+                                    quantity: newQty
+                                })
                             });
 
-                            // ✅ Update grand total UI (fallback to client compute if missing)
-                            if (data.grand_total !== undefined) {
-                                updateGrandTotalDisplay(data.grand_total);
+                            const data = await res.json();
+
+                            if (res.ok && data.success) {
+                                // Update line total for this row
+                                const row = input.closest("tr");
+                                if (row) {
+                                    const lineTotal = row.querySelector(".line-total");
+                                    if (lineTotal) {
+                                        lineTotal.textContent = `₱${formatNumberWithCommas(data.line_total)}`;
+                                    }
+                                }
+
+                                // Update grand total
+                                if (data.grand_total !== undefined) {
+                                    updateGrandTotalDisplay(data.grand_total);
+                                } else {
+                                    computeAndUpdateGrandTotal();
+                                }
+
+                                // Show success toast
+                                if (window.Toast && typeof window.Toast === 'function') {
+                                    Toast('Quantity updated!');
+                                }
                             } else {
-                                computeAndUpdateGrandTotal();
+                                console.error("Update failed response:", data);
+                                Swal.fire("Update failed", data.message || "Failed to update quantity", "error");
+                            }
+                        } catch (error) {
+                            console.error("Quantity update error:", error);
+                            Swal.fire("Something went wrong!", error.message || "", "error");
+                        }
+                    }
+                }
+
+                // Initialize
+                new QuantityUpdater(".update-quantity", "{{ $quotationType ?? 'regular' }}");
+            </script>
+
+
+
+            <!-- Update Fees -->
+            <script>
+                class FeeUpdater {
+                    constructor(selector, quotationId, csrfToken, quotationType = 'regular') {
+                        this.selector = selector;
+                        this.quotationId = quotationId;
+                        this.csrfToken = csrfToken;
+                        this.quotationType = quotationType;
+                        this.debounceTimers = new Map(); // Per-input debounce timer
+                        this.inputStates = new Map(); // Track current value per input
+                        this.initialized = false;
+
+                        // Initialize all fee inputs
+                        this.initializeInputs();
+                    }
+
+                    initializeInputs() {
+                        document.querySelectorAll(this.selector).forEach(input => {
+                            // Skip if already initialized
+                            if (input.dataset.feeInitialized === 'true') {
+                                // Just restore state tracking for this input
+                                this.inputStates.set(input, input.value);
+                                return;
                             }
 
-                            // Store the updated fee value in the input (formatted with commas)
-                            input.value = formatNumberWithCommas(value);
+                            // Mark as initialized
+                            input.dataset.feeInitialized = 'true';
 
-                            // SUCCESS -> toast
-                            Toast(data.message || 'Fee updated!');
-                        } else {
-                            console.error('Fee Update Failed:', data);
-                            Swal.fire("Error", data.message || "Update failed", "error");
-                        }
-                    } catch (error) {
-                        console.error("Fee Update Error:", error);
-                        Swal.fire("Error", "Something went wrong!", "error");
+                            // Store initial value
+                            this.inputStates.set(input, input.value);
+
+                            // Utility: sanitize a fee input string (allow digits, commas, one dot)
+                            const sanitizeValue = (val) => {
+                                if (val === null || val === undefined) return '';
+                                // Remove all characters except digits, dot and comma
+                                let s = val.toString();
+                                s = s.replace(/[^0-9.,]/g, '');
+                                // Ensure only one dot
+                                const parts = s.split('.');
+                                if (parts.length > 1) {
+                                    s = parts.shift() + '.' + parts.join(''); // keep first dot only
+                                }
+                                // Prevent leading negative signs entirely (strip '-')
+                                s = s.replace(/-/g, '');
+                                return s;
+                            };
+
+                            // Keydown: prevent characters that are not digits, control keys, dot, comma
+                            input.addEventListener('keydown', (e) => {
+                                // Allow control/navigation keys
+                                const allowedKeys = [
+                                    'Backspace', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+                                    'Delete', 'Tab', 'Enter', 'Home', 'End'
+                                ];
+                                if (allowedKeys.includes(e.key)) return;
+
+                                // Allow Ctrl/Cmd combinations (copy/paste/select all)
+                                if (e.ctrlKey || e.metaKey) return;
+
+                                // Allow digits, period and comma only
+                                const isDigit = /[0-9]/.test(e.key);
+                                const isDot = e.key === '.';
+                                const isComma = e.key === ',';
+                                if (isDigit || isDot || isComma) {
+                                    return; // allow
+                                }
+
+                                // Otherwise prevent key
+                                e.preventDefault();
+                            });
+
+                            // Paste: sanitize pasted content
+                            input.addEventListener('paste', (e) => {
+                                e.preventDefault();
+                                const text = (e.clipboardData || window.clipboardData).getData('text');
+                                const sanitized = sanitizeValue(text);
+                                // Insert at cursor position if needed; simple replacement for now
+                                input.value = sanitized;
+                                this.inputStates.set(input, sanitized);
+                                // Trigger update manually (debounced)
+                                this.debounceUpdate({
+                                    target: input
+                                });
+                            });
+
+                            // Add focus event listener - clear "0.00" display
+                            input.addEventListener("focus", (e) => {
+                                const currentVal = e.target.value || '';
+                                if (currentVal === "0.00" || currentVal === "0") {
+                                    e.target.value = "";
+                                }
+                            });
+
+                            // Add blur event listener - format and restore if needed
+                            input.addEventListener("blur", (e) => {
+                                const currentVal = e.target.value || '';
+
+                                // If empty or 0, set to "0.00"
+                                if (currentVal === "" || currentVal === "0") {
+                                    e.target.value = "0.00";
+                                    this.inputStates.set(input, "0.00");
+                                } else {
+                                    // Format with commas
+                                    try {
+                                        const numVal = parseFloat(currentVal.toString().replace(/,/g, ''));
+                                        if (!isNaN(numVal)) {
+                                            const formatted = formatNumberWithCommas(numVal);
+                                            e.target.value = formatted;
+                                            this.inputStates.set(input, formatted);
+                                        } else {
+                                            // If not a number after sanitization, restore last good
+                                            e.target.value = this.inputStates.get(input) || "0.00";
+                                        }
+                                    } catch (err) {
+                                        console.error('Format error on blur:', err);
+                                    }
+                                }
+                            });
+
+                            // Add input event listener - sanitize and trigger update
+                            input.addEventListener("input", (e) => {
+                                const raw = e.target.value || '';
+                                const sanitized = sanitizeValue(raw);
+
+                                // If sanitized differs, update the input value but try to preserve UX
+                                if (sanitized !== raw) {
+                                    // Replace the value with sanitized version
+                                    const cursorPos = e.target.selectionStart;
+                                    e.target.value = sanitized;
+                                    try {
+                                        e.target.setSelectionRange(cursorPos - 1, cursorPos - 1);
+                                    } catch (err) {
+                                        // ignore setSelection errors
+                                    }
+                                }
+
+                                // Don't allow leading zeros-only like '-' or empty to be treated as number
+                                this.inputStates.set(input, e.target.value);
+
+                                // Debounce the server update; pass a synthetic event-like object
+                                this.debounceUpdate({
+                                    target: input
+                                });
+                            });
+                        });
+
+                        this.initialized = true;
                     }
-                }, 500);
-            }
-        }
 
-        // ✅ Initialize with quotationId and CSRF
-        if (!window.feeUpdater) {
-            window.feeUpdater = new FeeUpdater(
-                ".fee-input",
-                "{{ $quotationId ?? '' }}",
-                "{{ csrf_token() }}",
-                "{{ $quotationType ?? 'regular' }}"
-            );
-        }
-    </script>
+                    // ✅ NEW: Restore state tracking without re-attaching event listeners
+                    restoreStateTracking() {
+                        document.querySelectorAll(this.selector).forEach(input => {
+                            // Just restore the current value to state tracking
+                            // Event listeners are already attached, don't re-attach
+                            if (!this.inputStates.has(input)) {
+                                this.inputStates.set(input, input.value);
+                            }
+                        });
+                    }
+
+                    debounceUpdate(e) {
+                        const input = e.target;
+
+                        // Clear previous timer for this input
+                        if (this.debounceTimers.has(input)) {
+                            clearTimeout(this.debounceTimers.get(input));
+                        }
+
+                        // Set new debounced timer
+                        const timer = setTimeout(() => {
+                            this.updateFee(input);
+                        }, 800); // Increased to 800ms for better UX
+
+                        this.debounceTimers.set(input, timer);
+                    }
+
+                    async updateFee(input) {
+                        // Get the raw value (without commas, as user typed it)
+                        const rawValue = (input.value || '').toString().replace(/,/g, '').trim();
+                        const field = input.dataset.field;
+
+                        // Validate the value
+                        const numValue = parseFloat(rawValue);
+                        if (isNaN(numValue) || numValue < 0) {
+                            console.warn('Invalid fee value:', rawValue);
+                            // Restore to previous valid value
+                            input.value = this.inputStates.get(input) || "0.00";
+                            return;
+                        }
+
+                        console.log('Fee Update Initiated:', {
+                            field,
+                            rawValue,
+                            numValue,
+                            quotationId: this.quotationId
+                        });
+
+                        try {
+                            const endpoint = this.quotationType === 'additional' ?
+                                `/additional-quotations/${this.quotationId}/update-fee` :
+                                `/quotations/${this.quotationId}/update-fee`;
+
+                            const res = await fetch(endpoint, {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "X-CSRF-TOKEN": this.csrfToken,
+                                    "Accept": "application/json"
+                                },
+                                body: JSON.stringify({
+                                    field,
+                                    value: numValue // Send numeric value to server
+                                })
+                            });
+
+                            const data = await res.json();
+
+                            if (res.ok && data.success) {
+                                console.log('Fee Update Success:', {
+                                    field,
+                                    newGrandTotal: data.grand_total
+                                });
+
+                                // Store the formatted value back
+                                const formatted = formatNumberWithCommas(numValue);
+                                input.value = formatted;
+                                this.inputStates.set(input, formatted);
+
+                                // Update grand total UI
+                                if (data.grand_total !== undefined) {
+                                    updateGrandTotalDisplay(data.grand_total);
+                                } else {
+                                    computeAndUpdateGrandTotal();
+                                }
+
+                                // Show success toast
+                                if (window.Toast && typeof window.Toast === 'function') {
+                                    Toast('Fee updated!');
+                                }
+                            } else {
+                                console.error('Fee Update Failed:', data);
+                                // Restore to last known good value
+                                const lastGoodValue = this.inputStates.get(input) || "0.00";
+                                input.value = lastGoodValue;
+                                Swal.fire("Error", data.message || "Failed to update fee", "error");
+                            }
+                        } catch (error) {
+                            console.error("Fee Update Error:", error);
+                            // Restore to last known good value
+                            const lastGoodValue = this.inputStates.get(input) || "0.00";
+                            input.value = lastGoodValue;
+                            Swal.fire("Error", "Network error: " + error.message, "error");
+                        }
+                    }
+                }
+
+                // ✅ Initialize with quotationId and CSRF
+                if (!window.feeUpdater) {
+                    window.feeUpdater = new FeeUpdater(
+                        ".fee-input",
+                        "{{ $quotationId ?? '' }}",
+                        "{{ csrf_token() }}",
+                        "{{ $quotationType ?? 'regular' }}"
+                    );
+                }
+            </script>
 
 
 
 
-    <!-- Quotation Status Buttons -->
-    <script>
-        class QuotationStatusHandler {
-            constructor(quotationType = 'regular') {
-                this.quotationType = quotationType;
-                this.csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute("content");
-                this.bindEvents();
-                this.bindApproveForm();
-                this.bindRejectForm();
-            }
+            <!-- Quotation Status Buttons -->
+            <script>
+                class QuotationStatusHandler {
+                    constructor(quotationType = 'regular') {
+                        this.quotationType = quotationType;
+                        this.csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute("content");
+                        this.bindEvents();
+                        this.bindApproveForm();
+                        this.bindRejectForm();
+                    }
 
-            bindEvents() {
-                // Handle Approve button - different behavior for regular vs additional quotations
-                const approveBtn = document.getElementById('approveBtn');
-                if (approveBtn) {
-                    approveBtn.addEventListener('click', (e) => {
-                        // If it's an additional quotation, skip the modal and directly approve
-                        if (this.quotationType === 'additional') {
+                    bindEvents() {
+                        // Handle Approve button - different behavior for regular vs additional quotations
+                        const approveBtn = document.getElementById('approveBtn');
+                        if (approveBtn) {
+                            approveBtn.addEventListener('click', (e) => {
+                                // If it's an additional quotation, skip the modal and directly approve
+                                if (this.quotationType === 'additional') {
+                                    e.preventDefault();
+                                    const quotationId = approveBtn.dataset.quot;
+                                    // Directly update status to 2 (approved) without contract form
+                                    this.updateStatus(quotationId, 2);
+                                }
+                                // Otherwise, let the modal open (data-bs-toggle will handle it)
+                            });
+                        }
+
+                        // Handle Save Draft button
+                        const saveDraftBtn = document.getElementById('saveDraftBtn');
+                        if (saveDraftBtn) {
+                            saveDraftBtn.addEventListener("click", (e) => {
+                                e.preventDefault();
+                                const quotationId = saveDraftBtn.dataset.quot;
+                                this.updateStatus(quotationId, 1); // 1 = Draft
+                            });
+                        }
+
+                        // ✅ NEW: Handle Reject button - show modal instead of directly rejecting
+                        const rejectBtn = document.getElementById('rejectBtn');
+                        if (rejectBtn) {
+                            rejectBtn.addEventListener("click", (e) => {
+                                e.preventDefault();
+                                const rejectModal = new bootstrap.Modal(document.getElementById('rejectModal'));
+                                rejectModal.show();
+                                // Store quotation ID for later use in form submission
+                                document.getElementById('rejectModal').dataset.quotationId = rejectBtn.dataset.quot;
+                            });
+                        }
+                    }
+
+                    bindRejectForm() {
+                        const rejectForm = document.getElementById('rejectForm');
+                        if (!rejectForm) return;
+
+                        // ✅ NEW: Handle common reason buttons
+                        document.querySelectorAll('.common-reason-btn').forEach(btn => {
+                            btn.addEventListener('click', (e) => {
+                                e.preventDefault();
+                                const reason = btn.dataset.reason;
+                                document.getElementById('rejectionReason').value = reason;
+                                // Highlight the clicked button
+                                document.querySelectorAll('.common-reason-btn').forEach(b => b.classList.remove(
+                                    'active'));
+                                btn.classList.add('active');
+                            });
+                        });
+
+                        // ✅ NEW: Handle reject form submission
+                        rejectForm.addEventListener('submit', async (e) => {
                             e.preventDefault();
-                            const quotationId = approveBtn.dataset.quot;
-                            // Directly update status to 2 (approved) without contract form
-                            this.updateStatus(quotationId, 2);
+
+                            const quotationId = document.getElementById('rejectModal').dataset.quotationId;
+                            const rejectionReason = document.getElementById('rejectionReason').value.trim();
+
+                            // Validate reason
+                            if (!rejectionReason) {
+                                Swal.fire('Validation Error', 'Please provide a rejection reason.', 'warning');
+                                return;
+                            }
+
+                            // Confirm rejection
+                            const confirmed = await Swal.fire({
+                                icon: 'warning',
+                                title: 'Confirm Rejection',
+                                text: 'Are you sure you want to reject this quotation? This action cannot be undone.',
+                                showCancelButton: true,
+                                confirmButtonColor: '#d33',
+                                cancelButtonColor: '#6c757d',
+                                confirmButtonText: 'Yes, reject it',
+                                cancelButtonText: 'Cancel'
+                            });
+
+                            if (!confirmed.isConfirmed) return;
+
+                            // Reject with status ID 3
+                            await this.updateStatus(quotationId, 3, {
+                                rejection_reason: rejectionReason
+                            });
+
+                            // Close modal on success
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('rejectModal'));
+                            if (modal) modal.hide();
+                        });
+                    }
+
+                    bindApproveForm() {
+                        const approveForm = document.getElementById('approveForm');
+                        if (!approveForm) return;
+
+                        approveForm.addEventListener('submit', async (e) => {
+                            e.preventDefault();
+
+                            const quotationId = document.getElementById('approveBtn').dataset.quot;
+                            const contractSubject = document.getElementById('contractSubject').value.trim();
+                            const projectStartDate = document.getElementById('projectStartDate').value;
+                            const projectEndDate = document.getElementById('projectEndDate').value;
+                            const withContract = document.getElementById('withContract').checked;
+
+                            // ✅ VALIDATION: Contract checkbox is REQUIRED
+                            if (!withContract) {
+                                Swal.fire('Validation Error',
+                                    'You must check "With Contract" to approve this quotation.', 'warning');
+                                return;
+                            }
+
+                            // ✅ VALIDATION: Contract subject is required
+                            if (!contractSubject) {
+                                Swal.fire('Validation Error', 'Contract Subject is required.', 'warning');
+                                return;
+                            }
+
+                            // ✅ VALIDATION: Start date is required
+                            if (!projectStartDate) {
+                                Swal.fire('Validation Error', 'Project Start Date is required.', 'warning');
+                                return;
+                            }
+
+                            // ✅ VALIDATION: End date is required
+                            if (!projectEndDate) {
+                                Swal.fire('Validation Error', 'Project End Date is required.', 'warning');
+                                return;
+                            }
+
+                            // ✅ VALIDATION: Start date cannot be in the past
+                            const today = new Date().toISOString().split('T')[0];
+                            if (projectStartDate < today) {
+                                Swal.fire('Validation Error', 'Project start date cannot be in the past.',
+                                    'warning');
+                                return;
+                            }
+
+                            // ✅ VALIDATION: Start date must be before end date
+                            if (projectStartDate > projectEndDate) {
+                                Swal.fire('Validation Error', 'Project start date must be before end date.',
+                                    'warning');
+                                return;
+                            }
+
+                            // Approve with status ID 2
+                            await this.updateStatus(quotationId, 2, {
+                                contract_subject: contractSubject,
+                                project_start_date: projectStartDate,
+                                project_end_date: projectEndDate,
+                                with_contract: withContract ? 1 : 0
+                            });
+
+                            // Close modal on success
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('approveModal'));
+                            if (modal) modal.hide();
+                        });
+                    }
+
+                    async updateStatus(quotationId, statusId, contractData = {}) {
+                        try {
+                            const payload = {
+                                status_id: statusId,
+                                ...contractData // Include contract data if provided (for approve action)
+                            };
+
+                            const endpoint = this.quotationType === 'additional' ?
+                                `/additional-quotations/${quotationId}/status` :
+                                `/quotations/${quotationId}/status`;
+
+                            const res = await fetch(endpoint, {
+                                method: "PUT",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "X-CSRF-TOKEN": this.csrfToken,
+                                    "Accept": "application/json"
+                                },
+                                body: JSON.stringify(payload)
+                            });
+
+                            const data = await res.json();
+
+                            if (res.ok && data.success) {
+                                // SUCCESS -> toast
+                                Toast(data.message || 'Success');
+
+                                // Update header and badge based on new status
+                                const statusName = data.quotation?.status?.status_name?.toLowerCase() ?? '';
+                                const customerApproved = data.quotation?.customer_approved ?? false;
+                                let headerText = 'Creating Quotation';
+                                let headerClass = 'text-dark';
+                                let badgeText = 'Awaiting Client Approval';
+                                let badgeClass = 'bg-warning text-dark';
+
+                                if (statusName === 'completed') {
+                                    headerText = 'Project Completed';
+                                    headerClass = 'text-success';
+                                    badgeText = 'Project has been completed';
+                                    badgeClass = 'bg-success';
+                                } else if (statusName === 'rejected') {
+                                    headerText = 'Quotation Rejected';
+                                    headerClass = 'text-danger';
+                                    badgeText = 'Quotation is rejected';
+                                    badgeClass = 'bg-danger';
+                                } else if (customerApproved) {
+                                    headerText = 'Ongoing Project';
+                                    headerClass = 'text-primary';
+                                    badgeText = 'Approved by Client';
+                                    badgeClass = 'bg-success';
+                                }
+
+                                // Update header
+                                const headerEl = document.querySelector('.card-body .h3');
+                                if (headerEl) {
+                                    headerEl.textContent = headerText;
+                                    headerEl.className = `h3 mb-0 ${headerClass}`;
+                                }
+
+                                // Update badge
+                                const badgeEl = document.getElementById('quotation-status-badge');
+                                if (badgeEl) {
+                                    badgeEl.textContent = badgeText;
+                                    badgeEl.className = `badge ${badgeClass} mb-3 d-inline-flex align-items-center`;
+                                }
+
+                                // Redirect after short delay so toast can show
+                                setTimeout(() => {
+                                    window.location.href = "{{ route('dashboard') }}";
+                                }, 900);
+
+                            } else {
+                                Swal.fire("Error", data.message || "Failed to update status.", "error");
+                            }
+                        } catch (error) {
+                            console.error("Status update error:", error);
+                            Swal.fire("Error", "Something went wrong!", "error");
                         }
-                        // Otherwise, let the modal open (data-bs-toggle will handle it)
-                    });
+                    }
                 }
 
-                // Handle Save Draft button
-                const saveDraftBtn = document.getElementById('saveDraftBtn');
-                if (saveDraftBtn) {
-                    saveDraftBtn.addEventListener("click", (e) => {
-                        e.preventDefault();
-                        const quotationId = saveDraftBtn.dataset.quot;
-                        this.updateStatus(quotationId, 1); // 1 = Draft
-                    });
-                }
+                new QuotationStatusHandler("{{ $quotationType ?? 'regular' }}");
+            </script>
 
-                // ✅ NEW: Handle Reject button - show modal instead of directly rejecting
-                const rejectBtn = document.getElementById('rejectBtn');
-                if (rejectBtn) {
-                    rejectBtn.addEventListener("click", (e) => {
-                        e.preventDefault();
-                        const rejectModal = new bootstrap.Modal(document.getElementById('rejectModal'));
-                        rejectModal.show();
-                        // Store quotation ID for later use in form submission
-                        document.getElementById('rejectModal').dataset.quotationId = rejectBtn.dataset.quot;
-                    });
-                }
-            }
+            <script>
+                window.quotationMaterialHandler = {
+                    loadMaterials: async function() {
+                        const quotationId = "{{ $quotationId }}";
+                        const quotationType = "{{ $quotationType }}";
+                        const qStatus = "{{ strtolower($quotation->status->status_name ?? '') }}";
+                        const readonly = {{ empty($readonly) ? 'false' : 'true' }};
 
-            bindRejectForm() {
-                const rejectForm = document.getElementById('rejectForm');
-                if (!rejectForm) return;
+                        try {
+                            // Dynamically determine endpoint based on quotation type
+                            const endpoint = quotationType === 'additional' ?
+                                `/additional-quotation/${quotationId}/materials` :
+                                `/quotation/${quotationId}/materials`;
 
-                // ✅ NEW: Handle common reason buttons
-                document.querySelectorAll('.common-reason-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        const reason = btn.dataset.reason;
-                        document.getElementById('rejectionReason').value = reason;
-                        // Highlight the clicked button
-                        document.querySelectorAll('.common-reason-btn').forEach(b => b.classList.remove('active'));
-                        btn.classList.add('active');
-                    });
-                });
+                            const res = await fetch(endpoint);
+                            if (!res.ok) {
+                                throw new Error(`HTTP error! status: ${res.status}`);
+                            }
+                            const data = await res.json();
 
-                // ✅ NEW: Handle reject form submission
-                rejectForm.addEventListener('submit', async (e) => {
-                    e.preventDefault();
+                            if (!data.success) {
+                                console.error("Failed to load materials:", data.message);
+                                Swal.fire('Error', 'Failed to load materials: ' + (data.message || 'Unknown error'),
+                                    'error');
+                                return;
+                            }
 
-                    const quotationId = document.getElementById('rejectModal').dataset.quotationId;
-                    const rejectionReason = document.getElementById('rejectionReason').value.trim();
+                            // Store scroll position
+                            const scrollPosition = window.scrollY;
 
-                    // Validate reason
-                    if (!rejectionReason) {
-                        Swal.fire('Validation Error', 'Please provide a rejection reason.', 'warning');
-                        return;
-                    }
+                            const tableBody = document.querySelector("#quotationMaterials tbody");
+                            if (!tableBody) {
+                                console.error("Materials table body not found");
+                                return;
+                            }
+                            tableBody.innerHTML = "";
 
-                    // Confirm rejection
-                    const confirmed = await Swal.fire({
-                        icon: 'warning',
-                        title: 'Confirm Rejection',
-                        text: 'Are you sure you want to reject this quotation? This action cannot be undone.',
-                        showCancelButton: true,
-                        confirmButtonColor: '#d33',
-                        cancelButtonColor: '#6c757d',
-                        confirmButtonText: 'Yes, reject it',
-                        cancelButtonText: 'Cancel'
-                    });
+                            data.materials.forEach(mat => {
+                                let priceField = '';
 
-                    if (!confirmed.isConfirmed) return;
-
-                    // Reject with status ID 3
-                    await this.updateStatus(quotationId, 3, {
-                        rejection_reason: rejectionReason
-                    });
-
-                    // Close modal on success
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('rejectModal'));
-                    if (modal) modal.hide();
-                });
-            }
-
-            bindApproveForm() {
-                const approveForm = document.getElementById('approveForm');
-                if (!approveForm) return;
-
-                approveForm.addEventListener('submit', async (e) => {
-                    e.preventDefault();
-
-                    const quotationId = document.getElementById('approveBtn').dataset.quot;
-                    const contractSubject = document.getElementById('contractSubject').value.trim();
-                    const projectStartDate = document.getElementById('projectStartDate').value;
-                    const projectEndDate = document.getElementById('projectEndDate').value;
-                    const withContract = document.getElementById('withContract').checked;
-
-                    // ✅ VALIDATION: Contract checkbox is REQUIRED
-                    if (!withContract) {
-                        Swal.fire('Validation Error', 'You must check "With Contract" to approve this quotation.', 'warning');
-                        return;
-                    }
-
-                    // ✅ VALIDATION: Contract subject is required
-                    if (!contractSubject) {
-                        Swal.fire('Validation Error', 'Contract Subject is required.', 'warning');
-                        return;
-                    }
-
-                    // ✅ VALIDATION: Start date is required
-                    if (!projectStartDate) {
-                        Swal.fire('Validation Error', 'Project Start Date is required.', 'warning');
-                        return;
-                    }
-
-                    // ✅ VALIDATION: End date is required
-                    if (!projectEndDate) {
-                        Swal.fire('Validation Error', 'Project End Date is required.', 'warning');
-                        return;
-                    }
-
-                    // ✅ VALIDATION: Start date must be before end date
-                    if (projectStartDate > projectEndDate) {
-                        Swal.fire('Validation Error', 'Project start date must be before end date.', 'warning');
-                        return;
-                    }
-
-                    // Approve with status ID 2
-                    await this.updateStatus(quotationId, 2, {
-                        contract_subject: contractSubject,
-                        project_start_date: projectStartDate,
-                        project_end_date: projectEndDate,
-                        with_contract: withContract ? 1 : 0
-                    });
-
-                    // Close modal on success
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('approveModal'));
-                    if (modal) modal.hide();
-                });
-            }
-
-            async updateStatus(quotationId, statusId, contractData = {}) {
-                try {
-                    const payload = {
-                        status_id: statusId,
-                        ...contractData  // Include contract data if provided (for approve action)
-                    };
-
-                    const endpoint = this.quotationType === 'additional' 
-                        ? `/additional-quotations/${quotationId}/status`
-                        : `/quotations/${quotationId}/status`;
-
-                    const res = await fetch(endpoint, {
-                        method: "PUT",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "X-CSRF-TOKEN": this.csrfToken,
-                            "Accept": "application/json"
-                        },
-                        body: JSON.stringify(payload)
-                    });
-
-                    const data = await res.json();
-
-                    if (res.ok && data.success) {
-                        // SUCCESS -> toast
-                        Toast(data.message || 'Success');
-
-                        // Update header and badge based on new status
-                        const statusName = data.quotation?.status?.status_name?.toLowerCase() ?? '';
-                        const customerApproved = data.quotation?.customer_approved ?? false;
-                        let headerText = 'Creating Quotation';
-                        let headerClass = 'text-dark';
-                        let badgeText = 'Awaiting Client Approval';
-                        let badgeClass = 'bg-warning text-dark';
-
-                        if (statusName === 'completed') {
-                            headerText = 'Project Completed';
-                            headerClass = 'text-success';
-                            badgeText = 'Project has been completed';
-                            badgeClass = 'bg-success';
-                        } else if (statusName === 'rejected') {
-                            headerText = 'Quotation Rejected';
-                            headerClass = 'text-danger';
-                            badgeText = 'Quotation is rejected';
-                            badgeClass = 'bg-danger';
-                        } else if (customerApproved) {
-                            headerText = 'Ongoing Project';
-                            headerClass = 'text-primary';
-                            badgeText = 'Approved by Client';
-                            badgeClass = 'bg-success';
-                        }
-
-                        // Update header
-                        const headerEl = document.querySelector('.card-body .h3');
-                        if (headerEl) {
-                            headerEl.textContent = headerText;
-                            headerEl.className = `h3 mb-0 ${headerClass}`;
-                        }
-
-                        // Update badge
-                        const badgeEl = document.getElementById('quotation-status-badge');
-                        if (badgeEl) {
-                            badgeEl.textContent = badgeText;
-                            badgeEl.className = `badge ${badgeClass} mb-3 d-inline-flex align-items-center`;
-                        }
-
-                        // Redirect after short delay so toast can show
-                        setTimeout(() => {
-                            window.location.href = "{{ route('dashboard') }}";
-                        }, 900);
-
-                    } else {
-                        Swal.fire("Error", data.message || "Failed to update status.", "error");
-                    }
-                } catch (error) {
-                    console.error("Status update error:", error);
-                    Swal.fire("Error", "Something went wrong!", "error");
-                }
-            }
-        }
-
-        new QuotationStatusHandler("{{ $quotationType ?? 'regular' }}");
-    </script>
-
-    <script>
-        window.quotationMaterialHandler = {
-            loadMaterials: async function() {
-                const quotationId = "{{ $quotationId }}";
-                const quotationType = "{{ $quotationType }}";
-                const qStatus = "{{ strtolower($quotation->status->status_name ?? '') }}";
-                const readonly = {{ empty($readonly) ? 'false' : 'true' }};
-
-                try {
-                    // Dynamically determine endpoint based on quotation type
-                    const endpoint = quotationType === 'additional' 
-                        ? `/additional-quotation/${quotationId}/materials`
-                        : `/quotation/${quotationId}/materials`;
-                    
-                    const res = await fetch(endpoint);
-                    if (!res.ok) {
-                        throw new Error(`HTTP error! status: ${res.status}`);
-                    }
-                    const data = await res.json();
-
-                    if (!data.success) {
-                        console.error("Failed to load materials:", data.message);
-                        Swal.fire('Error', 'Failed to load materials: ' + (data.message || 'Unknown error'),
-                            'error');
-                        return;
-                    }
-
-                    // Store scroll position
-                    const scrollPosition = window.scrollY;
-
-                    const tableBody = document.querySelector("#quotationMaterials tbody");
-                    if (!tableBody) {
-                        console.error("Materials table body not found");
-                        return;
-                    }
-                    tableBody.innerHTML = "";
-
-                    data.materials.forEach(mat => {
-                        let priceField = '';
-
-                        // Render price field based on quotation status
-                        if (qStatus === 'draft' && !readonly) {
-                            // Editable price field for draft (use text so we can show commas)
-                            priceField = `<input type="text" class="form-control update-price text-end" 
+                                // Render price field based on quotation status
+                                if (qStatus === 'draft' && !readonly) {
+                                    // Editable price field for draft (use text so we can show commas)
+                                    priceField = `<input type="text" class="form-control update-price text-end" 
                             data-pivot="${mat.pivot_id}" data-material="${mat.id}"
                             value="${formatNumberWithCommas(mat.unit_price)}" 
                             style="width: 100px; display:inline-block;">`;
-                        } else {
-                            // Display-only price field
-                            priceField = `₱${formatNumberWithCommas(mat.unit_price)}`;
-                        }
+                                } else {
+                                    // Display-only price field
+                                    priceField = `₱${formatNumberWithCommas(mat.unit_price)}`;
+                                }
 
-                        const row = `
+                                const row = `
                         <tr>
                             <td>${escapeHtml(mat.name)}</td>
                             <td>
@@ -1563,146 +1745,152 @@
                             <td class="line-total text-end">₱${formatNumberWithCommas(mat.line_total)}</td>
                             <td class="text-center">
                                 ${!readonly ? `
-                                                <a href="#" class="text-danger delete-material" 
-                                                    data-id="${mat.pivot_id}" data-quot="${quotationId}">
-                                                    <i class="fa-solid fa-trash"></i>
-                                                </a>
-                                            ` : ''}
+                                                            <a href="#" class="text-danger delete-material" 
+                                                                data-id="${mat.pivot_id}" data-quot="${quotationId}">
+                                                                <i class="fa-solid fa-trash"></i>
+                                                            </a>
+                                                        ` : ''}
                             </td>
                         </tr>
                     `;
-                        tableBody.insertAdjacentHTML("beforeend", row);
-                    });
-
-                    // ✅ Update grand total using centralized updater (preserves markup)
-                    if (data.grand_total !== undefined) {
-                        updateGrandTotalDisplay(data.grand_total);
-                    } else {
-                        computeAndUpdateGrandTotal();
-                    }
-
-                        // Ensure price inputs are bound (formatting) before attaching handlers
-                        bindPriceInputs("{{ $quotationType ?? 'regular' }}");
-
-                        // ✅ Rebind handlers
-                    try {
-                        new QuantityUpdater(".update-quantity", "{{ $quotationType ?? 'regular' }}");
-                        new DeleteMaterialFromQuotation(".delete-material", "{{ $quotationType ?? 'regular' }}");
-
-                        // Price inputs are bound via bindPriceInputs() above which attaches
-                        // both formatting and the change handler. Avoid duplicate bindings
-                        // here to prevent conflicting updates.
-                    } catch (handlerErr) {
-                        console.error("Error binding handlers:", handlerErr);
-                    }
-
-                    // Restore scroll position after content update
-                    window.scrollTo(0, scrollPosition);
-
-                    // Ensure the page is scrollable to the new content
-                    document.body.style.height = 'auto';
-                    document.body.style.overflow = 'visible';
-
-                } catch (err) {
-                    console.error("Failed to reload materials:", err);
-                    Swal.fire('Error', 'Failed to load materials: ' + err.message, 'error');
-                }
-            }
-        };
-
-        // Helper function to escape HTML
-        function escapeHtml(unsafe) {
-            return unsafe
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
-        }
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script>
-        document.getElementById('createRevisionBtn').addEventListener('click', function() {
-            const id = this.dataset.id;
-            const quotationType = "{{ $quotationType ?? 'regular' }}";
-
-            Swal.fire({
-                title: 'Create a revision?',
-                text: "Do you want to create a revision for this quotation?",
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Yes, create it!',
-                cancelButtonText: 'Cancel'
-            }).then((result) => {
-                if (!result.isConfirmed) return;
-
-                const endpoint = quotationType === 'additional' 
-                    ? `/additional-quotations/${id}/create-revision`
-                    : `/quotations/${id}/create-revision`;
-
-                fetch(endpoint, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            reason: 'Client requested changes' // optional reason
-                        }),
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.success) {
-                            Swal.fire({
-                                title: 'Success!',
-                                text: data.message,
-                                icon: 'success'
-                            }).then(() => {
-                                // redirect to quotation edit page
-                                const redirectUrl = quotationType === 'additional' 
-                                    ? `/additional-quotations/${data.quotation_id || id}/edit`
-                                    : `/quotations/${data.quotation_id}`;
-                                window.location.href = redirectUrl;
+                                tableBody.insertAdjacentHTML("beforeend", row);
                             });
-                        } else {
-                            Swal.fire({
-                                title: 'Failed',
-                                text: data.message,
-                                icon: 'error'
-                            });
+
+                            // ✅ Update grand total using centralized updater (preserves markup)
+                            if (data.grand_total !== undefined) {
+                                updateGrandTotalDisplay(data.grand_total);
+                            } else {
+                                computeAndUpdateGrandTotal();
+                            }
+
+                            // Ensure price inputs are bound (formatting) before attaching handlers
+                            bindPriceInputs("{{ $quotationType ?? 'regular' }}");
+
+                            // ✅ Rebind handlers
+                            try {
+                                new QuantityUpdater(".update-quantity", "{{ $quotationType ?? 'regular' }}");
+                                new DeleteMaterialFromQuotation(".delete-material", "{{ $quotationType ?? 'regular' }}");
+
+                                // ✅ Restore FeeUpdater state tracking WITHOUT re-initializing
+                                // This preserves event listeners and input state values
+                                if (window.feeUpdater && typeof window.feeUpdater.restoreStateTracking === 'function') {
+                                    window.feeUpdater.restoreStateTracking();
+                                }
+
+                                // Price inputs are bound via bindPriceInputs() above which attaches
+                                // both formatting and the change handler. Avoid duplicate bindings
+                                // here to prevent conflicting updates.
+                            } catch (handlerErr) {
+                                console.error("Error binding handlers:", handlerErr);
+                            }
+
+                            // Restore scroll position after content update
+                            window.scrollTo(0, scrollPosition);
+
+                            // Ensure the page is scrollable to the new content
+                            document.body.style.height = 'auto';
+                            document.body.style.overflow = 'visible';
+
+                        } catch (err) {
+                            console.error("Failed to reload materials:", err);
+                            Swal.fire('Error', 'Failed to load materials: ' + err.message, 'error');
                         }
-                    })
-                    .catch(err => {
-                        Swal.fire({
-                            title: 'Error',
-                            text: 'Error creating revision.',
-                            icon: 'error'
-                        });
-                        console.error(err);
-                    });
-            });
-        });
-    </script>
-
-    <script>
-        document.getElementById('viewRevisionsBtn').addEventListener('click', function() {
-            const id = this.dataset.id;
-
-            fetch(`/quotations/${id}/revisions-json`) // new route returning JSON
-                .then(res => res.json())
-                .then(data => {
-                    const container = document.getElementById('revisionList');
-                    container.innerHTML = '';
-
-                    if (data.length === 0) {
-                        container.innerHTML = '<p>No past revisions found.</p>';
-                        return;
                     }
+                };
 
-                    data.forEach((rev, index) => {
-                        const div = document.createElement('div');
-                        div.className = 'card mb-3';
-                        div.innerHTML = `
+                // Helper function to escape HTML
+                function escapeHtml(unsafe) {
+                    return unsafe
+                        .replace(/&/g, "&amp;")
+                        .replace(/</g, "&lt;")
+                        .replace(/>/g, "&gt;")
+                        .replace(/"/g, "&quot;")
+                        .replace(/'/g, "&#039;");
+                }
+            </script>
+            <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+            <script>
+                document.getElementById('createRevisionBtn').addEventListener('click', function() {
+                    const id = this.dataset.id;
+                    const quotationType = "{{ $quotationType ?? 'regular' }}";
+
+                    Swal.fire({
+                        title: 'Create a revision?',
+                        text: "Do you want to create a revision for this quotation?",
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonText: 'Yes, create it!',
+                        cancelButtonText: 'Cancel'
+                    }).then((result) => {
+                        if (!result.isConfirmed) return;
+
+                        const endpoint = quotationType === 'additional' ?
+                            `/additional-quotations/${id}/create-revision` :
+                            `/quotations/${id}/create-revision`;
+
+                        fetch(endpoint, {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    reason: 'Client requested changes' // optional reason
+                                }),
+                            })
+                            .then(res => res.json())
+                            .then(data => {
+                                if (data.success) {
+                                    Swal.fire({
+                                        title: 'Success!',
+                                        text: data.message,
+                                        icon: 'success'
+                                    }).then(() => {
+                                        // redirect to quotation edit page
+                                        const redirectUrl = quotationType === 'additional' ?
+                                            `/additional-quotations/${data.quotation_id || id}/edit` :
+                                            `/quotations/${data.quotation_id}`;
+                                        window.location.href = redirectUrl;
+                                    });
+                                } else {
+                                    Swal.fire({
+                                        title: 'Failed',
+                                        text: data.message,
+                                        icon: 'error'
+                                    });
+                                }
+                            })
+                            .catch(err => {
+                                Swal.fire({
+                                    title: 'Error',
+                                    text: 'Error creating revision.',
+                                    icon: 'error'
+                                });
+                                console.error(err);
+                            });
+                    });
+                });
+            </script>
+
+            <script>
+                document.getElementById('viewRevisionsBtn').addEventListener('click', function() {
+                    const id = this.dataset.id;
+
+                    fetch(`/quotations/${id}/revisions-json`) // new route returning JSON
+                        .then(res => res.json())
+                        .then(data => {
+                            const container = document.getElementById('revisionList');
+                            container.innerHTML = '';
+
+                            if (data.length === 0) {
+                                container.innerHTML = '<p>No past revisions found.</p>';
+                                return;
+                            }
+
+                            data.forEach((rev, index) => {
+                                const div = document.createElement('div');
+                                div.className = 'card mb-3';
+                                div.innerHTML = `
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <strong>Revision v${index + 1}</strong> - ${new Date(rev.created_at).toLocaleDateString()}
                         ${rev.reason ? `<small class="text-muted">(${rev.reason})</small>` : ''}
@@ -1726,311 +1914,320 @@
                             </thead>
                             <tbody>
                                 ${rev.data.materials.map(mat => `
-                                                                                                                                                                                                                            <tr>
-                                                                                                                                                                                                                                <td>${mat.name}</td>
-                                                                                                                                                                                                                                <td>${mat.unit}</td>
-                                                                                                                                                                                                                                <td>₱${formatNumberWithCommas(mat.unit_price)}</td>
-                                                                                                                                                                                                                                <td>${mat.quantity}</td>
-                                                                                                                                                                                                                                <td>₱${formatNumberWithCommas(parseFloat(mat.unit_price) * mat.quantity)}</td>
-                                                                                                                                                                                                                            </tr>
-                                                                                                                                                                                                                        `).join('')}
+                                                                                                                                                                                                                                        <tr>
+                                                                                                                                                                                                                                            <td>${mat.name}</td>
+                                                                                                                                                                                                                                            <td>${mat.unit}</td>
+                                                                                                                                                                                                                                            <td>₱${formatNumberWithCommas(mat.unit_price)}</td>
+                                                                                                                                                                                                                                            <td>${mat.quantity}</td>
+                                                                                                                                                                                                                                            <td>₱${formatNumberWithCommas(parseFloat(mat.unit_price) * mat.quantity)}</td>
+                                                                                                                                                                                                                                        </tr>
+                                                                                                                                                                                                                                    `).join('')}
                             </tbody>
                         </table>
                     </div>
                 `;
-                        container.appendChild(div);
+                                container.appendChild(div);
+                            });
+
+                            new bootstrap.Modal(document.getElementById('revisionHistoryModal')).show();
+                        })
+                        .catch(err => console.error(err));
+                });
+            </script>
+
+            <!-- Comments handled by threaded-comments component with built-in JS handlers -->
+
+            <script>
+                // Edit Client: open modal, submit update via fetch, and update UI
+                document.addEventListener('DOMContentLoaded', function() {
+                    const editBtn = document.getElementById('editClientBtn');
+                    const saveBtn = document.getElementById('saveClientBtn');
+                    const modalEl = document.getElementById('editClientModal');
+                    if (!editBtn || !saveBtn || !modalEl) return;
+
+                    editBtn.addEventListener('click', () => {
+                        // Use getOrCreateInstance to avoid stale instances after disposal
+                        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                        modal.show();
                     });
 
-                    new bootstrap.Modal(document.getElementById('revisionHistoryModal')).show();
-                })
-                .catch(err => console.error(err));
-        });
-    </script>
+                    saveBtn.addEventListener('click', async () => {
+                        saveBtn.disabled = true;
+                        saveBtn.innerHTML =
+                            '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
 
-    <!-- Comments handled by threaded-comments component with built-in JS handlers -->
+                        const payload = {
+                            first_name: document.getElementById('clientFirstName').value,
+                            last_name: document.getElementById('clientLastName').value,
+                            contact_no: document.getElementById('clientContactInput').value,
+                            address: document.getElementById('clientAddressInput').value,
+                        };
 
-    <script>
-        // Edit Client: open modal, submit update via fetch, and update UI
-        document.addEventListener('DOMContentLoaded', function() {
-            const editBtn = document.getElementById('editClientBtn');
-            const saveBtn = document.getElementById('saveClientBtn');
-            const modalEl = document.getElementById('editClientModal');
-            if (!editBtn || !saveBtn || !modalEl) return;
+                        // Client-side sanitization and validation to avoid sending null/empty fields
+                        const sanitize = (s, max = 1000) => String(s || '').replace(/[\x00-\x1F\x7F<>]/g, '')
+                            .slice(0, max).trim();
+                        const sanitizeContact = (s) => String(s || '').replace(/[^0-9+\-()\s]/g, '').slice(0,
+                            40).trim();
 
-            editBtn.addEventListener('click', () => {
-                // Use getOrCreateInstance to avoid stale instances after disposal
-                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-                modal.show();
-            });
+                        payload.first_name = sanitize(payload.first_name, 100);
+                        payload.last_name = sanitize(payload.last_name, 100);
+                        payload.address = sanitize(payload.address, 1000);
+                        payload.contact_no = sanitizeContact(payload.contact_no);
 
-            saveBtn.addEventListener('click', async () => {
-                saveBtn.disabled = true;
-                saveBtn.innerHTML =
-                    '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+                        // Basic validation
+                        if (!payload.first_name) {
+                            Swal.fire('Validation', 'First name is required.', 'warning');
+                            saveBtn.disabled = false;
+                            saveBtn.innerHTML = 'Save changes';
+                            return;
+                        }
+                        if (!payload.last_name) {
+                            Swal.fire('Validation', 'Last name is required.', 'warning');
+                            saveBtn.disabled = false;
+                            saveBtn.innerHTML = 'Save changes';
+                            return;
+                        }
+                        if (!payload.address) {
+                            Swal.fire('Validation', 'Address is required.', 'warning');
+                            saveBtn.disabled = false;
+                            saveBtn.innerHTML = 'Save changes';
+                            return;
+                        }
 
-                const payload = {
-                    first_name: document.getElementById('clientFirstName').value,
-                    last_name: document.getElementById('clientLastName').value,
-                    contact_no: document.getElementById('clientContactInput').value,
-                    address: document.getElementById('clientAddressInput').value,
+                        try {
+                            const clientId = '{{ $client->id }}';
+                            const res = await fetch(`/clients/${clientId}`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                    'Accept': 'application/json'
+                                },
+                                body: JSON.stringify(payload)
+                            });
+
+                            const data = await res.json();
+                            if (res.ok && data.success) {
+                                // Update UI
+                                document.getElementById('clientName').textContent = data.client.first_name +
+                                    ' ' + data.client.last_name;
+                                document.getElementById('clientContact').textContent = data.client.contact_no ||
+                                    '';
+                                document.getElementById('clientAddress').textContent = data.client.address ||
+                                    '';
+
+                                // Get fresh modal instance and hide it
+                                const modal = bootstrap.Modal.getInstance(modalEl);
+                                if (modal) modal.hide();
+
+                                Swal.fire({
+                                    toast: true,
+                                    position: 'top-end',
+                                    icon: 'success',
+                                    title: 'Client updated',
+                                    showConfirmButton: false,
+                                    timer: 1200
+                                });
+                            } else {
+                                Swal.fire('Error', data.message || 'Failed to update client', 'error');
+                            }
+                        } catch (err) {
+                            console.error('Client update error:', err);
+                            Swal.fire('Error', 'Something went wrong', 'error');
+                        }
+
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = 'Save changes';
+                    });
+                });
+            </script>
+
+            <!-- Updated: Safe cleanup + Toast helper (placed after other scripts) -->
+            <script>
+                /**
+                 * ✅ Global Toast helper for success messages
+                 * Keep errors as Swal.fire(...) (modal) so they remain prominent.
+                 */
+                window.Toast = (message = 'Success', icon = 'success') => {
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: icon,
+                        title: message,
+                        showConfirmButton: false,
+                        timer: 1200,
+                        timerProgressBar: true
+                    });
                 };
 
-                // Client-side sanitization and validation to avoid sending null/empty fields
-                const sanitize = (s, max = 1000) => String(s || '').replace(/[\x00-\x1F\x7F<>]/g, '')
-                    .slice(0, max).trim();
-                const sanitizeContact = (s) => String(s || '').replace(/[^0-9+\-()\s]/g, '').slice(0,
-                    40).trim();
+                /**
+                 * CRITICAL: Ensure modal-open class is reapplied when new modal opens
+                 * Bootstrap 5 removes modal-open when last modal closes, but we need it
+                 * if another modal is being opened immediately or is already open.
+                 */
+                document.addEventListener('show.bs.modal', function(e) {
+                    // Ensure modal-open class is on body when any modal shows
+                    document.body.classList.add('modal-open');
+                }, true);
 
-                payload.first_name = sanitize(payload.first_name, 100);
-                payload.last_name = sanitize(payload.last_name, 100);
-                payload.address = sanitize(payload.address, 1000);
-                payload.contact_no = sanitizeContact(payload.contact_no);
+                /**
+                 * Clean up modal-open class only when ALL modals are truly closed
+                 * Do NOT remove backdrops - Bootstrap manages them automatically
+                 */
+                document.addEventListener('hidden.bs.modal', function(e) {
+                    // Debounce to ensure all modals have finished their hide transitions
+                    setTimeout(() => {
+                        const openModals = document.querySelectorAll('.modal.show');
 
-                // Basic validation
-                if (!payload.first_name) {
-                    Swal.fire('Validation', 'First name is required.', 'warning');
-                    saveBtn.disabled = false;
-                    saveBtn.innerHTML = 'Save changes';
-                    return;
-                }
-                if (!payload.last_name) {
-                    Swal.fire('Validation', 'Last name is required.', 'warning');
-                    saveBtn.disabled = false;
-                    saveBtn.innerHTML = 'Save changes';
-                    return;
-                }
-                if (!payload.address) {
-                    Swal.fire('Validation', 'Address is required.', 'warning');
-                    saveBtn.disabled = false;
-                    saveBtn.innerHTML = 'Save changes';
-                    return;
-                }
-
-                try {
-                    const clientId = '{{ $client->id }}';
-                    const res = await fetch(`/clients/${clientId}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                            'Accept': 'application/json'
-                        },
-                        body: JSON.stringify(payload)
-                    });
-
-                    const data = await res.json();
-                    if (res.ok && data.success) {
-                        // Update UI
-                        document.getElementById('clientName').textContent = data.client.first_name +
-                            ' ' + data.client.last_name;
-                        document.getElementById('clientContact').textContent = data.client.contact_no ||
-                            '';
-                        document.getElementById('clientAddress').textContent = data.client.address ||
-                            '';
-
-                        // Get fresh modal instance and hide it
-                        const modal = bootstrap.Modal.getInstance(modalEl);
-                        if (modal) modal.hide();
-
-                        Swal.fire({
-                            toast: true,
-                            position: 'top-end',
-                            icon: 'success',
-                            title: 'Client updated',
-                            showConfirmButton: false,
-                            timer: 1200
-                        });
-                    } else {
-                        Swal.fire('Error', data.message || 'Failed to update client', 'error');
-                    }
-                } catch (err) {
-                    console.error('Client update error:', err);
-                    Swal.fire('Error', 'Something went wrong', 'error');
-                }
-
-                saveBtn.disabled = false;
-                saveBtn.innerHTML = 'Save changes';
-            });
-        });
-    </script>
-
-    <!-- Updated: Safe cleanup + Toast helper (placed after other scripts) -->
-    <script>
-        /**
-         * ✅ Global Toast helper for success messages
-         * Keep errors as Swal.fire(...) (modal) so they remain prominent.
-         */
-        window.Toast = (message = 'Success', icon = 'success') => {
-            Swal.fire({
-                toast: true,
-                position: 'top-end',
-                icon: icon,
-                title: message,
-                showConfirmButton: false,
-                timer: 1200,
-                timerProgressBar: true
-            });
-        };
-
-        /**
-         * CRITICAL: Ensure modal-open class is reapplied when new modal opens
-         * Bootstrap 5 removes modal-open when last modal closes, but we need it
-         * if another modal is being opened immediately or is already open.
-         */
-        document.addEventListener('show.bs.modal', function(e) {
-            // Ensure modal-open class is on body when any modal shows
-            document.body.classList.add('modal-open');
-        }, true);
-
-        /**
-         * Clean up modal-open class only when ALL modals are truly closed
-         * Do NOT remove backdrops - Bootstrap manages them automatically
-         */
-        document.addEventListener('hidden.bs.modal', function(e) {
-            // Debounce to ensure all modals have finished their hide transitions
-            setTimeout(() => {
-                const openModals = document.querySelectorAll('.modal.show');
-
-                // Only remove modal-open class if NO modals are open
-                if (openModals.length === 0) {
-                    document.body.classList.remove('modal-open');
-                }
-            }, 200);
-        }, true);
-    </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const generateLinkBtn = document.getElementById('generateLinkBtn');
-            if (generateLinkBtn) {
-                generateLinkBtn.addEventListener('click', async function() {
-                    generateLinkBtn.disabled = true;
-                    generateLinkBtn.innerHTML =
-                        '<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
-                    try {
-                        const quotationId = "{{ $quotationId }}";
-                        const quotationType = "{{ $quotationType ?? 'regular' }}";
-
-                        // Call the generate token endpoint
-                        const endpoint = quotationType === 'additional' 
-                            ? `/additional-quotations/${quotationId}/generate-token`
-                            : `/quotations/${quotationId}/generate-token`;
-
-                        const response = await fetch(endpoint, {
-                            method: 'POST',
-                            headers: {
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                'Content-Type': 'application/json',
-                                'Accept': 'application/json'
-                            }
-                        });
-
-                        const data = await response.json();
-
-                        if (data.success) {
-                            const link = data.public_link;
-                            await navigator.clipboard.writeText(link);
-                            Swal.fire({
-                                title: 'Link Generated & Copied!',
-                                text: link,
-                                icon: 'success',
-                                timer: 1500,
-                                showConfirmButton: false
-                            });
-                        } else {
-                            Swal.fire({
-                                title: 'Failed',
-                                text: data.message || 'Could not generate link',
-                                icon: 'error'
-                            });
+                        // Only remove modal-open class if NO modals are open
+                        if (openModals.length === 0) {
+                            document.body.classList.remove('modal-open');
                         }
-                    } catch (err) {
-                        console.error(err);
-                        Swal.fire('Error', 'Could not generate the link: ' + err.message, 'error');
-                    }
-                    generateLinkBtn.disabled = false;
-                    generateLinkBtn.innerHTML = '<i class="fa-solid fa-link me-1"></i> Generate Link';
-                });
-            }
-        });
-    </script>
-    <script>
-        // Ensure price inputs get formatting behavior on initial load
-        document.addEventListener('DOMContentLoaded', function() {
-            try { bindPriceInputs("{{ $quotationType ?? 'regular' }}"); } catch (e) { console.error('bindPriceInputs error', e); }
-        });
-    </script>
+                    }, 200);
+                }, true);
+            </script>
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const generateLinkBtn = document.getElementById('generateLinkBtn');
+                    if (generateLinkBtn) {
+                        generateLinkBtn.addEventListener('click', async function() {
+                            generateLinkBtn.disabled = true;
+                            generateLinkBtn.innerHTML =
+                                '<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
+                            try {
+                                const quotationId = "{{ $quotationId }}";
+                                const quotationType = "{{ $quotationType ?? 'regular' }}";
 
-    <!-- View Additional Quotations Modal -->
-    <div class="modal fade" id="additionalQuotationsModal" tabindex="-1" aria-labelledby="additionalQuotationsLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="additionalQuotationsLabel">Additional Quotations</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div id="additionalQuotationsList"></div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                // Call the generate token endpoint
+                                const endpoint = quotationType === 'additional' ?
+                                    `/additional-quotations/${quotationId}/generate-token` :
+                                    `/quotations/${quotationId}/generate-token`;
+
+                                const response = await fetch(endpoint, {
+                                    method: 'POST',
+                                    headers: {
+                                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                        'Content-Type': 'application/json',
+                                        'Accept': 'application/json'
+                                    }
+                                });
+
+                                const data = await response.json();
+
+                                if (data.success) {
+                                    const link = data.public_link;
+                                    await navigator.clipboard.writeText(link);
+                                    Swal.fire({
+                                        title: 'Link Generated & Copied!',
+                                        text: link,
+                                        icon: 'success',
+                                        timer: 1500,
+                                        showConfirmButton: false
+                                    });
+                                } else {
+                                    Swal.fire({
+                                        title: 'Failed',
+                                        text: data.message || 'Could not generate link',
+                                        icon: 'error'
+                                    });
+                                }
+                            } catch (err) {
+                                console.error(err);
+                                Swal.fire('Error', 'Could not generate the link: ' + err.message, 'error');
+                            }
+                            generateLinkBtn.disabled = false;
+                            generateLinkBtn.innerHTML = '<i class="fa-solid fa-link me-1"></i> Generate Link';
+                        });
+                    }
+                });
+            </script>
+            <script>
+                // Ensure price inputs get formatting behavior on initial load
+                document.addEventListener('DOMContentLoaded', function() {
+                    try {
+                        bindPriceInputs("{{ $quotationType ?? 'regular' }}");
+                    } catch (e) {
+                        console.error('bindPriceInputs error', e);
+                    }
+                });
+            </script>
+
+            <!-- View Additional Quotations Modal -->
+            <div class="modal fade" id="additionalQuotationsModal" tabindex="-1"
+                aria-labelledby="additionalQuotationsLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="additionalQuotationsLabel">Additional Quotations</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div id="additionalQuotationsList"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- View Additional Quotations Handler -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const viewAdditionalQtnBtn = document.getElementById('viewAdditionalQtnBtn');
-            const modalEl = document.getElementById('additionalQuotationsModal');
-            
-            if (!viewAdditionalQtnBtn || !modalEl) return;
+            <!-- View Additional Quotations Handler -->
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const viewAdditionalQtnBtn = document.getElementById('viewAdditionalQtnBtn');
+                    const modalEl = document.getElementById('additionalQuotationsModal');
 
-            const bsModal = new bootstrap.Modal(modalEl);
+                    if (!viewAdditionalQtnBtn || !modalEl) return;
 
-            viewAdditionalQtnBtn.addEventListener('click', async function() {
-                const parentId = this.getAttribute('data-parent-id');
-                const container = document.getElementById('additionalQuotationsList');
-                
-                try {
-                    // Fetch additional quotations as JSON
-                    const response = await fetch(`/quotations/${parentId}/additional-quotations-json`);
-                    const data = await response.json();
+                    const bsModal = new bootstrap.Modal(modalEl);
 
-                    if (!response.ok || !data.success) {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: data.message || 'Failed to load additional quotations',
-                            confirmButtonColor: '#d33'
-                        });
-                        return;
-                    }
+                    viewAdditionalQtnBtn.addEventListener('click', async function() {
+                        const parentId = this.getAttribute('data-parent-id');
+                        const container = document.getElementById('additionalQuotationsList');
 
-                    // Display quotations
-                    container.innerHTML = '';
+                        try {
+                            // Fetch additional quotations as JSON
+                            const response = await fetch(`/quotations/${parentId}/additional-quotations-json`);
+                            const data = await response.json();
 
-                    if (data.quotations.length === 0) {
-                        container.innerHTML = '<div class="alert alert-info">No additional quotations yet.</div>';
-                    } else {
-                        data.quotations.forEach((quotation, index) => {
-                            const div = document.createElement('div');
-                            div.classList.add('card', 'mb-3', 'border-primary', 'border-start', 'border-5');
+                            if (!response.ok || !data.success) {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error',
+                                    text: data.message || 'Failed to load additional quotations',
+                                    confirmButtonColor: '#d33'
+                                });
+                                return;
+                            }
 
-                            const statusBadgeClass = {
-                                'draft': 'bg-secondary',
-                                'pending': 'bg-warning text-dark',
-                                'approved': 'bg-success',
-                                'rejected': 'bg-danger',
-                                'completed': 'bg-success',
-                                'ongoing': 'bg-info'
-                            }[quotation.status?.status_name?.toLowerCase()] || 'bg-secondary';
+                            // Display quotations
+                            container.innerHTML = '';
 
-                            const approvalStatus = quotation.customer_approved 
-                                ? '<span class="badge bg-success ms-2"><i class="fa-solid fa-check me-1"></i>Approved</span>'
-                                : '<span class="badge bg-warning text-dark ms-2"><i class="fa-solid fa-hourglass me-1"></i>Pending</span>';
+                            if (data.quotations.length === 0) {
+                                container.innerHTML =
+                                    '<div class="alert alert-info">No additional quotations yet.</div>';
+                            } else {
+                                data.quotations.forEach((quotation, index) => {
+                                    const div = document.createElement('div');
+                                    div.classList.add('card', 'mb-3', 'border-primary', 'border-start',
+                                        'border-5');
 
-                            div.innerHTML = `
+                                    const statusBadgeClass = {
+                                            'draft': 'bg-secondary',
+                                            'pending': 'bg-warning text-dark',
+                                            'approved': 'bg-success',
+                                            'rejected': 'bg-danger',
+                                            'completed': 'bg-success',
+                                            'ongoing': 'bg-info'
+                                        } [quotation.status?.status_name?.toLowerCase()] ||
+                                        'bg-secondary';
+
+                                    const approvalStatus = quotation.customer_approved ?
+                                        '<span class="badge bg-success ms-2"><i class="fa-solid fa-check me-1"></i>Approved</span>' :
+                                        '<span class="badge bg-warning text-dark ms-2"><i class="fa-solid fa-hourglass me-1"></i>Pending</span>';
+
+                                    div.innerHTML = `
                                 <div class="card-header d-flex justify-content-between align-items-center">
                                     <div>
                                         <h6 class="mb-0">${quotation.subject || 'Untitled'}</h6>
@@ -2056,23 +2253,23 @@
                                     </div>
                                 </div>
                             `;
-                            container.appendChild(div);
-                        });
-                    }
+                                    container.appendChild(div);
+                                });
+                            }
 
-                    // Show modal
-                    bsModal.show();
-                } catch (error) {
-                    console.error('Error fetching additional quotations:', error);
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Network Error',
-                        text: 'Failed to fetch additional quotations. Please try again.',
-                        confirmButtonColor: '#d33'
+                            // Show modal
+                            bsModal.show();
+                        } catch (error) {
+                            console.error('Error fetching additional quotations:', error);
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Network Error',
+                                text: 'Failed to fetch additional quotations. Please try again.',
+                                confirmButtonColor: '#d33'
+                            });
+                        }
                     });
-                }
-            });
-        });
-    </script>
+                });
+            </script>
 
-@endsection
+        @endsection

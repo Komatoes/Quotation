@@ -724,8 +724,18 @@ class QuotationController extends Controller
         try {
             $quotation = Quotation::findOrFail($id);
 
-            // Check authorization
-            if (auth()->id() != $quotation->employee_id) {
+            // Check authorization - allow creator or admin
+            $user = auth()->user();
+            $isCreator = auth()->id() == $quotation->employee_id;
+            $isAdmin = false;
+            
+            try {
+                $isAdmin = $user->hasRole('admin');
+            } catch (\Exception $e) {
+                $isAdmin = false;
+            }
+            
+            if (!$isCreator && !$isAdmin) {
                 return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
             }
 
@@ -939,7 +949,8 @@ class QuotationController extends Controller
         $revisions = $quotation->revisions()->orderBy('created_at', 'desc')->get()->map(function ($rev) {
             return [
                 'id' => $rev->id,
-                'created_at' => $rev->created_at->format('Y-m-d H:i:s'),
+                // format timestamps explicitly in the application timezone
+                'created_at' => $rev->created_at->setTimezone(config('app.timezone'))->format('Y-m-d H:i:s'),
                 'reason' => $rev->reason,
                 'data' => $rev->old_data // already decoded by model casting
             ];
@@ -973,8 +984,9 @@ class QuotationController extends Controller
                         'description' => $quotation->description,
                         'progress' => $quotation->progress,
                         'status_name' => $quotation->status->status_name ?? 'Unknown',
-                        'created_at' => $quotation->created_at->format('Y-m-d H:i:s'),
-                        'created_date' => $quotation->created_at->format('M d, Y'),
+                        // ensure timestamps are returned in the configured application timezone
+                        'created_at' => $quotation->created_at->setTimezone(config('app.timezone'))->format('Y-m-d H:i:s'),
+                        'created_date' => $quotation->created_at->setTimezone(config('app.timezone'))->format('M d, Y'),
                         'materials_count' => $quotation->materials->count(),
                         'material_total' => number_format($quotation->getMaterialTotal(), 2),
                     ];
@@ -1237,8 +1249,12 @@ class QuotationController extends Controller
     public function editAdditionalQuotation($id)
     {
         try {
-            $additionalQuotation = AdditionalQuotation::with('materials', 'parentQuotation.client', 'status')
-                ->findOrFail($id);
+            $additionalQuotation = AdditionalQuotation::with([
+                'materials',
+                'parentQuotation.client',
+                'status',
+                'comments.replies.nestedReplies'  // ✅ Load comments for additional quotation with replies
+            ])->findOrFail($id);
 
             // Check authorization
             if (auth()->id() != $additionalQuotation->parentQuotation->employee_id) {
@@ -2061,12 +2077,12 @@ class QuotationController extends Controller
                 ->get()
                 ->map(function ($revision) {
                     return [
-                        'id' => $revision->id,
-                        'created_at' => $revision->created_at->format('Y-m-d H:i:s'),
-                        'reason' => $revision->change_reason,
-                        'created_by' => $revision->createdBy?->name ?? 'Unknown',
-                        'data' => $revision->old_data // already decoded by model casting
-                    ];
+                            'id' => $revision->id,
+                            'created_at' => $revision->created_at->setTimezone(config('app.timezone'))->format('Y-m-d H:i:s'),
+                            'reason' => $revision->change_reason,
+                            'created_by' => $revision->createdBy?->name ?? 'Unknown',
+                            'data' => $revision->old_data // already decoded by model casting
+                        ];
                 });
 
             return response()->json($revisions);
@@ -2081,6 +2097,40 @@ class QuotationController extends Controller
     }
 
     /**
+     * Get additional quotation revisions for public access (token-based)
+     */
+    public function getAdditionalPublicRevisionsJson($token)
+    {
+        try {
+            $additionalQuotation = AdditionalQuotation::where('public_token', $token)->firstOrFail();
+
+            $revisions = \App\Models\QuotationRevision::where('quotation_type', 'additional')
+                ->where('quotation_id', $additionalQuotation->id)
+                ->with('createdBy')
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($revision) {
+                    return [
+                        'id' => $revision->id,
+                        'created_at' => $revision->created_at->setTimezone(config('app.timezone'))->format('Y-m-d H:i:s'),
+                        'reason' => $revision->change_reason,
+                        'created_by' => $revision->createdBy?->name ?? 'Unknown',
+                        'data' => $revision->old_data // already decoded by model casting
+                    ];
+                });
+
+            return response()->json($revisions);
+        } catch (\Exception $e) {
+            Log::error('Error getting additional quotation public revisions', [
+                'token' => substr($token, 0, 8) . '...',
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([], 404);
+        }
+    }
+
+    /**
      * Generate a public token for additional quotation
      */
     public function generateAdditionalToken($id)
@@ -2088,8 +2138,18 @@ class QuotationController extends Controller
         try {
             $additionalQuotation = AdditionalQuotation::findOrFail($id);
 
-            // Check authorization
-            if (auth()->id() != $additionalQuotation->parentQuotation->employee_id) {
+            // Check authorization - allow creator or admin
+            $user = auth()->user();
+            $isCreator = auth()->id() == $additionalQuotation->parentQuotation->employee_id;
+            $isAdmin = false;
+            
+            try {
+                $isAdmin = $user->hasRole('admin');
+            } catch (\Exception $e) {
+                $isAdmin = false;
+            }
+            
+            if (!$isCreator && !$isAdmin) {
                 return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
             }
 
@@ -2244,7 +2304,8 @@ class QuotationController extends Controller
 
             // Quotation details
             $section->addText("Subject: {$additionalQuotation->subject}");
-            $section->addText("Date: " . $additionalQuotation->created_at->format('F d, Y'));
+            // Use application timezone when rendering exported dates
+            $section->addText("Date: " . $additionalQuotation->created_at->setTimezone(config('app.timezone'))->format('F d, Y'));
             if ($additionalQuotation->description) {
                 $section->addText("Description: {$additionalQuotation->description}");
             }
