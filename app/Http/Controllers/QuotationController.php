@@ -977,16 +977,33 @@ class QuotationController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->get()
                 ->map(function ($quotation) {
+                    // Build materials array with full details
+                    $materialsArray = $quotation->materials->map(function ($material) {
+                        return [
+                            'id' => $material->id,
+                            'name' => $material->name,
+                            'unit' => $material->unit,
+                            'unit_price' => floatval($material->pivot->unit_cost ?? $material->unit_price ?? 0),
+                            'quantity' => floatval($material->pivot->quantity ?? 0),
+                            'price' => floatval($material->pivot->unit_cost ?? $material->unit_price ?? 0),
+                            'total' => floatval(($material->pivot->unit_cost ?? $material->unit_price ?? 0) * ($material->pivot->quantity ?? 0)),
+                        ];
+                    })->toArray();
+
                     return [
                         'id' => $quotation->id,
                         'parent_quotation_id' => $quotation->parent_quotation_id,
                         'subject' => $quotation->subject,
                         'description' => $quotation->description,
                         'progress' => $quotation->progress,
+                        'customer_approved' => (bool)$quotation->customer_approved,
                         'status_name' => $quotation->status->status_name ?? 'Unknown',
+                        'labor_fee' => floatval($quotation->labor_fee ?? 0),
+                        'delivery_fee' => floatval($quotation->delivery_fee ?? 0),
                         // ensure timestamps are returned in the configured application timezone
                         'created_at' => $quotation->created_at->setTimezone(config('app.timezone'))->format('Y-m-d H:i:s'),
                         'created_date' => $quotation->created_at->setTimezone(config('app.timezone'))->format('M d, Y'),
+                        'materials' => $materialsArray,
                         'materials_count' => $quotation->materials->count(),
                         'material_total' => number_format($quotation->getMaterialTotal(), 2),
                     ];

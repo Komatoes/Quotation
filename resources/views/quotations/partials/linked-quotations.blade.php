@@ -43,9 +43,17 @@
                                         <td>
                                             @php
                                                 $ln = strtolower($linked->status->status_name ?? '');
-                                                $badgeClass = $linked->isRejected() ? 'bg-danger' : ($ln === 'approved' ? 'bg-success' : ($ln === 'rejected' ? 'bg-danger' : 'bg-warning text-dark'));
+                                                if ($linked->isRejected()) {
+                                                    $icon = '<i class="fa-solid fa-circle text-danger me-2" style="font-size: 0.5rem;"></i>';
+                                                } elseif ($ln === 'approved') {
+                                                    $icon = '<i class="fa-solid fa-circle text-success me-2" style="font-size: 0.5rem;"></i>';
+                                                } elseif ($ln === 'rejected') {
+                                                    $icon = '<i class="fa-solid fa-circle text-danger me-2" style="font-size: 0.5rem;"></i>';
+                                                } else {
+                                                    $icon = '<i class="fa-solid fa-circle text-warning me-2" style="font-size: 0.5rem;"></i>';
+                                                }
                                             @endphp
-                                            <span class="badge {{ $badgeClass }}">{{ $linked->status->status_name ?? 'Pending' }}</span>
+                                            <span class="fw-500">{!! $icon !!}{{ $linked->status->status_name ?? 'Pending' }}</span>
                                         </td>
                                         <td>{{ number_format($linked->labor_fee, 2) }}</td>
                                         <td>{{ number_format($linked->delivery_fee, 2) }}</td>

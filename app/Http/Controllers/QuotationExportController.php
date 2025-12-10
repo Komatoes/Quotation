@@ -93,7 +93,7 @@ class QuotationExportController extends Controller
         } else {
             $section->addText("__________________________", ['bold' => true]);
         }
-        $section->addText("Jomio Laiño", ['bold' => true]);
+        $section->addText("Jomilo Laño", ['bold' => true]);
         $section->addText("JOM’S Construction Services");
 
         // Save and return

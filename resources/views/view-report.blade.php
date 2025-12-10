@@ -103,9 +103,16 @@
                 @endphp
 
                 <div class="mt-3">
-                    <span class="badge {{ $badgeClass }} mb-3 d-inline-flex align-items-center"
-                        id="quotation-status-badge">
-                        {{ $badgeText }}
+                    <span class="fw-500">
+                        @if(strtolower($quotation->status->status_name ?? '') === 'completed')
+                            <i class="fa-solid fa-circle text-success me-2" style="font-size: 0.5rem;"></i>Project has been completed
+                        @elseif(strtolower($quotation->status->status_name ?? '') === 'rejected')
+                            <i class="fa-solid fa-circle text-danger me-2" style="font-size: 0.5rem;"></i>Quotation is rejected
+                        @elseif($quotation->customer_approved)
+                            <i class="fa-solid fa-circle text-success me-2" style="font-size: 0.5rem;"></i>Approved by Client
+                        @else
+                            <i class="fa-solid fa-circle text-warning me-2" style="font-size: 0.5rem;"></i>Awaiting Client Approval
+                        @endif
                     </span>
                 </div>
 
@@ -140,9 +147,9 @@
                         <p>
                             <strong>Contract Status:</strong>
                             @if ($quotation->with_contract)
-                                <span class="badge bg-success">With Contract</span>
+                                <span><i class="fa-solid fa-circle text-success me-2" style="font-size: 0.5rem;"></i>With Contract</span>
                             @else
-                                <span class="badge bg-secondary">Without Contract</span>
+                                <span><i class="fa-solid fa-circle text-secondary me-2" style="font-size: 0.5rem;"></i>Without Contract</span>
                             @endif
                         </p>
                     </div>
@@ -280,16 +287,16 @@
                         $endDate = \Carbon\Carbon::parse($progressQuotation->project_end_date);
                         $today = \Carbon\Carbon::now();
                         $projectStatus = 'not-started';
-                        $statusIcon = '⏳';
+                        $statusIcon = '<i class="fa-solid fa-hourglass-start"></i>';
                         $statusText = 'Project Not Started';
                         
                         if ($today->greaterThanOrEqualTo($startDate) && $today->lessThanOrEqualTo($endDate)) {
                             $projectStatus = 'ongoing';
-                            $statusIcon = '▶️';
+                            $statusIcon = '<i class="fa-solid fa-play"></i>';
                             $statusText = 'Project In Progress';
                         } elseif ($today->greaterThan($endDate)) {
                             $projectStatus = 'overdue';
-                            $statusIcon = '⚠️';
+                            $statusIcon = '<i class="fa-solid fa-exclamation-triangle"></i>';
                             $statusText = 'Project Past End Date';
                         }
                     @endphp
@@ -301,11 +308,11 @@
                         <p class="mb-0"><strong>End Date:</strong> {{ $endDate->setTimezone(config('app.timezone'))->format('M d, Y') }}</p>
                             </div>
                             <div class="col-md-6 text-end">
-                                <p class="mb-0"><strong>{{ $statusIcon }} Status:</strong> <span class="badge 
+                                <p class="mb-0"><strong>Status:</strong> <span class="badge 
                                     @if ($projectStatus === 'not-started') bg-warning text-dark
                                     @elseif ($projectStatus === 'ongoing') bg-info
                                     @else bg-danger
-                                    @endif">{{ $statusText }}</span></p>
+                                    @endif">{{ $statusIcon }} {{ $statusText }}</span></p>
                             </div>
                         </div>
                     </div>
@@ -380,7 +387,12 @@
                                 {{-- 1. Progress Value (Uses the 'progress' column) --}}
                                 <h5 class="mb-1">
                                     Progress Set To:
-                                    <span class="badge {{ $report->progress == 100 ? 'bg-success' : 'bg-primary' }} fs-6">
+                                    <span class="fw-500">
+                                        @if($report->progress == 100)
+                                            <i class="fa-solid fa-circle text-success me-2" style="font-size: 0.5rem;"></i>
+                                        @else
+                                            <i class="fa-solid fa-circle text-primary me-2" style="font-size: 0.5rem;"></i>
+                                        @endif
                                         {{ $report->progress }}%
                                     </span>
                                 </h5>
@@ -565,8 +577,11 @@
                 }
 
                 if (display) {
-                    display.textContent = `Progress locked at ${progressValue}% ✔️`;
+                    display.textContent = `Progress locked at ${progressValue}% `;
                     display.classList.add('text-success');
+                    const checkIcon = document.createElement('i');
+                    checkIcon.className = 'fa-solid fa-check ms-1';
+                    display.appendChild(checkIcon);
                 }
 
                 if (reportList) {
@@ -581,7 +596,8 @@
                         <div class="d-flex w-100 justify-content-between align-items-center">
                             <h5 class="mb-1">
                                 Progress Set To:
-                                <span class="badge ${progressValue == 100 ? 'bg-success' : 'bg-primary'} fs-6">
+                                <span class="fw-500">
+                                    ${progressValue == 100 ? '<i class="fa-solid fa-circle text-success me-2" style="font-size: 0.5rem;"></i>' : '<i class="fa-solid fa-circle text-primary me-2" style="font-size: 0.5rem;"></i>'}
                                     ${progressValue}%
                                 </span>
                             </h5>
@@ -726,6 +742,7 @@
                             showConfirmButton: false
                         });
                     } else {
+                        // Route through public access form first, not directly to view
                         const link = `${window.location.origin}/quotation/public/${token}`;
                         await navigator.clipboard.writeText(link);
                         Swal.fire({
@@ -1082,8 +1099,8 @@
                 <h5 class="modal-title" id="additionalQuotationsLabel">Additional Quotations</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <div id="additionalQuotationsList"></div>
+            <div class="modal-body" id="additionalQuotationsBody">
+                <!-- Cards will be rendered here (like Revisions modal) -->
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -1094,179 +1111,137 @@
 
 <!-- View Additional Quotations Handler -->
 <script>
-    // Helper function to escape HTML and prevent XSS
-    function escapeHtml(unsafe) {
-        if (!unsafe) return '';
-        return unsafe
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
-
     document.addEventListener('DOMContentLoaded', function() {
-        const viewAdditionalQtnBtn = document.getElementById('viewAdditionalQtnBtn');
+        const viewBtn = document.getElementById('viewAdditionalQtnBtn');
         const modalEl = document.getElementById('additionalQuotationsModal');
-        
-        if (!viewAdditionalQtnBtn || !modalEl) return;
+        const bodyEl = document.getElementById('additionalQuotationsBody');
+
+        if (!viewBtn || !modalEl || !bodyEl) return;
 
         const bsModal = new bootstrap.Modal(modalEl);
 
-        viewAdditionalQtnBtn.addEventListener('click', async function() {
-            const parentId = this.getAttribute('data-parent-id');
-            
-            try {
-                // Fetch additional quotations as JSON
-                const response = await fetch(`/quotations/${parentId}/additional-quotations-json`);
-                const data = await response.json();
+        viewBtn.addEventListener('click', async function() {
+            const parentId = this.getAttribute('data-parent-id') || '{{ $quotation->id }}';
 
-                if (!response.ok || !data.success) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: data.message || 'Failed to load additional quotations',
-                        confirmButtonColor: '#d33'
-                    });
+            try {
+                const res = await fetch(`/quotations/${parentId}/additional-quotations-json`, {
+                    credentials: 'same-origin',
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (!res.ok) throw new Error('Network response was not ok');
+
+                const data = await res.json();
+                const quotations = data.quotations || data || [];
+
+                bodyEl.innerHTML = '';
+
+                if (quotations.length === 0) {
+                    bodyEl.innerHTML = '<p class="text-muted">No additional quotations found.</p>';
+                    bsModal.show();
                     return;
                 }
 
-                // Display quotations
-                const container = document.getElementById('additionalQuotationsList');
-                container.innerHTML = '';
+                // Loop through each quotation and create a card (like revisions modal does)
+                quotations.forEach((quot, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'card mb-4 shadow-sm';
+                    
+                    const mats = Array.isArray(quot.materials) ? quot.materials : [];
+                    let materialRows = '';
+                    let totalMaterial = 0;
 
-                if (data.quotations.length === 0) {
-                    container.innerHTML = '<div class="alert alert-info">No additional quotations yet.</div>';
-                } else {
-                    data.quotations.forEach((quotation, index) => {
-                        const div = document.createElement('div');
-                        div.classList.add('card', 'mb-3', 'border-primary', 'border-start', 'border-5');
+                    mats.forEach(m => {
+                        const unitPrice = parseFloat(m.unit_price || m.price || 0);
+                        const qty = parseFloat(m.quantity || m.qty || 0);
+                        const lineTotal = unitPrice * qty;
+                        totalMaterial += lineTotal;
 
-                        const statusBadgeClass = {
-                            'draft': 'bg-secondary',
-                            'pending': 'bg-warning text-dark',
-                            'approved': 'bg-success',
-                            'rejected': 'bg-danger',
-                            'completed': 'bg-success',
-                            'ongoing': 'bg-info'
-                        }[quotation.status_name?.toLowerCase()] || 'bg-secondary';
-
-                        div.innerHTML = `
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="mb-0">${escapeHtml(quotation.subject)}</h6>
-                                    <small class="text-muted">ID: ${quotation.id}</small>
-                                </div>
-                                <span class="badge ${statusBadgeClass}">
-                                    ${escapeHtml(quotation.status_name || 'Unknown')}
-                                </span>
-                            </div>
-                            <div class="card-body">
-                                <p class="mb-2"><strong>Description:</strong> <br> 
-                                    ${quotation.description ? escapeHtml(quotation.description) : '<em class="text-muted">No description</em>'}
-                                </p>
-                                <p class="mb-2"><strong>Created:</strong> ${new Date(quotation.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}</p>
-                                <p class="mb-2"><strong>Materials:</strong> ${quotation.materials_count || 0}</p>
-                                <div class="d-flex gap-2">
-                                    ${quotation.customer_approved || quotation.status_id >= 2
-                                        ? `<a href="/additional-quotations/${quotation.id}/view" class="btn btn-sm btn-primary">
-                                            <i class="fa-solid fa-eye me-1"></i> View/Edit
-                                        </a>`
-                                        : `<a href="/additional-quotations/${quotation.id}/edit" class="btn btn-sm btn-primary">
-                                            <i class="fa-solid fa-edit me-1"></i> View/Edit
-                                        </a>`
-                                    }
-                                    <button class="btn btn-sm btn-danger delete-additional-quotation" data-id="${quotation.id}">
-                                        <i class="fa-solid fa-trash me-1"></i> Delete
-                                    </button>
-                                </div>
-                            </div>
+                        materialRows += `
+                            <tr>
+                                <td>${m.name || m.material_name || '-'}</td>
+                                <td>${m.unit || '-'}</td>
+                                <td>₱${unitPrice.toFixed(2)}</td>
+                                <td>${qty}</td>
+                                <td>₱${lineTotal.toFixed(2)}</td>
+                            </tr>
                         `;
-                        container.appendChild(div);
                     });
-                }
 
-                // Show modal
+                    const laborfee = parseFloat(quot.labor_fee || 0);
+                    const deliveryFee = parseFloat(quot.delivery_fee || 0);
+                    const grandTotal = totalMaterial + laborfee + deliveryFee;
+
+                    const createdDate = new Date(quot.created_at).toLocaleDateString();
+
+                    // Determine status indicator based on customer_approved flag (check BOOLEAN value)
+                    const isApproved = Boolean(quot.customer_approved);
+                    const statusIndicator = isApproved 
+                        ? '<span><i class="fa-solid fa-circle text-success me-2" style="font-size: 0.5rem;"></i>Approved</span>'
+                        : '<span><i class="fa-solid fa-circle text-warning me-2" style="font-size: 0.5rem;"></i>Pending Approval</span>';
+
+                    card.innerHTML = `
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>Additional Quotation</strong> - ${createdDate}
+                            </div>
+                            <div>
+                                ${statusIndicator}
+                            </div>
+                        </div>
+                        <div class="card-body p-4">
+                            <p><strong>Subject:</strong> ${quot.subject || '-'}</p>
+                            <p><strong>Description:</strong> ${quot.description || quot.subject || 'QUOTATION'}</p>
+                            <p><strong>Labor Fee:</strong> ₱${laborfee.toFixed(2)}</p>
+                            <p><strong>Delivery Fee:</strong> ₱${deliveryFee.toFixed(2)}</p>
+
+                            <h6 class="mt-4 mb-3">Materials:</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Material</th>
+                                            <th>Unit</th>
+                                            <th>Price/Unit</th>
+                                            <th>Quantity</th>
+                                            <th>Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${materialRows || '<tr><td colspan="5" class="text-center text-muted">No materials</td></tr>'}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <td colspan="4" class="text-end fw-bold">Total Material:</td>
+                                            <td>₱${totalMaterial.toFixed(2)}</td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="4" class="text-end fw-bold">Labor Fee:</td>
+                                            <td>₱${laborfee.toFixed(2)}</td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="4" class="text-end fw-bold">Delivery Fee:</td>
+                                            <td>₱${deliveryFee.toFixed(2)}</td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="4" class="text-end fw-bold">Grand Total:</td>
+                                            <td class="fw-bold text-primary">₱${grandTotal.toFixed(2)}</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+
+                    bodyEl.appendChild(card);
+                });
+
                 bsModal.show();
-
-                // Add delete event listeners to newly created delete buttons
-                document.querySelectorAll('.delete-additional-quotation').forEach(btn => {
-                    btn.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        const quotationId = this.getAttribute('data-id');
-                        deleteAdditionalQuotation(quotationId, parentId);
-                    });
-                });
-            } catch (error) {
-                console.error('Error fetching additional quotations:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Network Error',
-                    text: 'Failed to fetch additional quotations. Please try again.',
-                    confirmButtonColor: '#d33'
-                });
+            } catch (err) {
+                console.error(err);
+                Swal.fire('Error', 'Failed to load additional quotations', 'error');
             }
         });
     });
-
-    // Function to delete additional quotation
-    function deleteAdditionalQuotation(quotationId, parentId) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Delete Additional Quotation?',
-            text: 'This action cannot be undone.',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Yes, delete it',
-            cancelButtonText: 'Cancel'
-        }).then(async (result) => {
-            if (!result.isConfirmed) return;
-
-            try {
-                const response = await fetch(`/additional-quotations/${quotationId}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                    }
-                });
-
-                const data = await response.json();
-
-                if (response.ok && data.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Deleted!',
-                        text: data.message || 'Additional quotation deleted successfully.',
-                        confirmButtonColor: '#28a745',
-                        timer: 1500,
-                        showConfirmButton: false
-                    }).then(() => {
-                        // Reload the modal content by clicking the view button again
-                        const viewBtn = document.getElementById('viewAdditionalQtnBtn');
-                        if (viewBtn) {
-                            viewBtn.click();
-                        }
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: data.message || 'Failed to delete quotation.',
-                        confirmButtonColor: '#d33'
-                    });
-                }
-            } catch (error) {
-                console.error('Error deleting quotation:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'An error occurred while deleting the quotation.',
-                    confirmButtonColor: '#d33'
-                });
-            }
-        });
-    }
 </script>
 

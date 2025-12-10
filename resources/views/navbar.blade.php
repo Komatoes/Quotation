@@ -1724,8 +1724,8 @@
                       </a>
                     </li>
                     <li>
-                      <div class="d-grid px-2 pt-2 pb-1">
-                        <a class="btn btn-sm btn-danger d-flex" href="auth-login-cover.html" target="_blank">
+                      <div class="d-grid px-1 pt-1 pb-1 px-md-2 pt-md-2">
+                        <a class="btn btn-sm btn-danger d-flex justify-content-center" href="auth-login-cover.html" target="_blank">
                           <small class="align-middle">Logout</small>
                           <i class="icon-base ti tabler-logout ms-2 icon-14px"></i>
                         </a>

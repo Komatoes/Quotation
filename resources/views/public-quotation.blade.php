@@ -6,7 +6,14 @@
         $isAdditional = isset($isAdditional) && $isAdditional;
 
         // Get client info based on quotation type
-        if ($isAdditional) {
+        if ($isAddition                                            <span class="fw-500">
+                                                @php
+                                                    $icon = $report->progress == 100 
+                                                        ? '<i class="fa-solid fa-circle text-success me-2" style="font-size: 0.5rem;"></i>'
+                                                        : '<i class="fa-solid fa-circle text-primary me-2" style="font-size: 0.5rem;"></i>';
+                                                @endphp
+                                                {!! $icon !!}{{ $report->progress }}%
+                                            </span> {
             $client = $quotation->parentQuotation->client;
         } else {
             $client = $quotation->client;
@@ -16,7 +23,13 @@
     <div class="container-fluid">
         <!-- Header -->
         <div class="card mb-4">
-            <div class="card-body text-center bg-light rounded shadow-sm">
+                                   const createdDate = new Date(quot.created_at).toLocaleDateString();
+
+                        // Determine status indicator based on customer_approved flag
+                        const isApproved = Boolean(quot.customer_approved);
+                        const statusIndicator = isApproved 
+                            ? '<span><i class="fa-solid fa-circle text-success me-2" style="font-size: 0.5rem;"></i>Approved</span>'
+                            : '<span><i class="fa-solid fa-circle text-warning me-2" style="font-size: 0.5rem;"></i>Pending Approval</span>';lass="card-body text-center bg-light rounded shadow-sm">
                 @php
                     $qStatus = strtolower($quotation->status->status_name ?? '');
                     if ($qStatus === 'completed') {
@@ -88,9 +101,24 @@
                 @endphp
 
                 <div class="mt-3">
-                    <span class="badge {{ $badgeClass }} mb-3 d-inline-flex align-items-center"
-                        id="quotation-status-badge">
-                        {{ $badgeText }}
+                    <span class="fw-500">
+                        @php
+                            $qStatus = strtolower($quotation->status->status_name ?? '');
+                            if ($qStatus === 'completed') {
+                                $statusIcon = '<i class="fa-solid fa-circle text-success me-2" style="font-size: 0.5rem;"></i>';
+                                $statusText = 'Project has been completed';
+                            } elseif ($qStatus === 'rejected') {
+                                $statusIcon = '<i class="fa-solid fa-circle text-danger me-2" style="font-size: 0.5rem;"></i>';
+                                $statusText = 'Quotation is rejected';
+                            } elseif ($quotation->customer_approved) {
+                                $statusIcon = '<i class="fa-solid fa-circle text-success me-2" style="font-size: 0.5rem;"></i>';
+                                $statusText = 'Approved by Client';
+                            } else {
+                                $statusIcon = '<i class="fa-solid fa-circle text-warning me-2" style="font-size: 0.5rem;"></i>';
+                                $statusText = 'Awaiting Client Approval';
+                            }
+                        @endphp
+                        {!! $statusIcon !!}{{ $statusText }}
                     </span>
                 </div>
 
@@ -125,9 +153,9 @@
                         <p>
                             <strong>Contract Status:</strong>
                             @if ($quotation->with_contract)
-                                <span class="badge bg-success">With Contract</span>
+                                <span><i class="fa-solid fa-circle text-success me-2" style="font-size: 0.5rem;"></i>With Contract</span>
                             @else
-                                <span class="badge bg-secondary">Without Contract</span>
+                                <span><i class="fa-solid fa-circle text-secondary me-2" style="font-size: 0.5rem;"></i>Without Contract</span>
                             @endif
                         </p>
                     </div>
@@ -315,7 +343,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             const approveBtn = document.getElementById('approve-btn');
 
-            // 🟢 Handle Approval
+            // Handle Approval
             if (approveBtn) {
                 approveBtn.addEventListener('click', () => {
                     approveBtn.disabled = true;
@@ -459,226 +487,204 @@
     <!-- View Additional Quotations Handler -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const viewAdditionalQtnBtn = document.getElementById('viewAdditionalQtnBtn');
+            const viewBtn = document.getElementById('viewAdditionalQtnBtn');
             const modalEl = document.getElementById('additionalQuotationsModal');
+            const bodyEl = document.getElementById('additionalQuotationsList');
 
-            if (!viewAdditionalQtnBtn || !modalEl) return;
+            if (!viewBtn || !modalEl || !bodyEl) return;
 
             const bsModal = new bootstrap.Modal(modalEl);
 
-            viewAdditionalQtnBtn.addEventListener('click', function() {
-                const parentId = this.getAttribute('data-parent-id');
-                const container = document.getElementById('additionalQuotationsList');
+            viewBtn.addEventListener('click', async function() {
+                const parentId = this.getAttribute('data-parent-id') || '{{ $quotation->id }}';
+                const publicToken = '{{ $quotation->public_token }}';
 
-                // Display additional quotations from passed data
-                container.innerHTML = '';
+                try {
+                    const res = await fetch(`/quotations/${parentId}/additional-quotations-json`, {
+                        credentials: 'same-origin',
+                        headers: { 'Accept': 'application/json' }
+                    });
 
-                const additionalQuotations = @json($additionalQuotations ?? []);
+                    if (!res.ok) throw new Error('Network response was not ok');
 
-                if (!additionalQuotations || additionalQuotations.length === 0) {
-                    container.innerHTML =
-                        '<div class="alert alert-info">No additional quotations yet.</div>';
-                } else {
-                    additionalQuotations.forEach((quotation, index) => {
-                        const div = document.createElement('div');
-                        div.classList.add('card', 'mb-3', 'border-primary', 'border-start',
-                            'border-5');
+                    const data = await res.json();
+                    const quotations = data.quotations || data || [];
 
-                        const statusBadgeClass = {
-                            'draft': 'bg-secondary',
-                            'pending': 'bg-warning text-dark',
-                            'approved': 'bg-success',
-                            'rejected': 'bg-danger',
-                            'completed': 'bg-success',
-                            'ongoing': 'bg-info'
-                        } [quotation.status?.status_name?.toLowerCase()] || 'bg-secondary';
+                    bodyEl.innerHTML = '';
 
-                        const approvalStatus = quotation.customer_approved ?
-                            '<span class="badge bg-success ms-2"><i class="fa-solid fa-check me-1"></i>Approved</span>' :
-                            '<span class="badge bg-warning text-dark ms-2"><i class="fa-solid fa-hourglass me-1"></i>Pending</span>';
+                    if (quotations.length === 0) {
+                        bodyEl.innerHTML = '<p class="text-muted">No additional quotations found.</p>';
+                        bsModal.show();
+                        return;
+                    }
 
-                        div.innerHTML = `
+                    // Loop through each quotation and create a card (like revisions modal does)
+                    quotations.forEach((quot, index) => {
+                        const card = document.createElement('div');
+                        card.className = 'card mb-4 shadow-sm';
+                        
+                        const mats = Array.isArray(quot.materials) ? quot.materials : [];
+                        let materialRows = '';
+                        let totalMaterial = 0;
+
+                        mats.forEach(m => {
+                            const unitPrice = parseFloat(m.unit_price || m.price || 0);
+                            const qty = parseFloat(m.quantity || m.qty || 0);
+                            const lineTotal = unitPrice * qty;
+                            totalMaterial += lineTotal;
+
+                            materialRows += `
+                                <tr>
+                                    <td>${m.name || m.material_name || '-'}</td>
+                                    <td>${m.unit || '-'}</td>
+                                    <td>₱${unitPrice.toFixed(2)}</td>
+                                    <td>${qty}</td>
+                                    <td>₱${lineTotal.toFixed(2)}</td>
+                                </tr>
+                            `;
+                        });
+
+                        const laborfee = parseFloat(quot.labor_fee || 0);
+                        const deliveryFee = parseFloat(quot.delivery_fee || 0);
+                        const grandTotal = totalMaterial + laborfee + deliveryFee;
+
+                        const createdDate = new Date(quot.created_at).toLocaleDateString();
+
+                        // Determine status badge based on customer_approved flag (check boolean value)
+                        const isApproved = Boolean(quot.customer_approved);
+                        const statusBadge = isApproved 
+                            ? '<span class="badge bg-success"><i class="fa-solid fa-check me-1"></i>Approved</span>'
+                            : '<span class="badge bg-warning text-dark"><i class="fa-solid fa-hourglass me-1"></i>Pending Approval</span>';
+
+                        card.innerHTML = `
                             <div class="card-header d-flex justify-content-between align-items-center">
                                 <div>
-                                    <h6 class="mb-0">${quotation.subject || 'Untitled'}</h6>
-                                    <small class="text-muted">ID: ${quotation.id}</small>
+                                    <strong>Additional Quotation</strong> - ${createdDate}
                                 </div>
                                 <div>
-                                    <span class="badge ${statusBadgeClass}">
-                                        ${quotation.status?.status_name || 'Unknown'}
-                                    </span>
-                                    ${approvalStatus}
+                                    ${statusIndicator}
                                 </div>
                             </div>
-                            <div class="card-body">
-                                <p class="mb-2"><strong>Description:</strong> <br> 
-                                    ${quotation.description ? quotation.description : '<em class="text-muted">No description</em>'}
-                                </p>
-                                <p class="mb-2"><strong>Created:</strong> ${new Date(quotation.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}</p>
-                                <p class="mb-2"><strong>Materials:</strong> ${quotation.materials?.length || 0}</p>
-                                <div class="d-flex gap-2">
-                                    <button class="btn btn-sm btn-primary view-additional-btn" data-id="${quotation.id}">
-                                        <i class="fa-solid fa-eye me-1"></i> View Details
-                                    </button>
+                            <div class="card-body p-4">
+                                <p><strong>Subject:</strong> ${quot.subject || '-'}</p>
+                                <p><strong>Description:</strong> ${quot.description || quot.subject || 'QUOTATION'}</p>
+                                <p><strong>Labor Fee:</strong> ₱${laborfee.toFixed(2)}</p>
+                                <p><strong>Delivery Fee:</strong> ₱${deliveryFee.toFixed(2)}</p>
+
+                                <h6 class="mt-4 mb-3">Materials:</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Material</th>
+                                                <th>Unit</th>
+                                                <th>Price/Unit</th>
+                                                <th>Quantity</th>
+                                                <th>Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${materialRows || '<tr><td colspan="5" class="text-center text-muted">No materials</td></tr>'}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr>
+                                                <td colspan="4" class="text-end fw-bold">Total Material:</td>
+                                                <td>₱${totalMaterial.toFixed(2)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td colspan="4" class="text-end fw-bold">Labor Fee:</td>
+                                                <td>₱${laborfee.toFixed(2)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td colspan="4" class="text-end fw-bold">Delivery Fee:</td>
+                                                <td>₱${deliveryFee.toFixed(2)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td colspan="4" class="text-end fw-bold">Grand Total:</td>
+                                                <td class="fw-bold text-primary">₱${grandTotal.toFixed(2)}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
                                 </div>
+                                ${!isApproved ? `
+                                    <div class="mt-3">
+                                        <button class="btn btn-success approve-additional-btn" data-id="${quot.id}" data-token="${publicToken}">
+                                            <i class="fa-solid fa-check-circle me-1"></i> Approve This Quotation
+                                        </button>
+                                    </div>
+                                ` : ''}
                             </div>
                         `;
-                        container.appendChild(div);
+
+                        bodyEl.appendChild(card);
                     });
 
-                    // Add event listeners to view detail buttons
-                    document.querySelectorAll('.view-additional-btn').forEach(btn => {
-                        btn.addEventListener('click', function() {
+                    // Add approval handlers
+                    document.querySelectorAll('.approve-additional-btn').forEach(btn => {
+                        btn.addEventListener('click', async function() {
                             const quotationId = this.getAttribute('data-id');
-                            displayAdditionalQuotationDetails(quotationId,
-                                additionalQuotations);
+                            const token = this.getAttribute('data-token');
+                            
+                            const result = await Swal.fire({
+                                title: 'Approve Additional Quotation?',
+                                text: 'Are you sure you want to approve this additional quotation?',
+                                icon: 'question',
+                                showCancelButton: true,
+                                confirmButtonColor: '#198754',
+                                cancelButtonColor: '#6c757d',
+                                confirmButtonText: 'Yes, approve it!'
+                            });
+
+                            if (!result.isConfirmed) return;
+
+                            this.disabled = true;
+                            this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Approving...';
+
+                            try {
+                                const response = await fetch(`/additional-quotation/public/${token}/approve`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                        'Content-Type': 'application/json',
+                                        'Accept': 'application/json'
+                                    },
+                                    body: JSON.stringify({
+                                        additional_quotation_id: quotationId
+                                    })
+                                });
+
+                                const data = await response.json();
+
+                                if (response.ok && data.success) {
+                                    Swal.fire({
+                                        title: 'Approved!',
+                                        text: 'Additional quotation has been approved.',
+                                        icon: 'success',
+                                        timer: 1500,
+                                        showConfirmButton: false
+                                    }).then(() => {
+                                        window.location.reload();
+                                    });
+                                } else {
+                                    Swal.fire('Error', data.message || 'Failed to approve quotation', 'error');
+                                    this.disabled = false;
+                                    this.innerHTML = '<i class="fa-solid fa-check-circle me-1"></i> Approve This Quotation';
+                                }
+                            } catch (error) {
+                                console.error('Approval error:', error);
+                                Swal.fire('Error', 'Something went wrong!', 'error');
+                                this.disabled = false;
+                                this.innerHTML = '<i class="fa-solid fa-check-circle me-1"></i> Approve This Quotation';
+                            }
                         });
                     });
-                }
 
-                bsModal.show();
+                    bsModal.show();
+                } catch (err) {
+                    console.error(err);
+                    Swal.fire('Error', 'Failed to load additional quotations', 'error');
+                }
             });
-
-            // Function to display additional quotation details
-            function displayAdditionalQuotationDetails(quotationId, quotations) {
-                const quotation = quotations.find(q => q.id == quotationId);
-                if (!quotation) return;
-
-                // Create a temporary modal or expand view
-                let detailsHtml = `
-                    <div class="card border-info mb-3">
-                        <div class="card-header bg-info text-white">
-                            <h5 class="mb-0">${quotation.subject}</h5>
-                        </div>
-                        <div class="card-body">
-                            <p><strong>Description:</strong> ${quotation.description || 'N/A'}</p>
-                            <p><strong>Status:</strong> <span class="badge bg-secondary">${quotation.status?.status_name || 'Unknown'}</span></p>
-                            <p><strong>Approval Status:</strong> ${quotation.customer_approved ? '<span class="badge bg-success">Approved</span>' : '<span class="badge bg-warning">Pending Approval</span>'}</p>
-                            
-                            <h6 class="mt-3 mb-2"><strong>Materials & Services</strong></h6>
-                            <table class="table table-sm table-bordered">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Material/Service</th>
-                                        <th>Quantity</th>
-                                        <th>Unit Price</th>
-                                        <th>Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                `;
-
-                if (quotation.materials && quotation.materials.length > 0) {
-                    quotation.materials.forEach(material => {
-                        const unitPrice = material.pivot?.unit_cost || 0;
-                        const quantity = material.pivot?.quantity || 0;
-                        const total = unitPrice * quantity;
-                        detailsHtml += `
-                            <tr>
-                                <td>${material.name}</td>
-                                <td>${quantity} ${material.unit}</td>
-                                <td>₱${parseFloat(unitPrice).toFixed(2)}</td>
-                                <td>₱${parseFloat(total).toFixed(2)}</td>
-                            </tr>
-                        `;
-                    });
-                }
-
-                const materialSubtotal = quotation.materials?.reduce((sum, m) => {
-                    const unitPrice = m.pivot?.unit_cost || 0;
-                    const quantity = m.pivot?.quantity || 0;
-                    return sum + (unitPrice * quantity);
-                }, 0) || 0;
-
-                detailsHtml += `
-                                </tbody>
-                                <tfoot>
-                                    <tr>
-                                        <td colspan="3" class="text-end fw-bold">Labor Fee:</td>
-                                        <td>₱${parseFloat(quotation.labor_fee || 0).toFixed(2)}</td>
-                                    </tr>
-                                    <tr>
-                                        <td colspan="3" class="text-end fw-bold">Delivery Fee:</td>
-                                        <td>₱${parseFloat(quotation.delivery_fee || 0).toFixed(2)}</td>
-                                    </tr>
-                                    <tr>
-                                        <td colspan="3" class="text-end fw-bold">Grand Total:</td>
-                                        <td class="fw-bold text-primary fs-5">₱${parseFloat(materialSubtotal + (quotation.labor_fee || 0) + (quotation.delivery_fee || 0)).toFixed(2)}</td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                `;
-
-                if (!quotation.customer_approved) {
-                    detailsHtml += `
-                        <div class="mt-3">
-                            <button class="btn btn-success approve-additional-btn" data-id="${quotation.id}">
-                                <i class="fa-solid fa-check-circle me-1"></i> Approve This Quotation
-                            </button>
-                        </div>
-                    `;
-                }
-
-                detailsHtml += `
-                        </div>
-                    </div>
-                `;
-
-                const container = document.getElementById('additionalQuotationsList');
-                container.innerHTML = detailsHtml;
-
-                // Add approval handler
-                const approveBtn = document.querySelector('.approve-additional-btn');
-                if (approveBtn) {
-                    approveBtn.addEventListener('click', function() {
-                        approveAdditionalQuotation(quotationId, this);
-                    });
-                }
-            }
-
-            // Function to approve additional quotation
-            function approveAdditionalQuotation(quotationId, btn) {
-                btn.disabled = true;
-                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Approving...';
-
-                const token = "{{ $quotation->public_token }}";
-
-                fetch(`/additional-quotation/public/${token}/approve`, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': "{{ csrf_token() }}",
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            additional_quotation_id: quotationId
-                        })
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.success) {
-                            Swal.fire({
-                                toast: true,
-                                position: 'top-end',
-                                icon: 'success',
-                                title: data.message || 'Approved!',
-                                showConfirmButton: false,
-                                timer: 1200
-                            });
-                            // Refresh modal or reload
-                            setTimeout(() => location.reload(), 1200);
-                        } else {
-                            Swal.fire('Error', data.error || 'Something went wrong', 'error');
-                            btn.disabled = false;
-                            btn.innerHTML =
-                                '<i class="fa-solid fa-check-circle me-1"></i> Approve This Quotation';
-                        }
-                    })
-                    .catch(() => {
-                        Swal.fire('Error', 'Could not approve quotation', 'error');
-                        btn.disabled = false;
-                        btn.innerHTML = '<i class="fa-solid fa-check-circle me-1"></i> Approve This Quotation';
-                    });
-            }
         });
     </script>
 

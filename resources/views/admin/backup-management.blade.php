@@ -95,12 +95,12 @@
                             @if(($backupStats['strategy_compliant'] ?? false))
                                 <div class="alert alert-success mb-0">
                                     <i class="fa-solid fa-check-circle me-2"></i>
-                                    <strong>✅ 3-2-1 Strategy Compliant</strong> — You have adequate backups across multiple locations.
+                                    <strong><i class="fa-solid fa-check text-success me-2"></i>3-2-1 Strategy Compliant</strong> — You have adequate backups across multiple locations.
                                 </div>
                             @else
                                 <div class="alert alert-warning mb-0">
                                     <i class="fa-solid fa-exclamation-triangle me-2"></i>
-                                    <strong>⚠️ Strategy Not Compliant</strong> — Add offsite backups (Google Drive or S3) to meet 3-2-1 requirements.
+                                    <strong><i class="fa-solid fa-exclamation-triangle text-warning me-2"></i>Strategy Not Compliant</strong> — Add offsite backups (Google Drive or S3) to meet 3-2-1 requirements.
                                 </div>
                             @endif
                         </div> --}}
@@ -125,10 +125,10 @@
                     <div class="card-body">
                         <h6 class="card-title mb-3"><i class="fa-solid fa-google me-2"></i>Google Drive Status</h6>
                         @if($googleDriveConnected)
-                            <span class="badge bg-success">✅ Connected</span>
+                            <span><i class="fa-solid fa-circle text-success me-2" style="font-size: 0.5rem;"></i>Connected</span>
                             <p class="text-muted mb-0 mt-2">Auto-upload enabled</p>
                         @else
-                            <span class="badge bg-secondary">⚠️ Not Connected</span>
+                            <span><i class="fa-solid fa-circle text-secondary me-2" style="font-size: 0.5rem;"></i>Not Connected</span>
                             <p class="text-muted mb-0 mt-2">Setup needed</p>
                         @endif
                     </div>
@@ -233,12 +233,12 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-warning">
             <div class="modal-header bg-warning">
-                <h5 class="modal-title" id="restoreConfirmLabel">⚠️ Restore Backup - Confirmation Required</h5>
+                <h5 class="modal-title" id="restoreConfirmLabel"><i class="fa-solid fa-exclamation-triangle text-warning me-2"></i>Restore Backup - Confirmation Required</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="alert alert-warning mb-3">
-                    <strong>⚠️ WARNING!</strong><br>
+                    <strong><i class="fa-solid fa-exclamation-triangle text-warning me-2"></i>WARNING!</strong><br>
                     Restoring from a backup will:
                     <ul class="mb-0 mt-2">
                         <li>Replace your current database with the backup version</li>
@@ -325,7 +325,7 @@ async function confirmRestore() {
         const data = await response.json();
 
         if (data.success) {
-            document.getElementById('restoreStatus').innerHTML = '✅ <strong>Restore Completed Successfully!</strong><br>' +
+            document.getElementById('restoreStatus').innerHTML = '<i class="fa-solid fa-circle-check text-success me-2"></i><strong>Restore Completed Successfully!</strong><br>' +
                 'Database restored from ' + currentRestoreFile + '<br>' +
                 'Safety backup saved as: ' + (data.safety_backup || 'N/A') + '<br><br>' +
                 'Application will be refreshed in 3 seconds...';
@@ -335,7 +335,7 @@ async function confirmRestore() {
                 location.reload();
             }, 3000);
         } else {
-            document.getElementById('restoreStatus').innerHTML = '❌ <strong>Restore Failed</strong><br>' + 
+            document.getElementById('restoreStatus').innerHTML = '<i class="fa-solid fa-circle-xmark text-danger me-2"></i><strong>Restore Failed</strong><br>' + 
                 (data.message || 'Unknown error occurred');
             
             setTimeout(() => {
@@ -344,7 +344,7 @@ async function confirmRestore() {
             }, 2000);
         }
     } catch (error) {
-        document.getElementById('restoreStatus').innerHTML = '❌ <strong>Error</strong><br>' + error.message;
+        document.getElementById('restoreStatus').innerHTML = '<i class="fa-solid fa-circle-xmark text-danger me-2"></i><strong>Error</strong><br>' + error.message;
         
         setTimeout(() => {
             progressModal.hide();
@@ -371,16 +371,16 @@ async function createBackup() {
         const data = await response.json();
 
         if (data.success) {
-            document.getElementById('backupStatus').textContent = '✅ Backup completed successfully!';
+            document.getElementById('backupStatus').textContent = '<i class="fa-solid fa-circle-check text-success me-2"></i>Backup completed successfully!';
             setTimeout(() => {
                 modal.hide();
                 location.reload();
             }, 2000);
         } else {
-            document.getElementById('backupStatus').textContent = '❌ ' + (data.message || 'Backup failed');
+            document.getElementById('backupStatus').textContent = '<i class="fa-solid fa-circle-xmark text-danger me-2"></i>' + (data.message || 'Backup failed');
         }
     } catch (error) {
-        document.getElementById('backupStatus').textContent = '❌ Error: ' + error.message;
+        document.getElementById('backupStatus').textContent = '<i class="fa-solid fa-circle-xmark text-danger me-2"></i>Error: ' + error.message;
     }
 }
 

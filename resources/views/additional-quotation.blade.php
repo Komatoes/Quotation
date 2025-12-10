@@ -104,7 +104,21 @@
                     @endphp
 
                     <div class="mt-3">
-                        <p> <strong> Status: </strong> <span class="badge {{ $badgeClass }} mb-3 d-inline-flex align-items-center"
+                        <p> <strong> Status: </strong> 
+                            <span class="fw-500">
+                                @php
+                                    if ($badgeClass === 'bg-success') {
+                                        $icon = '<i class="fa-solid fa-circle text-success me-2" style="font-size: 0.5rem;"></i>';
+                                    } elseif ($badgeClass === 'bg-warning text-dark') {
+                                        $icon = '<i class="fa-solid fa-circle text-warning me-2" style="font-size: 0.5rem;"></i>';
+                                    } elseif ($badgeClass === 'bg-danger') {
+                                        $icon = '<i class="fa-solid fa-circle text-danger me-2" style="font-size: 0.5rem;"></i>';
+                                    } else {
+                                        $icon = '<i class="fa-solid fa-circle text-secondary me-2" style="font-size: 0.5rem;"></i>';
+                                    }
+                                @endphp
+                                {!! $icon !!}{{ $badgeText }}
+                            </span>
                             id="quotation-status-badge">
                             {{ $badgeText }}
                         </span></p>
