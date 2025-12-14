@@ -486,6 +486,7 @@ class QuotationController extends Controller
             'project_start_date' => 'nullable|date',
             'project_end_date' => 'nullable|date',
             'with_contract' => 'nullable|boolean',
+            'is_rush_project' => 'nullable|boolean', // ✅ NEW: Add rush project flag
             'rejection_reason' => 'nullable|string|max:1000', // ✅ NEW: Add rejection reason
         ]);
 
@@ -508,46 +509,54 @@ class QuotationController extends Controller
                 ], 403);
             }
 
-            // ✅ ENFORCE: With Contract checkbox MUST be true for approval
-            if (!$validated['with_contract']) {
+            // ✅ UPDATED: With Contract checkbox MUST be true for non-rush projects
+            // ✅ NEW: Rush projects don't need contract confirmation
+            $isRushProject = $validated['is_rush_project'] ?? false;
+            
+            if (!$isRushProject && !$validated['with_contract']) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Contract must be confirmed to approve this quotation.'
                 ], 422);
             }
 
-            // ✅ ENFORCE: Contract subject is REQUIRED for approval
-            if (empty($validated['contract_subject'])) {
+            // ✅ ENFORCE: Contract subject is REQUIRED for non-rush projects only
+            // ✅ NEW: Rush projects don't need contract subject
+            if (!$isRushProject && empty($validated['contract_subject'])) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Contract subject is required to approve.'
                 ], 422);
             }
 
-            // ✅ ENFORCE: Start date is REQUIRED for approval
-            if (empty($validated['project_start_date'])) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Project start date is required to approve.'
-                ], 422);
-            }
+            // ✅ UPDATED: Rush projects bypass date requirements
+            
+            if (!$isRushProject) {
+                // ✅ ENFORCE: Start date is REQUIRED for non-rush approval
+                if (empty($validated['project_start_date'])) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Project start date is required to approve.'
+                    ], 422);
+                }
 
-            // ✅ ENFORCE: End date is REQUIRED for approval
-            if (empty($validated['project_end_date'])) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Project end date is required to approve.'
-                ], 422);
-            }
+                // ✅ ENFORCE: End date is REQUIRED for non-rush approval
+                if (empty($validated['project_end_date'])) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Project end date is required to approve.'
+                    ], 422);
+                }
 
-            // ✅ ENFORCE: Start date must be before end date
-            $startDate = \Carbon\Carbon::parse($validated['project_start_date']);
-            $endDate = \Carbon\Carbon::parse($validated['project_end_date']);
-            if ($startDate->greaterThanOrEqualTo($endDate)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Project start date must be before end date.'
-                ], 422);
+                // ✅ UPDATED: Start date must be before end date (no minimum date check)
+                $startDate = \Carbon\Carbon::parse($validated['project_start_date']);
+                $endDate = \Carbon\Carbon::parse($validated['project_end_date']);
+                if ($startDate->greaterThanOrEqualTo($endDate)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Project start date must be before end date.'
+                    ], 422);
+                }
             }
         }
 
@@ -575,8 +584,14 @@ class QuotationController extends Controller
         // If contract data is provided (approve action), store it
         if ($validated['status_id'] == 2) {
             $quotation->contract_subject = $validated['contract_subject'] ?? null;
-            $quotation->project_start_date = $validated['project_start_date'] ?? null;
-            $quotation->project_end_date = $validated['project_end_date'] ?? null;
+            $quotation->is_rush_project = $validated['is_rush_project'] ?? false;
+            
+            // Only set dates if not a rush project
+            if (!($validated['is_rush_project'] ?? false)) {
+                $quotation->project_start_date = $validated['project_start_date'] ?? null;
+                $quotation->project_end_date = $validated['project_end_date'] ?? null;
+            }
+            
             $quotation->with_contract = $validated['with_contract'] ?? false;
         }
 
@@ -1273,8 +1288,18 @@ class QuotationController extends Controller
                 'comments.replies.nestedReplies'  // ✅ Load comments for additional quotation with replies
             ])->findOrFail($id);
 
-            // Check authorization
-            if (auth()->id() != $additionalQuotation->parentQuotation->employee_id) {
+            // Authorization: Allow if user is the parent quotation owner OR any admin/staff user
+            // (Staff created this, so they should be able to edit it)
+            $user = auth()->user();
+            $isParentOwner = auth()->id() == $additionalQuotation->parentQuotation->employee_id;
+            
+            // Check if user is staff/admin by checking roles
+            $isStaffOrAdmin = false;
+            if ($user && isset($user->roles)) {
+                $isStaffOrAdmin = $user->roles->whereIn('name', ['staff', 'admin'])->count() > 0;
+            }
+            
+            if (!($isParentOwner || $isStaffOrAdmin)) {
                 abort(403, 'Unauthorized');
             }
 
@@ -1290,8 +1315,8 @@ class QuotationController extends Controller
 
             // Return unified quotation view with additionalQuotation (view detects this)
             return view('quotation', compact('additionalQuotation', 'materials', 'availableMaterials', 'readonly'));
-        } catch (\Exception $e) {
-            Log::error('Error loading additional quotation', [
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::error('Additional quotation not found', [
                 'id' => $id,
                 'error' => $e->getMessage(),
             ]);
@@ -1308,8 +1333,17 @@ class QuotationController extends Controller
             $additionalQuotation = AdditionalQuotation::with('materials', 'parentQuotation.client', 'status')
                 ->findOrFail($id);
 
-            // Check authorization
-            if (auth()->id() != $additionalQuotation->parentQuotation->employee_id) {
+            // Authorization: Allow if user is the parent quotation owner OR any admin/staff user
+            $user = auth()->user();
+            $isParentOwner = auth()->id() == $additionalQuotation->parentQuotation->employee_id;
+            
+            // Check if user is staff/admin by checking roles
+            $isStaffOrAdmin = false;
+            if ($user && isset($user->roles)) {
+                $isStaffOrAdmin = $user->roles->whereIn('name', ['staff', 'admin'])->count() > 0;
+            }
+            
+            if (!($isParentOwner || $isStaffOrAdmin)) {
                 abort(403, 'Unauthorized');
             }
 
@@ -1328,8 +1362,8 @@ class QuotationController extends Controller
 
             // Return view-report template with quotation data
             return view('view-report', compact('quotation', 'isAdditional', 'readonly', 'layout', 'reports', 'parentComments'));
-        } catch (\Exception $e) {
-            Log::error('Error viewing additional quotation', [
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::error('Additional quotation not found when viewing', [
                 'id' => $id,
                 'error' => $e->getMessage(),
             ]);
@@ -1345,8 +1379,17 @@ class QuotationController extends Controller
         try {
             $additionalQuotation = AdditionalQuotation::findOrFail($id);
 
-            // Check authorization
-            if (auth()->id() != $additionalQuotation->parentQuotation->employee_id) {
+            // Authorization: Allow if user is the parent quotation owner OR any admin/staff user
+            $user = auth()->user();
+            $isParentOwner = auth()->id() == $additionalQuotation->parentQuotation->employee_id;
+            
+            // Check if user is staff/admin by checking roles
+            $isStaffOrAdmin = false;
+            if ($user && isset($user->roles)) {
+                $isStaffOrAdmin = $user->roles->whereIn('name', ['staff', 'admin'])->count() > 0;
+            }
+            
+            if (!($isParentOwner || $isStaffOrAdmin)) {
                 return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
             }
 

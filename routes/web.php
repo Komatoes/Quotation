@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthenticationController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\QuotationController;
 use App\Http\Controllers\ProjectReportController;
+use App\Http\Controllers\AnalyticsExportController;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\QuotationMaterialController;
@@ -32,6 +33,7 @@ Route::get('/', function () {
 Route::middleware(['auth', 'role:admin|staff'])->group(function () {
     Route::get('/dashboard', [QuotationController::class, 'viewHome'])->name('dashboard');
     Route::get('/quotation-reports', [QuotationController::class, 'quotationReports'])->name('quotation.reports');
+    Route::get('/quotation-reports/export', [AnalyticsExportController::class, 'exportAnalytics'])->name('analytics.export');
     Route::get('/view-report/{id}', [ProjectReportController::class, 'showReports'])->name('report');
 });
 
@@ -123,13 +125,10 @@ Route::middleware(['auth', 'role:admin|staff'])->group(function () {
     Route::get('/quotations/{id}/revisions-json', [QuotationController::class, 'getRevisionsJson'])->name('quotations.revisions.json');
     Route::post('/quotations/{id}/create-revision', [QuotationController::class, 'createRevision'])->name('quotations.createRevision');
     
-    // � Fees
-    Route::post('/quotations/{id}/update-fee', [QuotationController::class, 'updateFee'])->name('quotations.update-fee');
-    
     // 🔗 Public Links
     Route::post('/quotations/{id}/generate-token', [QuotationController::class, 'generateToken'])->name('quotations.generate-token');
     
-    // �📋 Additional Quotations
+    // 📋 Additional Quotations
     Route::get('/quotations/{id}/additional-quotations-json', [QuotationController::class, 'getAdditionalQuotationsJson'])->name('quotations.additional.json');
     
     // Clients - update client information (used inline on quotation page)
@@ -142,36 +141,36 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/additional-quotation', [QuotationController::class, 'storeAdditionalQuotation'])->name('quotations.additional.store');
     
     // Additional quotation editing (show, edit, update, delete)
-    Route::get('/additional-quotations/{id}/edit', [QuotationController::class, 'editAdditionalQuotation'])->name('additional-quotations.edit');
-    Route::post('/additional-quotations/{id}/update', [QuotationController::class, 'updateAdditionalQuotation'])->name('additional-quotations.update');
-    Route::post('/additional-quotations/{id}/approve', [QuotationController::class, 'approveAdditionalQuotation'])->name('additional-quotations.approve');
-    Route::delete('/additional-quotations/{id}', [QuotationController::class, 'deleteAdditionalQuotation'])->name('additional-quotations.delete');
+    Route::get('/additional-quotations/{id}/edit', [QuotationController::class, 'editAdditionalQuotation'])->whereNumber('id')->name('additional-quotations.edit');
+    Route::post('/additional-quotations/{id}/update', [QuotationController::class, 'updateAdditionalQuotation'])->whereNumber('id')->name('additional-quotations.update');
+    Route::post('/additional-quotations/{id}/approve', [QuotationController::class, 'approveAdditionalQuotation'])->whereNumber('id')->name('additional-quotations.approve');
+    Route::delete('/additional-quotations/{id}', [QuotationController::class, 'deleteAdditionalQuotation'])->whereNumber('id')->name('additional-quotations.delete');
     
     // Materials for additional quotations
-    Route::post('/additional-quotations/{id}/materials', [QuotationController::class, 'attachMaterialToAdditional'])->name('additional-quotations.materials.attach');
-    Route::delete('/additional-quotations/{id}/materials/{materialId}', [QuotationController::class, 'detachMaterialFromAdditional'])->name('additional-quotations.materials.detach');
-    Route::delete('/additional-quotation-materials/{pivotId}', [QuotationController::class, 'deleteAdditionalQuotationMaterial'])->name('additional-quotation-materials.destroy');
-    Route::get('/additional-quotation/{id}/materials', [QuotationController::class, 'getAdditionalMaterials'])->name('additional-quotations.materials');
-    Route::post('/additional-quotation-materials/{id}/update-price', [QuotationController::class, 'updateAdditionalMaterialPrice'])->name('additional-quotation-materials.update-price');
-    Route::post('/additional-quotation-materials/{id}/update-quantity', [QuotationController::class, 'updateAdditionalMaterialQuantity'])->name('additional-quotation-materials.update-quantity');
+    Route::post('/additional-quotations/{id}/materials', [QuotationController::class, 'attachMaterialToAdditional'])->whereNumber('id')->name('additional-quotations.materials.attach');
+    Route::delete('/additional-quotations/{id}/materials/{materialId}', [QuotationController::class, 'detachMaterialFromAdditional'])->whereNumber('id')->whereNumber('materialId')->name('additional-quotations.materials.detach');
+    Route::delete('/additional-quotation-materials/{pivotId}', [QuotationController::class, 'deleteAdditionalQuotationMaterial'])->whereNumber('pivotId')->name('additional-quotation-materials.destroy');
+    Route::get('/additional-quotation/{id}/materials', [QuotationController::class, 'getAdditionalMaterials'])->whereNumber('id')->name('additional-quotations.materials');
+    Route::post('/additional-quotation-materials/{id}/update-price', [QuotationController::class, 'updateAdditionalMaterialPrice'])->whereNumber('id')->name('additional-quotation-materials.update-price');
+    Route::post('/additional-quotation-materials/{id}/update-quantity', [QuotationController::class, 'updateAdditionalMaterialQuantity'])->whereNumber('id')->name('additional-quotation-materials.update-quantity');
     Route::post('/additional-quotation-materials/add-selected', [QuotationController::class, 'storeSelectedMaterialsToAdditional'])->name('additional-quotations.materials.storeSelected');
     
     // Status, fees, and revisions for additional quotations
-    Route::put('/additional-quotations/{id}/status', [QuotationController::class, 'updateAdditionalQuotationStatus'])->name('additional-quotations.status');
-    Route::post('/additional-quotations/{id}/update-fee', [QuotationController::class, 'updateAdditionalQuotationFee'])->name('additional-quotations.update-fee');
-    Route::post('/additional-quotations/{id}/create-revision', [QuotationController::class, 'createAdditionalRevision'])->name('additional-quotations.create-revision');
-    Route::post('/additional-quotations/{id}/generate-token', [QuotationController::class, 'generateAdditionalToken'])->name('additional-quotations.generate-token');
-    Route::post('/additional-quotations/{id}/approve-and-attach', [QuotationController::class, 'approveAndAttachAdditionalQuotation'])->name('additional-quotations.approve-and-attach');
-    Route::get('/additional-quotations/{id}/revisions-json', [QuotationController::class, 'getAdditionalRevisionsJson'])->name('additional-quotations.revisions-json');
+    Route::put('/additional-quotations/{id}/status', [QuotationController::class, 'updateAdditionalQuotationStatus'])->whereNumber('id')->name('additional-quotations.status');
+    Route::post('/additional-quotations/{id}/update-fee', [QuotationController::class, 'updateAdditionalQuotationFee'])->whereNumber('id')->name('additional-quotations.update-fee');
+    Route::post('/additional-quotations/{id}/create-revision', [QuotationController::class, 'createAdditionalRevision'])->whereNumber('id')->name('additional-quotations.create-revision');
+    Route::post('/additional-quotations/{id}/generate-token', [QuotationController::class, 'generateAdditionalToken'])->whereNumber('id')->name('additional-quotations.generate-token');
+    Route::post('/additional-quotations/{id}/approve-and-attach', [QuotationController::class, 'approveAndAttachAdditionalQuotation'])->whereNumber('id')->name('additional-quotations.approve-and-attach');
+    Route::get('/additional-quotations/{id}/revisions-json', [QuotationController::class, 'getAdditionalRevisionsJson'])->whereNumber('id')->name('additional-quotations.revisions-json');
     Route::post('/additional-quotations/{id}/generate-token', [QuotationController::class, 'generateAdditionalToken'])->name('additional-quotations.generate-token');
     Route::get('/additional-quotations/{id}/export', [QuotationController::class, 'exportAdditionalQuotation'])->name('additional-quotations.export');
     
     // Comments for additional quotations
-    Route::get('/additional-quotations/{id}/comments', [QuotationCommentAdminController::class, 'getAdditionalComments']);
-    Route::post('/additional-quotations/{id}/comments', [QuotationCommentAdminController::class, 'storeAdditionalComment']);
+    Route::get('/additional-quotations/{id}/comments', [QuotationCommentAdminController::class, 'getAdditionalComments'])->whereNumber('id');
+    Route::post('/additional-quotations/{id}/comments', [QuotationCommentAdminController::class, 'storeAdditionalComment'])->whereNumber('id');
     
     // View additional quotation (display only, not edit)
-    Route::get('/additional-quotations/{id}/view', [QuotationController::class, 'viewAdditionalQuotation'])->name('additional-quotations.view');
+    Route::get('/additional-quotations/{id}/view', [QuotationController::class, 'viewAdditionalQuotation'])->whereNumber('id')->name('additional-quotations.view');
 });
 
 // ---------------------------------------------------------------------------

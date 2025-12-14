@@ -5,9 +5,16 @@
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-                <i class="fa-solid fa-chart-line" style="font-size: 2rem; color: #0d6efd;"></i>
-                <h1 style="margin: 0; color: #212529;">Quotation Reports & Analytics</h1>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <i class="fa-solid fa-chart-line" style="font-size: 2rem; color: #0d6efd;"></i>
+                    <h1 style="margin: 0; color: #212529;">Quotation Reports & Analytics</h1>
+                </div>
+                <a href="{{ route('analytics.export') }}" 
+                    class="btn btn-outline-primary"
+                    title="Export analytics to a Word document">
+                    <i class="fa-solid fa-file-word me-1"></i> Export to DOC
+                </a>
             </div>
             <p style="margin: 0; color: #6c757d; font-size: 0.95rem;">Monthly and yearly statistics for your quotations</p>
         </div>

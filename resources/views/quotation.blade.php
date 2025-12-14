@@ -199,19 +199,35 @@
                             <div class="mt-4 pt-3 border-top">
                                 <h5 class="mb-3">Contract Details</h5>
                                 <p><strong>Contract Subject:</strong> <span>{{ $quotation->contract_subject }}</span></p>
-                                @if ($quotation->project_start_date)
-                                    <p><strong>Project Start Date:</strong>
-                                        <span>{{ \Carbon\Carbon::parse($quotation->project_start_date)->setTimezone(config('app.timezone'))->format('M d, Y') }}</span>
+                                
+                                <!-- ✅ NEW: Show rush project badge -->
+                                @if ($quotation->is_rush_project)
+                                    <p>
+                                        <strong>Project Type:</strong>
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="fa-solid fa-bolt me-1"></i> Rush Project (No Contract Dates)
+                                        </span>
                                     </p>
+                                @else
+                                    @if ($quotation->project_start_date)
+                                        <p><strong>Project Start Date:</strong>
+                                            <span>{{ \Carbon\Carbon::parse($quotation->project_start_date)->setTimezone(config('app.timezone'))->format('M d, Y') }}</span>
+                                        </p>
+                                    @endif
+                                    @if ($quotation->project_end_date)
+                                        <p><strong>Project End Date:</strong>
+                                            <span>{{ \Carbon\Carbon::parse($quotation->project_end_date)->setTimezone(config('app.timezone'))->format('M d, Y') }}</span>
+                                        </p>
+                                    @endif
                                 @endif
-                                @if ($quotation->project_end_date)
-                                    <p><strong>Project End Date:</strong>
-                                        <span>{{ \Carbon\Carbon::parse($quotation->project_end_date)->setTimezone(config('app.timezone'))->format('M d, Y') }}</span>
-                                    </p>
-                                @endif
+                                
                                 <p>
                                     <strong>Contract Status:</strong>
-                                    @if ($quotation->with_contract)
+                                    @if ($quotation->is_rush_project)
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="fa-solid fa-bolt me-1"></i> Rush / No Contract
+                                        </span>
+                                    @elseif ($quotation->with_contract)
                                         <span><i class="fa-solid fa-circle text-success me-2" style="font-size: 0.5rem;"></i>With Contract</span>
                                     @else
                                         <span><i class="fa-solid fa-circle text-secondary me-2" style="font-size: 0.5rem;"></i>Without Contract</span>
@@ -612,36 +628,59 @@
                                 <div class="alert alert-info d-flex align-items-start" role="alert">
                                     <i class="fa-solid fa-info-circle me-2 mt-1"></i>
                                     <div>
-                                        <strong>Note:</strong> All fields are required to approve this quotation.
-                                        You must confirm the contract is in place.
+                                        <strong>Note:</strong> Basic fields are required to approve this quotation.
+                                        For rush projects, you can skip contract dates.
                                     </div>
                                 </div>
 
-                                <div class="mb-3">
+                                <div id="contractSubjectContainer" class="mb-3">
                                     <label for="contractSubject" class="form-label">
                                         Contract Subject <span class="text-danger">*</span>
                                     </label>
                                     <input type="text" class="form-control" id="contractSubject"
-                                        name="contract_subject" placeholder="Enter contract subject" required>
+                                        name="contract_subject" placeholder="Auto-filled from quotation subject" required>
+                                    <small class="form-text text-muted">
+                                        <i class="fa-solid fa-lightbulb me-1"></i> 
+                                        This is auto-filled with the quotation subject. Edit if needed.
+                                    </small>
                                 </div>
 
-                                <div class="mb-3">
-                                    <label for="projectStartDate" class="form-label">
-                                        Project Start Date <span class="text-danger">*</span>
-                                    </label>
-                                    <input type="date" class="form-control" id="projectStartDate"
-                                        name="project_start_date" required>
+                                <!-- ✅ NEW: Rush Project Checkbox -->
+                                <div class="border border-warning border-2 rounded p-3 mb-3">
+                                    <div class="form-check d-flex align-items-center">
+                                        <input class="form-check-input me-2" type="checkbox" id="isRushProject"
+                                            name="is_rush_project" value="1">
+                                        <label class="form-check-label" for="isRushProject">
+                                            <strong>This is a rush project</strong>
+                                            <small class="d-block text-muted">(Skip all contract details)</small>
+                                        </label>
+                                    </div>
                                 </div>
 
-                                <div class="mb-3">
-                                    <label for="projectEndDate" class="form-label">
-                                        Project End Date <span class="text-danger">*</span>
-                                    </label>
-                                    <input type="date" class="form-control" id="projectEndDate"
-                                        name="project_end_date" required>
+                                <!-- ✅ UPDATED: Date fields shown conditionally based on rush project -->
+                                <div id="dateFieldsContainer">
+                                    <div class="mb-3">
+                                        <label for="projectStartDate" class="form-label">
+                                            Project Start Date <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="date" class="form-control" id="projectStartDate"
+                                            name="project_start_date">
+                                        <small class="form-text text-muted">
+                                            You can set the start date to today or earlier (backtrack up to 3 days).
+                                        </small>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="projectEndDate" class="form-label">
+                                            Project End Date <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="date" class="form-control" id="projectEndDate"
+                                            name="project_end_date">
+                                    </div>
                                 </div>
 
-                                <div class="border border-primary border-2 rounded p-3">
+                                <!-- ✅ UPDATED: Contract confirmation hidden for rush projects -->
+                                <div id="contractConfirmationContainer" class="border border-primary border-2 rounded p-3">
                                     <div class="form-check d-flex align-items-center">
                                         <input class="form-check-input me-2" type="checkbox" id="withContract"
                                             name="with_contract" value="1">
@@ -1543,6 +1582,57 @@
                         const approveForm = document.getElementById('approveForm');
                         if (!approveForm) return;
 
+                        // ✅ NEW: Auto-fill contract subject with quotation subject when modal opens
+                        const approveBtn = document.getElementById('approveBtn');
+                        if (approveBtn) {
+                            approveBtn.addEventListener('click', () => {
+                                const quotationSubject = document.querySelector('h3.mb-3')?.textContent?.trim() || 'Quotation';
+                                document.getElementById('contractSubject').value = quotationSubject;
+                            });
+                        }
+
+                        // ✅ NEW: Handle rush project checkbox - toggle date fields, contract subject, AND contract confirmation
+                        const rushProjectCheckbox = document.getElementById('isRushProject');
+                        const contractSubjectContainer = document.getElementById('contractSubjectContainer');
+                        const dateFieldsContainer = document.getElementById('dateFieldsContainer');
+                        const contractConfirmationContainer = document.getElementById('contractConfirmationContainer');
+                        
+                        if (rushProjectCheckbox) {
+                            rushProjectCheckbox.addEventListener('change', (e) => {
+                                const isRush = e.target.checked;
+                                
+                                // ✅ NEW: Hide/show contract subject for rush projects
+                                if (contractSubjectContainer) {
+                                    contractSubjectContainer.style.display = isRush ? 'none' : 'block';
+                                    // Update required status on contract subject input
+                                    document.getElementById('contractSubject').required = !isRush;
+                                    // Auto-fill if hiding (we don't need to save it anyway)
+                                    if (isRush) {
+                                        document.getElementById('contractSubject').value = '';
+                                    }
+                                }
+                                
+                                // Hide/show date fields
+                                if (dateFieldsContainer) {
+                                    dateFieldsContainer.style.display = isRush ? 'none' : 'block';
+                                    // Update required status on date inputs
+                                    document.getElementById('projectStartDate').required = !isRush;
+                                    document.getElementById('projectEndDate').required = !isRush;
+                                }
+                                
+                                // ✅ NEW: Hide/show contract confirmation for rush projects
+                                if (contractConfirmationContainer) {
+                                    contractConfirmationContainer.style.display = isRush ? 'none' : 'block';
+                                    // Update required status on contract checkbox
+                                    document.getElementById('withContract').required = !isRush;
+                                    // Auto-check if hiding (rush project doesn't need confirmation)
+                                    if (isRush) {
+                                        document.getElementById('withContract').checked = true;
+                                    }
+                                }
+                            });
+                        }
+
                         approveForm.addEventListener('submit', async (e) => {
                             e.preventDefault();
 
@@ -1551,52 +1641,52 @@
                             const projectStartDate = document.getElementById('projectStartDate').value;
                             const projectEndDate = document.getElementById('projectEndDate').value;
                             const withContract = document.getElementById('withContract').checked;
+                            const isRushProject = document.getElementById('isRushProject').checked;
 
-                            // ✅ VALIDATION: Contract checkbox is REQUIRED
-                            if (!withContract) {
+                            // ✅ UPDATED: Contract checkbox is REQUIRED only if NOT a rush project
+                            if (!isRushProject && !withContract) {
                                 Swal.fire('Validation Error',
                                     'You must check "With Contract" to approve this quotation.', 'warning');
                                 return;
                             }
 
-                            // ✅ VALIDATION: Contract subject is required
-                            if (!contractSubject) {
+                            // ✅ UPDATED: Contract subject is REQUIRED only if NOT a rush project
+                            if (!isRushProject && !contractSubject) {
                                 Swal.fire('Validation Error', 'Contract Subject is required.', 'warning');
                                 return;
                             }
 
-                            // ✅ VALIDATION: Start date is required
-                            if (!projectStartDate) {
-                                Swal.fire('Validation Error', 'Project Start Date is required.', 'warning');
-                                return;
-                            }
+                            // ✅ UPDATED: Date validation only applies if NOT a rush project
+                            if (!isRushProject) {
+                                // ✅ VALIDATION: Start date is required (for non-rush)
+                                if (!projectStartDate) {
+                                    Swal.fire('Validation Error', 'Project Start Date is required.', 'warning');
+                                    return;
+                                }
 
-                            // ✅ VALIDATION: End date is required
-                            if (!projectEndDate) {
-                                Swal.fire('Validation Error', 'Project End Date is required.', 'warning');
-                                return;
-                            }
+                                // ✅ VALIDATION: End date is required (for non-rush)
+                                if (!projectEndDate) {
+                                    Swal.fire('Validation Error', 'Project End Date is required.', 'warning');
+                                    return;
+                                }
 
-                            // ✅ VALIDATION: Start date cannot be in the past
-                            const today = new Date().toISOString().split('T')[0];
-                            if (projectStartDate < today) {
-                                Swal.fire('Validation Error', 'Project start date cannot be in the past.',
-                                    'warning');
-                                return;
-                            }
+                                // ✅ UPDATED: Start date CAN be in the past (allow backtracking)
+                                // Removed: const today check against projectStartDate
 
-                            // ✅ VALIDATION: Start date must be before end date
-                            if (projectStartDate > projectEndDate) {
-                                Swal.fire('Validation Error', 'Project start date must be before end date.',
-                                    'warning');
-                                return;
+                                // ✅ VALIDATION: Start date must be before end date
+                                if (projectStartDate > projectEndDate) {
+                                    Swal.fire('Validation Error', 'Project start date must be before end date.',
+                                        'warning');
+                                    return;
+                                }
                             }
 
                             // Approve with status ID 2
                             await this.updateStatus(quotationId, 2, {
                                 contract_subject: contractSubject,
-                                project_start_date: projectStartDate,
-                                project_end_date: projectEndDate,
+                                project_start_date: isRushProject ? null : projectStartDate,
+                                project_end_date: isRushProject ? null : projectEndDate,
+                                is_rush_project: isRushProject ? 1 : 0,
                                 with_contract: withContract ? 1 : 0
                             });
 

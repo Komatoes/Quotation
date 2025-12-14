@@ -30,7 +30,8 @@ class Quotation extends Model
         'contract_subject',
         'project_start_date',
         'project_end_date',
-        'with_contract'
+        'with_contract',
+        'is_rush_project'
     ];
 
     protected $casts = [
@@ -38,6 +39,7 @@ class Quotation extends Model
         'customer_approved' => 'boolean',
         'provider_approved' => 'boolean',
         'with_contract' => 'boolean',
+        'is_rush_project' => 'boolean',
         'project_start_date' => 'date',
         'project_end_date' => 'date',
     ];

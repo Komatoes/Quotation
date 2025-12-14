@@ -6,14 +6,7 @@
         $isAdditional = isset($isAdditional) && $isAdditional;
 
         // Get client info based on quotation type
-        if ($isAddition                                            <span class="fw-500">
-                                                @php
-                                                    $icon = $report->progress == 100 
-                                                        ? '<i class="fa-solid fa-circle text-success me-2" style="font-size: 0.5rem;"></i>'
-                                                        : '<i class="fa-solid fa-circle text-primary me-2" style="font-size: 0.5rem;"></i>';
-                                                @endphp
-                                                {!! $icon !!}{{ $report->progress }}%
-                                            </span> {
+        if ($isAdditional) {
             $client = $quotation->parentQuotation->client;
         } else {
             $client = $quotation->client;
@@ -23,13 +16,7 @@
     <div class="container-fluid">
         <!-- Header -->
         <div class="card mb-4">
-                                   const createdDate = new Date(quot.created_at).toLocaleDateString();
-
-                        // Determine status indicator based on customer_approved flag
-                        const isApproved = Boolean(quot.customer_approved);
-                        const statusIndicator = isApproved 
-                            ? '<span><i class="fa-solid fa-circle text-success me-2" style="font-size: 0.5rem;"></i>Approved</span>'
-                            : '<span><i class="fa-solid fa-circle text-warning me-2" style="font-size: 0.5rem;"></i>Pending Approval</span>';lass="card-body text-center bg-light rounded shadow-sm">
+            <div class="card-body text-center bg-light rounded shadow-sm">
                 @php
                     $qStatus = strtolower($quotation->status->status_name ?? '');
                     if ($qStatus === 'completed') {

@@ -287,16 +287,16 @@
                         $endDate = \Carbon\Carbon::parse($progressQuotation->project_end_date);
                         $today = \Carbon\Carbon::now();
                         $projectStatus = 'not-started';
-                        $statusIcon = '<i class="fa-solid fa-hourglass-start"></i>';
+                        $statusDotColor = 'text-warning';
                         $statusText = 'Project Not Started';
                         
                         if ($today->greaterThanOrEqualTo($startDate) && $today->lessThanOrEqualTo($endDate)) {
                             $projectStatus = 'ongoing';
-                            $statusIcon = '<i class="fa-solid fa-play"></i>';
+                            $statusDotColor = 'text-info';
                             $statusText = 'Project In Progress';
                         } elseif ($today->greaterThan($endDate)) {
                             $projectStatus = 'overdue';
-                            $statusIcon = '<i class="fa-solid fa-exclamation-triangle"></i>';
+                            $statusDotColor = 'text-danger';
                             $statusText = 'Project Past End Date';
                         }
                     @endphp
@@ -308,11 +308,9 @@
                         <p class="mb-0"><strong>End Date:</strong> {{ $endDate->setTimezone(config('app.timezone'))->format('M d, Y') }}</p>
                             </div>
                             <div class="col-md-6 text-end">
-                                <p class="mb-0"><strong>Status:</strong> <span class="badge 
-                                    @if ($projectStatus === 'not-started') bg-warning text-dark
-                                    @elseif ($projectStatus === 'ongoing') bg-info
-                                    @else bg-danger
-                                    @endif">{{ $statusIcon }} {{ $statusText }}</span></p>
+                                <p class="mb-0"><strong>Status:</strong> <span class="fw-500">
+                                    <i class="fa-solid fa-circle {{ $statusDotColor }} me-2" style="font-size: 0.5rem;"></i>{{ $statusText }}
+                                </span></p>
                             </div>
                         </div>
                     </div>
