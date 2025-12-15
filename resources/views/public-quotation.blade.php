@@ -495,6 +495,7 @@
                     if (!res.ok) throw new Error('Network response was not ok');
 
                     const data = await res.json();
+                    console.log('Fetched data:', data); // Debug
                     const quotations = data.quotations || data || [];
 
                     bodyEl.innerHTML = '';
@@ -668,8 +669,8 @@
 
                     bsModal.show();
                 } catch (err) {
-                    console.error(err);
-                    Swal.fire('Error', 'Failed to load additional quotations', 'error');
+                    console.error('Error fetching additional quotations:', err);
+                    Swal.fire('Error', `Failed to load additional quotations: ${err.message}`, 'error');
                 }
             });
         });
