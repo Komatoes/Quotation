@@ -31,12 +31,6 @@
                     Drafts
                 </a>
             </li>
-            <li class="menu-item">
-                <a href="javascript:void(0);" class="menu-link scroll-to-section" data-target="additional-quotations-section">
-                    <i class="fa-solid fa-file-circle-plus sub-icon"></i>
-                    Additional Quotations
-                </a>
-            </li>
         </ul>
     </li>
 

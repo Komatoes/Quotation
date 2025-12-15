@@ -1228,6 +1228,12 @@
                                     </tfoot>
                                 </table>
                             </div>
+
+                            <div class="mt-4 pt-3 border-top">
+                                <a href="/additional-quotations/${quot.id}/export" class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener">
+                                    <i class="fa-solid fa-file-word me-1"></i> Export to DOC
+                                </a>
+                            </div>
                         </div>
                     `;
 

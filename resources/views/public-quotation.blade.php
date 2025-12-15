@@ -550,7 +550,7 @@
                                     <strong>Additional Quotation</strong> - ${createdDate}
                                 </div>
                                 <div>
-                                    ${statusIndicator}
+                                    ${statusBadge}
                                 </div>
                             </div>
                             <div class="card-body p-4">

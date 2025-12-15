@@ -184,7 +184,7 @@
 
                 <div class="col-sm-12">
                     <label class="form-label">Description</label>
-                    <textarea name="description" class="form-control" rows="3" placeholder="Quoatation Description"></textarea>
+                    <textarea name="description" class="form-control" rows="3" placeholder="Quotation Description"></textarea>
                 </div>
 
                 <div class="col-sm-6">
