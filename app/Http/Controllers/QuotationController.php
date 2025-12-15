@@ -18,6 +18,30 @@ use PhpOffice\PhpWord\PhpWord;
 
 class QuotationController extends Controller
 {
+    /**
+     * Check if user is authorized to access a resource
+     * User is authorized if they are the owner OR an admin
+     */
+    protected function isAuthorized($userId, $ownerId = null)
+    {
+        $user = auth()->user();
+        
+        // If ownerId is provided, check if user is the owner
+        if ($ownerId !== null && auth()->id() === $ownerId) {
+            return true;
+        }
+        
+        // Check if user is admin
+        if ($user && (
+            (method_exists($user, 'hasRole') && $user->hasRole('admin')) ||
+            (isset($user->roles) && $user->roles->contains('name', 'admin'))
+        )) {
+            return true;
+        }
+        
+        return false;
+    }
+
     public function submitComment(Request $request, $token)
     {
         Log::info('Comment submission started', [
@@ -1608,8 +1632,8 @@ class QuotationController extends Controller
         try {
             $additionalQuotation = AdditionalQuotation::with(['materials'])->findOrFail($id);
 
-            // Check authorization
-            if (auth()->id() != $additionalQuotation->parentQuotation->employee_id) {
+            // Check authorization - allow if user is the owner OR is an admin
+            if (!$this->isAuthorized(auth()->id(), $additionalQuotation->parentQuotation->employee_id)) {
                 return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
             }
 
@@ -1625,9 +1649,13 @@ class QuotationController extends Controller
                 ];
             });
 
+            // ✅ Calculate grand total with labor and delivery fees
+            $grandTotal = $materials->sum('line_total') + ($additionalQuotation->labor_fee ?? 0) + ($additionalQuotation->delivery_fee ?? 0);
+
             return response()->json([
                 'success' => true,
                 'materials' => $materials,
+                'grand_total' => $grandTotal,
             ]);
         } catch (\Exception $e) {
             Log::error('Error getting additional quotation materials', [

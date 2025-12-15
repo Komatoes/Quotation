@@ -398,7 +398,7 @@
                                     @endphp
                                     <tr>
                                         <td colspan="3" class="text-end fw-bold">Total Material Cost:</td>
-                                        <td class="text-end fw-bold">
+                                        <td class="text-end fw-bold" id="totalMaterialCost">
                                             ₱{{ number_format($materials->sum(fn($m) => ($m->pivot->unit_cost ?? $m->unit_price) * $m->pivot->quantity), 2) }}
                                         </td>
                                     </tr>
@@ -798,11 +798,15 @@
                  * Example: updateGrandTotalDisplay(123456.50) => ₱123,456.50
                  */
                 function updateGrandTotalDisplay(amount) {
+                    console.log('🔄 updateGrandTotalDisplay called with amount:', amount);
                     // Prefer updating the inner amount span if present so we don't strip
                     // surrounding markup / classes. Fall back to replacing the cell text.
                     const grandTotalAmountEl = document.getElementById('grandTotalAmount');
+                    console.log('🔍 Found grandTotalAmount element:', grandTotalAmountEl);
                     if (grandTotalAmountEl) {
-                        grandTotalAmountEl.textContent = formatNumberWithCommas(amount);
+                        const formattedAmount = formatNumberWithCommas(amount);
+                        console.log('✨ Setting grandTotalAmount text to:', formattedAmount);
+                        grandTotalAmountEl.textContent = formattedAmount;
                         // Ensure parent shows currency prefix if needed
                         const parent = grandTotalAmountEl.closest('#grandTotal');
                         if (parent) {
@@ -813,9 +817,34 @@
                     }
 
                     const grandTotalEl = document.getElementById("grandTotal");
+                    console.log('🔍 Found grandTotal element:', grandTotalEl);
                     if (grandTotalEl) {
-                        grandTotalEl.textContent = "₱" + formatNumberWithCommas(amount);
+                        const formattedAmount = "₱" + formatNumberWithCommas(amount);
+                        console.log('✨ Setting grandTotal text to:', formattedAmount);
+                        grandTotalEl.textContent = formattedAmount;
                     }
+                }
+
+                /**
+                 * Update total material cost (sum of all line totals)
+                 * This is separate from grand total which includes fees
+                 */
+                function updateTotalMaterialCost() {
+                    const totalMaterialEl = document.getElementById('totalMaterialCost');
+                    if (!totalMaterialEl) return;
+
+                    let materialsTotal = 0;
+                    document.querySelectorAll('.line-total').forEach(el => {
+                        try {
+                            const txt = el.textContent || '';
+                            const raw = txt.replace(/[^0-9.\-]/g, '');
+                            const v = parseFloat(raw);
+                            if (!isNaN(v)) materialsTotal += v;
+                        } catch (e) {}
+                    });
+
+                    console.log('📦 Updating Total Material Cost to:', materialsTotal);
+                    totalMaterialEl.textContent = '₱' + formatNumberWithCommas(materialsTotal);
                 }
 
                 /**
@@ -985,6 +1014,9 @@
                                         } else {
                                             computeAndUpdateGrandTotal();
                                         }
+
+                                        // ✅ NEW: Also update the Total Material Cost
+                                        updateTotalMaterialCost();
 
                                         // Format and show the new price in the input
                                         try {
@@ -1176,11 +1208,17 @@
                                 }
 
                                 // Update grand total
+                                console.log('📊 Quantity Update - Grand Total from server:', data.grand_total);
                                 if (data.grand_total !== undefined) {
+                                    console.log('✅ Updating grand total display to:', data.grand_total);
                                     updateGrandTotalDisplay(data.grand_total);
                                 } else {
+                                    console.log('⚠️ No grand_total in response, computing from page');
                                     computeAndUpdateGrandTotal();
                                 }
+
+                                // ✅ NEW: Also update the Total Material Cost
+                                updateTotalMaterialCost();
 
                                 // Show success toast
                                 if (window.Toast && typeof window.Toast === 'function') {
@@ -1859,10 +1897,15 @@
 
                             // ✅ Update grand total using centralized updater (preserves markup)
                             if (data.grand_total !== undefined) {
+                                console.log('📊 Updating grand total to:', data.grand_total);
                                 updateGrandTotalDisplay(data.grand_total);
                             } else {
+                                console.log('⚠️ No grand_total in response, computing from page');
                                 computeAndUpdateGrandTotal();
                             }
+
+                            // ✅ NEW: Also update the Total Material Cost
+                            updateTotalMaterialCost();
 
                             // Ensure price inputs are bound (formatting) before attaching handlers
                             bindPriceInputs("{{ $quotationType ?? 'regular' }}");
